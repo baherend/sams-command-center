@@ -1,0 +1,28 @@
+# ---- secrets: NEVER commit ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- real Academy data: NEVER commit ----
+private/
+*.accdb
+*.mdb
+*.laccdb
+data/real/
+# exports of the real archive
+*.csv
+*.xlsx
+
+# ---- Power BI: .pbix keeps a cached copy of the imported data ----
+*.pbix
+# (use .pbip project folders instead, they are text and diff-able)
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
+__pycache__/
