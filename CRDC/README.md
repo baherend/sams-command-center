@@ -57,6 +57,17 @@ The prototype is planned as a full integrated platform consisting of the followi
 - Provide guidance based on available source documents.
 - Integrate the chatbot into the main platform.
 
+#### Proposed Chatbot Development Roadmap
+
+The chatbot will be developed incrementally in four stages. Each stage should be implemented, tested, and evaluated before moving to the next one:
+
+1. **Phase 1 – Basic RAG:** Build a basic Retrieval-Augmented Generation (RAG) system using the available CRDC documents as its knowledge source.
+2. **Phase 2 – Retrieval Improvements:** Improve retrieval quality by introducing **Hybrid Search** and **Reranking**.
+3. **Phase 3 – Conversation Context & Sources:** Add **Conversation Memory** to support follow-up questions and provide clear source references for answers.
+4. **Phase 4 – Platform Integration:** Connect the chatbot to the platform **Backend** and **Researcher Portal**, subject to the platform APIs, authentication, and authorization design.
+
+Progression between stages will be based on testing and evaluation of the current stage, including answer relevance, retrieval quality, and source-grounding. The implementation should remain compatible with the project's zero-budget policy and local-development approach.
+
 ### 3.4 Analytics & KPIs
 
 - Total applications.
