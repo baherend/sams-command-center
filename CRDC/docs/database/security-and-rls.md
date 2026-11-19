@@ -52,6 +52,6 @@ The internal helper functions use SECURITY DEFINER in the unexposed private sche
 
 ## Current verification state
 
-The schema, reference data, RLS migration, and synthetic seed were executed in an ephemeral PGlite PostgreSQL runtime with minimal Supabase Auth role/function stubs. The smoke checks passed for the 15-table count, RLS enabled on all 15 tables, policy coverage, payment request/currency consistency, payment totals, publication-item restrictions, and researcher request isolation for two synthetic accounts.
+The schema, reference data, RLS migration, and synthetic seed were first smoke-tested in an ephemeral PGlite PostgreSQL runtime. The checks passed for the 15-table count, RLS enabled on all 15 tables, policy coverage, payment request/currency consistency, payment totals, publication-item restrictions, and researcher request isolation for two synthetic accounts.
 
-This does not replace a run against the Supabase local stack: PGlite does not provide Supabase Auth or the pgTAP extension used by `supabase test db`. Docker and `psql` are unavailable in the current Windows environment, so the Supabase CLI migration/reset and pgTAP workflow has not yet produced a result. Do not mark the full Supabase SQL test as passed until the GitHub Actions workflow or a local Supabase stack completes successfully.
+The full Supabase local stack then passed in GitHub Actions run [#44476643107](https://github.com/baherend/sams-command-center/actions/runs/44476643107): `supabase start`, `supabase db reset`, and `supabase test db` all completed successfully. pgTAP reported **1 file, 5 tests, PASS**. The run used an isolated GitHub Actions runner and synthetic seed data; it did not touch the shared `sams-dev` project.
