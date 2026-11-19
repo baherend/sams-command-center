@@ -54,7 +54,7 @@ async function registerAndCreateProfile(
   await page.locator('.form-card form button.primary-button').click()
 
   const saveError = page.getByRole('alert')
-  const profileReady = page.getByRole('heading', { name: 'حسابك جاهز' })
+  const profileReady = page.locator('.profile-success .eyebrow').getByText('حسابك جاهز', { exact: true })
   await expect(profileReady.or(saveError)).toBeVisible()
   if (await saveError.isVisible()) {
     throw new Error(`Researcher profile save failed: ${await saveError.textContent()}`)
