@@ -29,7 +29,7 @@ async function registerAndCreateProfile(
   await page.getByRole('tablist').getByRole('button', { name: 'حساب جديد' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
-  await page.locator('form button[type="submit"]').click()
+  await page.locator('.form-card form button.primary-button').click()
   await expect(page.getByRole('status')).toContainText('الحساب اتعمل')
 
   // Confirm only inside the isolated local Auth instance so this test can continue to profile creation.
@@ -38,7 +38,7 @@ async function registerAndCreateProfile(
   await page.getByRole('tablist').getByRole('button', { name: 'تسجيل الدخول' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
-  await page.locator('form button[type="submit"]').click()
+  await page.locator('.form-card form button.primary-button').click()
   await expect(page.getByRole('heading', { name: 'بيانات الباحث' })).toBeVisible()
 
   await page.getByLabel('الاسم بالكامل').fill(applicantType === 'egyptian' ? 'باحث اختبار مصري' : 'باحث اختبار وافد')
@@ -51,7 +51,7 @@ async function registerAndCreateProfile(
   }
   await page.locator('select[name="degree_id"]').selectOption(applicantType === 'egyptian' ? '1' : '2')
   await page.getByLabel('التخصص').fill('إدارة أعمال')
-  await page.locator('form button[type="submit"]').click()
+  await page.locator('.form-card form button.primary-button').click()
 
   await expect(page.getByRole('heading', { name: 'حسابك جاهز' })).toBeVisible()
   await expect(page.getByRole('status')).toContainText('ملف الباحث اتسجل بنجاح')
