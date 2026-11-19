@@ -82,6 +82,7 @@ test('Egyptian and foreign researchers can register, save profiles, and only rea
 
   await registerAndCreateProfile(page, egyptianEmail, 'egyptian')
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
+  await expect(page.getByRole('tablist')).toBeVisible()
   await registerAndCreateProfile(page, foreignEmail, 'foreign')
 
   expect(await visibleResearcherEmails(egyptianEmail)).toEqual([egyptianEmail])
