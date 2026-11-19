@@ -13,7 +13,7 @@ declare
   v_type text; v_opts text[]; v_opt text; v_optc text; v_svc smallint; v_fee smallint;
   v_items bigint[]; v_item bigint; v_ev_s smallint[]; v_ev_d int[]; s4 int; c int; v_pub boolean;
   v_pay bigint; v_cashier uuid; v_staff uuid; v_final smallint; v_seq int := 0; v_pseq int := 0;
-  v_journal smallint; v_i int;
+  v_journal smallint; v_i int; v_decision text;
 begin
   perform setseed(0.42);
   insert into crdc.staff_users (full_name, role) values
@@ -131,14 +131,20 @@ begin
         end if;
         if v_final >= 4 and v_optc = 'PUB_PUBLISH' then
           v_journal := 1 + (random())::int;
+          v_decision := case v_final
+            when 4 then 'pending'
+            when 5 then 'revisions'
+            when 6 then case when random() < 0.2 then 'rejected' else 'accepted' end
+            else case when random() < 0.2 then 'rejected' else 'accepted' end
+          end;
           insert into crdc.publication_submissions (item_id, journal_id, issue_id, paper_language, decision, accepted_at)
           values (v_item, v_journal,
                   (select issue_id from crdc.journal_issues
                     where journal_id = v_journal and issue_year = extract(year from v_created)::int
                     order by random() limit 1),
                   case when random() < 0.75 then 'ar' else 'en' end,
-                  case v_final when 4 then 'pending' when 5 then 'revisions' else 'accepted' end,
-                  case when v_final >= 6 then
+                  v_decision,
+                  case when v_decision = 'accepted' then
                     (select changed_at::date from crdc.request_status_history
                       where item_id = v_item and status_id = 6 order by changed_at desc limit 1) end);
         end if;
