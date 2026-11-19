@@ -32,7 +32,7 @@ jobs:
         with:
           version: latest
       - name: Install portal dependencies
-        run: npm ci
+        run: npm install
         working-directory: CRDC/researcher-portal
       - name: Install pinned Playwright test runner
         run: npm install --no-save --package-lock=false @playwright/test@1.65.1 playwright@1.65.1
