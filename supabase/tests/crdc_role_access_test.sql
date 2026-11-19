@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(27);
+SELECT plan(28);
 
 -- Isolated, synthetic identities for the role-access matrix.
 INSERT INTO auth.users (
@@ -56,6 +56,15 @@ UPDATE crdc.request_items i SET payment_id=p.payment_id
 FROM crdc.service_requests sr JOIN crdc.payments p USING (request_id)
 WHERE i.request_id=sr.request_id AND sr.work_title IN ('RLS TEST A','RLS TEST B');
 
+SELECT set_config('test.rls.item_a', (
+  SELECT i.item_id::text FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id)
+  WHERE sr.work_title='RLS TEST A'
+), true);
+SELECT set_config('test.rls.item_b', (
+  SELECT i.item_id::text FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id)
+  WHERE sr.work_title='RLS TEST B'
+), true);
+
 -- Researcher A: own profile, request, item, payment, history, and publication only.
 SELECT set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000000001","email":"rls-researcher-a@example.test","role":"authenticated"}', true);
@@ -86,12 +95,13 @@ SELECT is((SELECT count(*)::integer FROM crdc.request_items i JOIN crdc.service_
 SELECT is((SELECT count(*)::integer FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST B'), 0, 'reviewer cannot see unassigned service item');
 SELECT is((SELECT count(*)::integer FROM crdc.publication_submissions p JOIN crdc.request_items i USING(item_id) JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST B'), 0, 'reviewer cannot see unassigned publication record');
 SELECT is((SELECT count(*)::integer FROM crdc.researchers), 0, 'reviewer cannot read researcher identity records');
-SELECT is((WITH changed AS (
-    UPDATE crdc.publication_submissions SET decision='revisions'
-    WHERE item_id=(SELECT i.item_id FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST B')
-    RETURNING 1
-  ) SELECT count(*)::integer FROM changed), 0, 'reviewer cannot update an unassigned publication decision');
+UPDATE crdc.publication_submissions SET decision='revisions'
+WHERE item_id=current_setting('test.rls.item_a')::bigint;
+UPDATE crdc.publication_submissions SET decision='revisions'
+WHERE item_id=current_setting('test.rls.item_b')::bigint;
 RESET ROLE;
+SELECT is((SELECT decision FROM crdc.publication_submissions WHERE item_id=current_setting('test.rls.item_a')::bigint), 'revisions', 'reviewer can update an assigned publication decision');
+SELECT is((SELECT decision FROM crdc.publication_submissions WHERE item_id=current_setting('test.rls.item_b')::bigint), 'pending', 'reviewer cannot update an unassigned publication decision');
 
 -- Cashier: payment operations and minimal contact view, but no identity-table access or work history.
 SELECT set_config('request.jwt.claims',
