@@ -27,7 +27,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: CRDC/researcher-portal/package-lock.json
-      - run: npm ci
+      - run: npm install
         working-directory: CRDC/researcher-portal
       - run: npm run build
         working-directory: CRDC/researcher-portal
