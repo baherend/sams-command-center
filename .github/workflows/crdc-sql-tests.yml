@@ -1,6 +1,11 @@
 name: CRDC SQL tests
 
 on:
+  push:
+    branches: [docs/crdc-data-model-rls]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/crdc-sql-tests.yml"
   pull_request:
     branches: [main]
     paths:
