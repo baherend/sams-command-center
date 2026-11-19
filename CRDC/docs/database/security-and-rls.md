@@ -7,7 +7,9 @@ Supabase Auth owns passwords, login sessions, and email identity. The applicatio
 1. The researcher signs up with email and password; Auth confirmation should be enabled in the Supabase project.
 2. After signing in, the researcher creates one `crdc.researchers` profile. The database policy binds `auth_user_id` to the current Auth user and requires the profile email to match the email claim in the access token.
 3. The researcher reads their own profile, requests, service items, payments, status history, and publication records. A request is created only through `crdc.create_service_request(...)`, which creates one request for one work (paper or thesis) and calculates its service-item amounts.
-4. Profile changes are not available to researchers in the current policy set. Staff provisioning and any correction/relinking process need an explicit operational workflow before the application is built.
+4. Profile changes are not available to researchers in the current policy set. Staff provisioning and any correction/relinking process need an explicit operational workflow before real researcher accounts are used.
+
+The initial React/Supabase Auth onboarding interface is in [`CRDC/researcher-portal`](../../researcher-portal/). It supports email/password sign-up and sign-in, then inserts one researcher profile after authentication. The app needs `crdc` in Supabase API Exposed schemas, an allowed redirect URL, and email confirmation enabled. These hosted Auth/API settings are separate from SQL migrations and have not been changed by the database migration.
 
 Email confirmation is an Auth project setting; the database insert policy checks the token email but does not itself verify an `email_confirmed_at` value. The standard hosted Supabase behavior blocks sign-in for unverified email accounts; keep email confirmation enabled, because disabling it treats sign-ups as confirmed. Do not expose the `private` schema through the Data API. [Supabase Auth users documentation](https://supabase.com/docs/guides/auth/users)
 
