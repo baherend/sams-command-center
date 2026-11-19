@@ -5,11 +5,19 @@ on:
     branches: [docs/crdc-data-model-rls]
     paths:
       - "supabase/**"
+      - "database/**"
+      - "CRDC/docs/database/**"
+      - "CONTRIBUTING.md"
+      - ".github/pull_request_template.md"
       - ".github/workflows/crdc-sql-tests.yml"
   pull_request:
     branches: [main]
     paths:
       - "supabase/**"
+      - "database/**"
+      - "CRDC/docs/database/**"
+      - "CONTRIBUTING.md"
+      - ".github/pull_request_template.md"
       - ".github/workflows/crdc-sql-tests.yml"
 
 permissions:
