@@ -1,0 +1,33 @@
+name: CRDC researcher portal build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CRDC/researcher-portal/**"
+      - "supabase/config.toml"
+      - ".github/workflows/crdc-portal-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "CRDC/researcher-portal/**"
+      - "supabase/config.toml"
+      - ".github/workflows/crdc-portal-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CRDC/researcher-portal/package-lock.json
+      - run: npm ci
+        working-directory: CRDC/researcher-portal
+      - run: npm run build
+        working-directory: CRDC/researcher-portal
