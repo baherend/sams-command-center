@@ -52,4 +52,6 @@ The internal helper functions use SECURITY DEFINER in the unexposed private sche
 
 ## Current verification state
 
-Static review confirms that policy definitions refer to all 15 CRDC tables. The SQL has not been executed: this workspace has neither PostgreSQL/psql nor Docker. No migration or RLS test results should be reported until the local database and pgTAP suite pass.
+The schema, reference data, RLS migration, and synthetic seed were executed in an ephemeral PGlite PostgreSQL runtime with minimal Supabase Auth role/function stubs. The smoke checks passed for the 15-table count, RLS enabled on all 15 tables, policy coverage, payment request/currency consistency, payment totals, publication-item restrictions, and researcher request isolation for two synthetic accounts.
+
+This does not replace a run against the Supabase local stack: PGlite does not provide Supabase Auth or the pgTAP extension used by `supabase test db`. Docker and `psql` are unavailable in the current Windows environment, so the Supabase CLI migration/reset and pgTAP workflow has not yet produced a result. Do not mark the full Supabase SQL test as passed until the GitHub Actions workflow or a local Supabase stack completes successfully.
