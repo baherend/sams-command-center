@@ -1,9 +1,10 @@
 -- =====================================================================
--- FICTITIOUS sample data for testing the CRDC portal and dashboard.
--- No real names, IDs, e-mails or documents. Researchers are "باحث تجريبي NNN",
--- e-mails end with @example.test, IDs start with TEST-.
--- Dates are relative to now(); the generator is seeded, so counts are repeatable.
--- Run after 01 and 02. To remove it: delete from the tables in reverse order.
+-- FICTITIOUS sample data for local CRDC portal and dashboard testing only.
+-- 400 synthetic researchers, multiple independent thesis/paper requests, and
+-- varied request items, payment, status-history, and publication outcomes.
+-- No real names, IDs, e-mails or documents. E-mails use @example.test.
+-- Dates span 2018 through 2026 to exercise historical reporting and workflows.
+-- The generator is seeded for repeatable scenarios. Never apply to sams-dev.
 -- =====================================================================
 begin;
 do $$
@@ -12,7 +13,7 @@ declare
   v_type text; v_opts text[]; v_opt text; v_optc text; v_svc smallint; v_fee smallint;
   v_items bigint[]; v_item bigint; v_ev_s smallint[]; v_ev_d int[]; s4 int; c int; v_pub boolean;
   v_pay bigint; v_cashier uuid; v_staff uuid; v_final smallint; v_seq int := 0; v_pseq int := 0;
-  v_journal smallint; v_i int;
+  v_journal smallint; v_i int; v_decision text;
 begin
   perform setseed(0.42);
   insert into crdc.staff_users (full_name, role) values
@@ -30,16 +31,21 @@ begin
          case when g % 10 in (0,1,2) then 1 when g % 10 in (3,4,5,6) then 2 when g % 10 = 7 then 3 else 4 end,
          (array['إدارة أعمال','محاسبة','اقتصاد','تمويل','موارد بشرية'])[1 + g % 5],
          'researcher' || lpad(g::text,3,'0') || '@example.test',
-         now() - interval '400 days' + make_interval(hours => g)
-  from generate_series(1, 80) g;
+         timestamp '2018-01-01 09:00:00' + ((g * 29) % 3200) * interval '1 day'
+           + make_interval(hours => g % 8)
+  from generate_series(1, 400) g;
 
-  for rs in select researcher_id, applicant_type, degree_id from crdc.researchers order by email loop
+  for rs in select researcher_id, applicant_type, degree_id, created_at
+              from crdc.researchers order by email loop
     for k in 1..3 loop
       v_opts := '{}';
       if rs.degree_id in (3,4) then
         exit when k > 1;
         v_type := 'thesis'; v_pages := 90 + (random()*90)::int;
-        v_opts := array[case when random() < 0.4 then 'DT_COURSE_EXAM' else 'DT_EXAM_ONLY' end];
+        v_opts := array[case
+          when rs.applicant_type = 'foreign' and random() < 0.2 then 'DT_RETAKE'
+          when random() < 0.4 then 'DT_COURSE_EXAM'
+          else 'DT_EXAM_ONLY' end];
       elsif k = 1 then
         v_type := 'thesis'; v_pages := 90 + (random()*90)::int;
         if random() < 0.85 then v_opts := v_opts || (case when random() < 0.7 then 'LANG_AR' else 'LANG_EN' end); end if;
@@ -55,8 +61,10 @@ begin
         continue;
       end if;
 
-      v_age := case when v_type = 'thesis' then 5 + (random()*325)::int else 3 + (random()*300)::int end;
-      v_created := now() - make_interval(days => v_age, hours => (random()*8)::int);
+      v_created := rs.created_at
+        + make_interval(days => (random() * greatest(0, current_date - rs.created_at::date))::int,
+                        hours => (random() * 8)::int);
+      v_age := greatest(0, current_date - v_created::date);
       v_seq := v_seq + 1;
       insert into crdc.service_requests (researcher_id, work_type, work_title, page_count, created_at)
       values (rs.researcher_id, v_type,
@@ -123,12 +131,20 @@ begin
         end if;
         if v_final >= 4 and v_optc = 'PUB_PUBLISH' then
           v_journal := 1 + (random())::int;
+          v_decision := case v_final
+            when 4 then 'pending'
+            when 5 then 'revisions'
+            when 6 then case when random() < 0.2 then 'rejected' else 'accepted' end
+            else case when random() < 0.2 then 'rejected' else 'accepted' end
+          end;
           insert into crdc.publication_submissions (item_id, journal_id, issue_id, paper_language, decision, accepted_at)
           values (v_item, v_journal,
-                  (select issue_id from crdc.journal_issues where journal_id = v_journal order by random() limit 1),
+                  (select issue_id from crdc.journal_issues
+                    where journal_id = v_journal and issue_year = extract(year from v_created)::int
+                    order by random() limit 1),
                   case when random() < 0.75 then 'ar' else 'en' end,
-                  case v_final when 4 then 'pending' when 5 then 'revisions' else 'accepted' end,
-                  case when v_final >= 6 then
+                  v_decision,
+                  case when v_decision = 'accepted' then
                     (select changed_at::date from crdc.request_status_history
                       where item_id = v_item and status_id = 6 order by changed_at desc limit 1) end);
         end if;
