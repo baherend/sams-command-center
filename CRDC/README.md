@@ -304,3 +304,7 @@ No production integration or modification of the official website is included in
 ---
 
 *This README is a living project document. It may be updated as the project evolves, technical decisions change, and the team agrees on new requirements or implementation approaches. The English and Arabic versions should be kept consistent.*
+
+## 14. Database Design Draft
+
+A PostgreSQL/Supabase draft for the 15-table CRDC data model, reference data, synthetic seed data, and initial RLS rules is documented under [`docs/database`](docs/database/). These files are a reviewable prototype only; the final database technology and deployment approach still require team agreement. Do not apply the migrations to the shared `sams-dev` project. Follow the repository contribution guide and have the project owner run approved database changes after review.
