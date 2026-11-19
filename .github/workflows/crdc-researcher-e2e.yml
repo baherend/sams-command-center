@@ -1,0 +1,83 @@
+name: CRDC researcher portal end-to-end
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "CRDC/researcher-portal/**"
+      - "supabase/**"
+      - ".github/workflows/crdc-researcher-e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "CRDC/researcher-portal/**"
+      - "supabase/**"
+      - ".github/workflows/crdc-researcher-e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  researcher-onboarding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CRDC/researcher-portal/package-lock.json
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Install portal dependencies
+        run: npm ci
+        working-directory: CRDC/researcher-portal
+      - name: Install pinned Playwright test runner
+        run: npm install --no-save --package-lock=false @playwright/test@1.65.1 playwright@1.65.1
+        working-directory: CRDC/researcher-portal
+      - name: Start isolated Supabase and load synthetic data
+        run: |
+          supabase start
+          supabase db reset
+      - name: Export local Supabase connection values
+        shell: bash
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          set -a
+          source "$RUNNER_TEMP/supabase.env"
+          set +a
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173"
+          } >> "$GITHUB_ENV"
+      - name: Build portal and install Chromium
+        run: |
+          npm run build
+          npx playwright install --with-deps chromium
+        working-directory: CRDC/researcher-portal
+      - name: Run browser test against local Supabase
+        shell: bash
+        working-directory: CRDC/researcher-portal
+        run: |
+          npm run dev -- --host 127.0.0.1 > "$RUNNER_TEMP/portal-vite.log" 2>&1 &
+          portal_pid=$!
+          trap 'kill "$portal_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:5173/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$RUNNER_TEMP/portal-vite.log"
+            exit 1
+          fi
+          npm run test:e2e
