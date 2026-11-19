@@ -307,4 +307,4 @@ No production integration or modification of the official website is included in
 
 ## 14. Database Design Draft
 
-A PostgreSQL/Supabase draft for the 15-table CRDC data model, reference data, synthetic seed data, and initial RLS rules is documented under [`docs/database`](docs/database/). These files are a reviewable prototype only; the final database technology and deployment approach still require team agreement. Do not apply the migrations to the shared `sams-dev` project. Follow the repository contribution guide and have the project owner run approved database changes after review.
+A PostgreSQL/Supabase prototype for the 15-table CRDC data model, reference data, and initial RLS policies is documented under [`docs/database`](docs/database/). The migrations were applied to the shared `sams-dev` project after authorization from the project owner; synthetic sample data was not added. The design remains an early prototype, and the final database technology and deployment approach still require team agreement. Record future changes as migrations, review them through a Pull Request, and get the project owner's authorization before applying them to `sams-dev`.
