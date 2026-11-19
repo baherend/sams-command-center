@@ -54,10 +54,12 @@ async function registerAndCreateProfile(
   await page.locator('.form-card form button.primary-button').click()
 
   const saveError = page.getByRole('alert')
+  const profileReady = page.getByRole('heading', { name: 'حسابك جاهز' })
+  await expect(profileReady.or(saveError)).toBeVisible()
   if (await saveError.isVisible()) {
     throw new Error(`Researcher profile save failed: ${await saveError.textContent()}`)
   }
-  await expect(page.getByRole('heading', { name: 'حسابك جاهز' })).toBeVisible()
+  await expect(profileReady).toBeVisible()
   await expect(page.getByRole('status')).toContainText('ملف الباحث اتسجل بنجاح')
 }
 
