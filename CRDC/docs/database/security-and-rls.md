@@ -1,57 +1,54 @@
 # CRDC accounts and row security
 
-## Identity
+## Researcher account flow
 
-Supabase Auth owns login credentials. crdc.researchers.auth_user_id links the signed-in identity to a researcher record; crdc.staff_users.auth_user_id links staff. The draft adds foreign keys to auth.users and preserves CRDC records if an Auth account is deleted.
+Supabase Auth owns passwords, login sessions, and email identity. The application should use this flow:
 
-Researchers may read only their own profile, requests, service items, payments, status history, and publication records. Center staff read operational records according to the current role helper. Staff accounts are not self-registered; an active account and role must be assigned by an administrator.
+1. The researcher signs up with email and password; Auth confirmation should be enabled in the Supabase project.
+2. After signing in, the researcher creates one `crdc.researchers` profile. The database policy binds `auth_user_id` to the current Auth user and requires the profile email to match the email claim in the access token.
+3. The researcher reads their own profile, requests, service items, payments, status history, and publication records. A request is created only through `crdc.create_service_request(...)`, which creates one request for one work (paper or thesis) and calculates its service-item amounts.
+4. Profile changes are not available to researchers in the current policy set. Staff provisioning and any correction/relinking process need an explicit operational workflow before the application is built.
 
-## Roles
+Email confirmation is an Auth project setting; the database insert policy checks the token email but does not itself verify an `email_confirmed_at` value. The standard hosted Supabase behavior blocks sign-in for unverified email accounts; keep email confirmation enabled, because disabling it treats sign-ups as confirmed. Do not expose the `private` schema through the Data API. [Supabase Auth users documentation](https://supabase.com/docs/guides/auth/users)
 
-| Role | Intended access |
+`crdc.researchers.auth_user_id` links the profile to `auth.users`; `crdc.staff_users.auth_user_id` links staff. Both foreign keys use `ON DELETE SET NULL`, preserving the CRDC records if an Auth account is deleted. An administrator recovery/relinking procedure is needed for that case.
+
+## Roles and current access
+
+| Role | Current access in the applied policy set |
 |---|---|
-| researcher (Auth user with a researcher row) | Read own records; submit requests through the database function |
-| admin | Manage staff and assignments; administer cases |
-| reviewer | Update assigned service status and publication decisions |
-| statistician | Update status on assigned items |
-| cashier | Record payments, link payments to service items, and set payment statuses |
-| viewer | Read operational data; no writes |
+| researcher (Auth user with a researcher row) | Read own records; create own profile; submit a request through the database function |
+| admin | Read all operational rows; manage staff and assignments; insert/update payment and publication rows; use staff RPCs |
+| reviewer | Read assigned cases; update publication decisions only on assigned cases; change allowed statuses through the staff RPC |
+| statistician | Read assigned cases; change allowed statuses through the staff RPC |
+| cashier | Read payment operations; see researcher name/email through a limited contact view; insert/update payments, link payments, and record payment statuses |
+| viewer | Read grouped counts by active service and status through an aggregate view; no case rows, identifiers, or writes |
 
-The current draft grants every active staff role read access to all operational rows. Confirm this matches the center's privacy expectations before production. In particular, decide whether the viewer role should see personal identifiers and receipt details.
+Researchers can read payment and receipt details belonging to their own requests. Researcher identity rows are readable only by their owner and admins; cashiers get only name and email through `crdc.cashier_request_contacts`, which does not expose national IDs or passport numbers. The old broad staff read policies have been replaced by role and assignment scoped policies. Viewers receive only grouped counts through `crdc.viewer_dashboard_summary`.
+
+The DB policies bind a staff account to its Auth user. Staff roles are not self-registered: an administrator must create/assign the `staff_users` row. Reviewer/statistician status changes are restricted to assigned items by `crdc.set_request_item_status(...)`; publication decision writes currently allow any active reviewer or admin, without an assignment check.
 
 ## Controlled operations
 
-04_crdc_rls_policies.sql provides these authenticated RPCs:
+- `crdc.create_service_request(...)` — validates the researcher's profile and fee options, then creates one thesis or paper request with one or more service items.
+- `crdc.link_payment_to_items(...)` — cashier/admin only; limits a payment to one request and currency and checks that its amount equals the selected service-item total.
+- `crdc.set_request_item_status(...)` — appends a status event for an authorized staff member; the trigger mirrors the newest event into the current item status.
+- A database trigger restricts publication metadata to the `PUB_PUBLISH` service item, not a separate arbitration fee item.
 
-- crdc.create_service_request(...) — creates one request for one thesis or paper, validates fee options for the applicant, and calculates amounts in the database.
-- crdc.link_payment_to_items(...) — limits linking to one request and currency and checks that the payment amount equals the selected service-item total.
-- crdc.set_request_item_status(...) — appends a status event for an authorized staff member; the trigger mirrors the event to the current item status.
+Internal helpers use `SECURITY DEFINER` in the unexposed `private` schema, pin `search_path`, validate the caller, and revoke default execute access. Expose `crdc` in the Supabase API settings only if the portal needs its tables/RPCs through the Data API; never expose `private`.
 
-Publication metadata is restricted to PUB_PUBLISH. A database trigger also rejects attaching it to the separate arbitration fee item.
+## Adopted prototype defaults
 
-The internal helper functions use SECURITY DEFINER in the unexposed private schema. They validate auth.uid(), pin search_path, and revoke default execute access. Keep private out of Supabase's exposed schemas. Expose crdc only if the portal will call its Data API/RPCs.
+1. Researchers can see their own payment/receipt details; no other researcher's payment data is visible to them.
+2. Reviewers and statisticians see only assigned cases. Cashiers handle payment rows and see only researcher name/email through a limited view. Viewers receive aggregate counts, not case-level rows.
+3. Researcher profiles are immutable through the researcher session. Profile corrections and Auth account relinking are administrator workflows, to be built before real accounts are used.
+4. Email confirmation remains enabled in Supabase Auth. Staff roles are provisioned by admins, never self-selected by users.
+5. Publication decisions are restricted to assigned reviewers or admins.
 
-## Required checks before merging or deployment
+These are conservative prototype defaults based on least privilege and data minimization. They can be revised if the center confirms different operational requirements.
 
-1. Create a Supabase migration using the CLI, rather than applying the draft as an ad-hoc SQL change.
-2. Add pgTAP tests under supabase/tests/ for:
-   - anonymous access is denied;
-   - researcher A sees their own rows and not researcher B's;
-   - a researcher cannot create a profile for another Auth ID;
-   - request submission calculates fees and creates the initial status history;
-   - invalid fee/applicant combinations are rejected;
-   - direct status/history writes by a researcher are denied;
-   - only assigned reviewers/statisticians can change work status;
-   - payment amount, request, and currency must match selected service items;
-   - payment status cannot be advanced without a linked payment;
-   - publication metadata cannot attach to an arbitration-only item;
-   - staff roles cannot perform each other's restricted writes.
-3. Run the complete SQL chain and supabase test db against a local Supabase stack.
-4. Run Supabase security advisors and fix any findings.
-5. Review public-repository contents for real IDs, email addresses, credentials, and service-role keys.
+## Deployment and verification
 
-## Current verification state
+The initial three CRDC migrations were applied to the shared `sams-dev` project after the owner authorized it. A fourth migration, `crdc_rls_role_hardening`, applies the prototype defaults above. The migration history filenames in this repository match the versions already recorded by `sams-dev`. Reference data is present; the synthetic seed was not applied. Future schema/security changes should be committed as migrations, reviewed through a GitHub PR, and applied to `sams-dev` only after the project owner authorizes that specific deployment.
 
-The schema, reference data, RLS migration, and synthetic seed were first smoke-tested in an ephemeral PGlite PostgreSQL runtime. The checks passed for the 15-table count, RLS enabled on all 15 tables, policy coverage, payment request/currency consistency, payment totals, publication-item restrictions, and researcher request isolation for two synthetic accounts.
-
-The full Supabase local stack then passed in GitHub Actions run [#44476643107](https://github.com/baherend/sams-command-center/actions/runs/44476643107): `supabase start`, `supabase db reset`, and `supabase test db` all completed successfully. pgTAP reported **1 file, 5 tests, PASS**. The run used an isolated GitHub Actions runner and synthetic seed data; it did not touch the shared `sams-dev` project.
+The GitHub Actions SQL workflow runs the migrations and synthetic seed on an isolated local Supabase stack and executes `supabase test db`. Run [#44571430916](https://github.com/baherend/sams-command-center/actions/runs/44571430916) passed **33 pgTAP assertions** across two files. The role-access tests cover researcher isolation, assigned/unassigned reviewer access, cashier contact/payment access, and viewer aggregate-only access. Account lifecycle, admin/statistician cases, and the wider write-operation matrix still need coverage before production use.
