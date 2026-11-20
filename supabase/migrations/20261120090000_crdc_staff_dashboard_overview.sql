@@ -3,6 +3,7 @@ begin;
 
 -- The CI-only service-role client needs schema usage to create isolated staff fixtures.
 grant usage on schema crdc to service_role;
+grant insert on crdc.staff_users to service_role;
 
 create or replace view crdc.staff_dashboard_overview
 with (security_barrier = true) as
