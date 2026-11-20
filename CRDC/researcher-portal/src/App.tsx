@@ -3,6 +3,10 @@ import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
+import StaffConsole from './StaffConsole'
+
+type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
+type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
 
 type Degree = {
   degree_id: number
@@ -33,6 +37,8 @@ const errorMessage = (error: unknown) =>
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<ResearcherProfile | null>(null)
+  const [staff, setStaff] = useState<StaffProfile | null>(null)
+  const [inactiveStaff, setInactiveStaff] = useState(false)
   const [degrees, setDegrees] = useState<Degree[]>([])
   const [mode, setMode] = useState<Mode>('sign-in')
   const [loading, setLoading] = useState(true)
@@ -43,8 +49,28 @@ export default function App() {
   const [profileApplicantType, setProfileApplicantType] = useState<'egyptian' | 'foreign'>('egyptian')
 
   const loadProfile = useCallback(async (nextSession: Session | null) => {
+    setError('')
     if (!supabase || !nextSession?.user) {
       setProfile(null)
+      setStaff(null)
+      setInactiveStaff(false)
+      setDegrees([])
+      return
+    }
+
+    setProfile(null)
+    setStaff(null)
+    setInactiveStaff(false)
+    const { data: staffRow, error: staffError } = await supabase
+      .schema('crdc')
+      .from('staff_users')
+      .select('staff_id, full_name, role, is_active')
+      .eq('auth_user_id', nextSession.user.id)
+      .maybeSingle()
+    if (staffError) throw staffError
+    if (staffRow) {
+      if (staffRow.is_active) setStaff(staffRow as StaffProfile)
+      else setInactiveStaff(true)
       setDegrees([])
       return
     }
@@ -193,6 +219,8 @@ export default function App() {
     const { error: signOutError } = await supabase.auth.signOut()
     if (signOutError) setError(errorMessage(signOutError))
     setProfile(null)
+    setStaff(null)
+    setInactiveStaff(false)
   }
 
   if (!supabaseConfigured || !supabase) {
@@ -201,6 +229,20 @@ export default function App() {
 
   if (session && profile) {
     return <ResearcherPortal profile={profile} onSignOut={signOut} />
+  }
+
+  if (session && staff) return <StaffConsole staff={staff} onSignOut={signOut} />
+
+  if (session && inactiveStaff) {
+    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="brand-mark">م</span><span className="eyebrow">حساب موظف</span><h1>الحساب غير مفعّل</h1><p>حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.</p><button className="primary-button" onClick={signOut}>تسجيل الخروج</button></div></main>
+  }
+
+  if (session && loading) {
+    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="loading"><span className="spinner" /> بنراجع نوع الحساب...</span></div></main>
+  }
+
+  if (session && error) {
+    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="eyebrow">تعذر تحميل الحساب</span><h1>حصلت مشكلة</h1><p role="alert">{error}</p><button className="primary-button" onClick={signOut}>تسجيل الخروج والمحاولة تاني</button></div></main>
   }
 
   return (
