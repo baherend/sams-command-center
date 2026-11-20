@@ -15,8 +15,12 @@ type QueueRequest = {
   created_at: string
 }
 type Requester = { researcher_id: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
-type RequestItem = { item_id: number; request_id: number; status_id: number; assigned_staff_id: string | null }
+type RequestItem = { item_id: number; request_id: number; service_id: number; status_id: number; assigned_staff_id: string | null }
 type RequestStatus = { status_id: number; code: string; name_ar: string; sort_order: number }
+type HistoryRow = { history_id: number; item_id: number; status_id: number; changed_at: string; note: string | null }
+type PublicationRow = { submission_id: number; item_id: number; journal_id: number; issue_id: number | null; decision: 'pending' | 'revisions' | 'accepted' | 'rejected'; accepted_at: string | null }
+type Journal = { journal_id: number; name_ar: string }
+type JournalIssue = { issue_id: number; journal_id: number; issue_year: number; issue_month: number }
 
 const roleNames: Record<StaffRole, string> = {
   admin: 'مدير النظام', reviewer: 'مراجع', statistician: 'إحصائي', cashier: 'أمين خزينة', viewer: 'مشاهد',
@@ -41,7 +45,7 @@ async function fetchRequestItems(): Promise<RequestItem[]> {
   const result: RequestItem[] = []
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase.schema('crdc').from('request_items')
-      .select('item_id, request_id, status_id, assigned_staff_id')
+      .select('item_id, request_id, service_id, status_id, assigned_staff_id')
       .order('item_id').range(offset, offset + pageSize - 1)
     if (error) throw error
     result.push(...(data ?? []) as RequestItem[])
@@ -54,7 +58,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateSty
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
-  const [view, setView] = useState<'overview' | 'requests'>('overview')
+  const [view, setView] = useState<'overview' | 'requests' | 'assigned'>('overview')
   const [requests, setRequests] = useState<QueueRequest[]>([])
   const [requesters, setRequesters] = useState<Map<string, Requester>>(new Map())
   const [items, setItems] = useState<RequestItem[]>([])
@@ -66,8 +70,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [busyRequest, setBusyRequest] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [history, setHistory] = useState<HistoryRow[]>([])
+  const [publications, setPublications] = useState<PublicationRow[]>([])
+  const [journals, setJournals] = useState<Journal[]>([])
+  const [issues, setIssues] = useState<JournalIssue[]>([])
+  const [operationLoading, setOperationLoading] = useState(false)
+  const [busyItem, setBusyItem] = useState<number | null>(null)
   const canViewOverview = staff.role === 'admin' || staff.role === 'viewer'
   const isAdmin = staff.role === 'admin'
+  const canOperate = isAdmin || staff.role === 'reviewer' || staff.role === 'statistician'
 
   useEffect(() => {
     if (!canViewOverview || !supabase) return
@@ -127,6 +138,32 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     return () => { alive = false }
   }, [isAdmin, view])
 
+  useEffect(() => {
+    if (!canOperate || view !== 'assigned' || !supabase) return
+    let alive = true
+    setOperationLoading(true)
+    setError('')
+    void (async () => {
+      try {
+        const [requestRows, itemRows, statusResult, historyResult, publicationResult, journalResult, issueResult] = await Promise.all([
+          fetchRequests(), fetchRequestItems(),
+          supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
+          supabase.schema('crdc').from('request_status_history').select('history_id, item_id, status_id, changed_at, note').order('changed_at', { ascending: false }),
+          supabase.schema('crdc').from('publication_submissions').select('submission_id, item_id, journal_id, issue_id, decision, accepted_at'),
+          supabase.schema('crdc').from('journals').select('journal_id, name_ar').order('journal_id'),
+          supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month').order('issue_year', { ascending: false }),
+        ])
+        if (statusResult.error || historyResult.error || publicationResult.error || journalResult.error || issueResult.error) throw new Error('load')
+        if (!alive) return
+        setRequests(requestRows); setItems(itemRows); setStatuses((statusResult.data ?? []) as RequestStatus[])
+        setHistory((historyResult.data ?? []) as HistoryRow[]); setPublications((publicationResult.data ?? []) as PublicationRow[])
+        setJournals((journalResult.data ?? []) as Journal[]); setIssues((issueResult.data ?? []) as JournalIssue[])
+      } catch { if (alive) setError('مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.') }
+      finally { if (alive) setOperationLoading(false) }
+    })()
+    return () => { alive = false }
+  }, [canOperate, view])
+
   const countFor = (metric: string, category: string) =>
     Number(rows.find((row) => row.metric === metric && row.category === category)?.request_count ?? 0)
   const total = countFor('total', 'all')
@@ -175,6 +212,38 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     }
   }
 
+  async function updateStatus(item: RequestItem, statusCode: string, note: string) {
+    if (!supabase || !statusCode) return
+    setBusyItem(item.item_id); setError(''); setNotice('')
+    try {
+      const { error: rpcError } = await supabase.schema('crdc').rpc('set_request_item_status', { p_item_id: item.item_id, p_status_code: statusCode, p_note: note.trim() || null })
+      if (rpcError) throw rpcError
+      const nextStatus = statuses.find((status) => status.code === statusCode)
+      if (!nextStatus) throw new Error('الحالة غير متاحة.')
+      const now = new Date().toISOString()
+      setItems((current) => current.map((row) => row.item_id === item.item_id ? { ...row, status_id: nextStatus.status_id } : row))
+      setHistory((current) => [{ history_id: -Date.now(), item_id: item.item_id, status_id: nextStatus.status_id, changed_at: now, note: note.trim() || null }, ...current])
+      setNotice('تم تحديث حالة البند وتسجيلها في السجل.')
+    } catch (operationError) { setError(operationError instanceof Error && operationError.message ? operationError.message : 'تعذر تحديث الحالة.') }
+    finally { setBusyItem(null) }
+  }
+
+  async function updatePublication(itemId: number, form: HTMLFormElement) {
+    if (!supabase) return
+    setBusyItem(itemId); setError(''); setNotice('')
+    const data = new FormData(form)
+    try {
+      const { error: rpcError } = await supabase.schema('crdc').rpc('update_publication_submission', {
+        p_item_id: itemId, p_decision: String(data.get('decision')), p_journal_id: Number(data.get('journal_id')), p_issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null,
+      })
+      if (rpcError) throw rpcError
+      const decision = String(data.get('decision')) as PublicationRow['decision']
+      setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? new Date().toISOString().slice(0, 10) : null } : row))
+      setNotice('تم حفظ قرار النشر.')
+    } catch (operationError) { setError(operationError instanceof Error && operationError.message ? operationError.message : 'تعذر حفظ قرار النشر.') }
+    finally { setBusyItem(null) }
+  }
+
   return (
     <main className="page-shell researcher-shell staff-shell" dir="rtl">
       <header className="topbar">
@@ -188,10 +257,11 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
         {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>نظرة عامة وإحصائيات</button>}
         {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>إدارة الطلبات والتعيينات</button>}
+        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>الطلبات المسندة إليّ</button>}
       </nav>
 
       <section className="portal-content" id="staff-home">
-        {!canViewOverview && !isAdmin ? (
+        {!canViewOverview && !isAdmin && !canOperate ? (
           <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
         ) : view === 'overview' ? (
           <>
@@ -210,7 +280,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               </>
             )}
           </>
-        ) : (
+        ) : view === 'requests' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">إدارة المركز</span><h1>إدارة الطلبات والتعيينات</h1><p>راجع الطلبات وبنودها وعيّن مراجع أو إحصائي نشط لكل طلب.</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
@@ -251,6 +321,37 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 })}
               </div>
             ) : <div className="portal-card empty-requests"><h2>مفيش طلبات مطابقة</h2><p>غيّر الفلاتر علشان تعرض طلبات تانية.</p></div>}
+          </>
+        ) : (
+          <>
+            <div className="portal-heading"><span className="eyebrow">مساحة العمل</span><h1>الطلبات المسندة إليّ</h1><p>حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.</p></div>
+            {notice && <p className="message success" role="status">{notice}</p>}
+            {error && <p className="message error" role="alert">{error}</p>}
+            {operationLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : items.length ? <div className="request-list operational-list">
+              {items.map((item) => {
+                const request = requests.find((row) => row.request_id === item.request_id)
+                const current = statusById.get(item.status_id)
+                const publication = publications.find((row) => row.item_id === item.item_id)
+                const itemHistory = history.filter((row) => row.item_id === item.item_id)
+                if (!request) return null
+                return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
+                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current?.name_ar ?? 'غير محدد'}</span></div>
+                  <p className="operational-meta">رقم الطلب #{request.request_id} · البند #{item.item_id}</p>
+                  <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void updateStatus(item, String(form.get('status')), String(form.get('note') ?? '')) }}>
+                    <label>الحالة التشغيلية<select name="status" aria-label="الحالة التشغيلية" defaultValue=""><option value="" disabled>اختار الحالة</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{status.name_ar}</option>)}</select></label>
+                    <label>ملاحظة للسجل<input name="note" placeholder="اكتب ملاحظة مختصرة (اختياري)" /></label>
+                    <button className="primary-button" disabled={busyItem === item.item_id}>حفظ الحالة</button>
+                  </form>
+                  <section className="timeline"><h4>سجل الحالة</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{statusById.get(entry.status_id)?.name_ar ?? 'تحديث'}</strong>{entry.note && <p>{entry.note}</p>}<time>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">لسه مفيش تحديثات ظاهرة.</p>}</section>
+                  {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); void updatePublication(item.item_id, event.currentTarget) }}>
+                    <h4>قرار النشر</h4><label>القرار<select name="decision" defaultValue={publication.decision}><option value="pending">قيد المراجعة</option><option value="revisions">تعديلات</option><option value="accepted">مقبول</option><option value="rejected">مرفوض</option></select></label>
+                    <label>المجلة<select name="journal_id" defaultValue={publication.journal_id}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{journal.name_ar}</option>)}</select></label>
+                    <label>العدد<select name="issue_id" defaultValue={publication.issue_id ?? ''}><option value="">من غير عدد</option>{issues.filter((issue) => issue.journal_id === publication.journal_id).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
+                    <button className="primary-button" disabled={busyItem === item.item_id}>حفظ قرار النشر</button>
+                  </form>}
+                </article>
+              })}
+            </div> : <div className="portal-card empty-requests"><h2>مفيش طلبات مسندة ليك</h2><p>هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.</p></div>}
           </>
         )}
       </section>
