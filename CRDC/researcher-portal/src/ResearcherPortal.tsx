@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
+import { friendlyError, useSingleFlight } from './errors'
 
 type ApplicantType = 'egyptian' | 'foreign'
 type WorkType = 'thesis' | 'paper'
@@ -78,16 +79,9 @@ const formatDate = (value: string | null | undefined) =>
   value ? new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
 const money = (amount: number | string, currency: string) =>
   new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(amount)) + ` ${currency}`
-
-function friendlyError(error: unknown) {
-  const raw = error instanceof Error ? error.message : ''
-  if (raw.includes('Publication services require a separate paper request')) return 'خدمة النشر بتتقدم في طلب بحث منفصل عن الرسالة.'
-  if (raw.includes('Page count is required')) return 'اكتب عدد الصفحات علشان نكمل الطلب.'
-  if (raw.includes('Select at least one service')) return 'اختار خدمة واحدة على الأقل.'
-  if (raw.includes('Fee option is unavailable')) return 'الخدمة دي مش متاحة لنوع حسابك حاليًا. حدّث الصفحة وجرب تاني.'
-  if (raw.includes('profile before submitting')) return 'كمّل ملف الباحث الأول علشان تقدر تقدم طلب.'
-  return raw || 'حصلت مشكلة. جرّب تاني، ولو استمرت تواصل مع إدارة المركز.'
-}
+// Amounts mix digits with a Latin currency code; isolate them so they do not get reordered inside RTL text.
+const Money = ({ amount, currency }: { amount: number | string; currency: string }) => <span dir="ltr">{money(amount, currency)}</span>
+const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
 export default function ResearcherPortal({ profile, onSignOut }: { profile: ResearcherProfile; onSignOut: () => void }) {
   const [view, setView] = useState<View>('catalog')
@@ -114,6 +108,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const singleFlight = useSingleFlight()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -252,8 +247,12 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
 
   async function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!supabase) return
     const formElement = event.currentTarget
+    await singleFlight(() => sendRequest(formElement))
+  }
+
+  async function sendRequest(formElement: HTMLFormElement) {
+    if (!supabase) return
     const form = new FormData(formElement)
     const title = String(form.get('work_title') ?? '').trim()
     const pageCount = Number(form.get('page_count'))
@@ -330,7 +329,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
                       <legend>{service.name_ar}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
-                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>السعر الأساسي {money(fee.base_fee, fee.currency)}{fee.included_pages ? ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? ' · وأي صفحات إضافية حسب التعريفة المسجلة' : ''}</small></span>
+                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>السعر الأساسي <Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? ' · وأي صفحات إضافية حسب التعريفة المسجلة' : ''}</small></span>
                       </label>)}
                     </fieldset>
                   })}
@@ -361,7 +360,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
                   const issue = publication?.issue_id && detail.issues.find((row) => row.issue_id === publication.issue_id)
                   return <section className="request-item" key={item.item_id}>
                     <div className="request-item-heading"><div><span className="eyebrow">{service?.name_ar ?? 'خدمة'}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id))}</span></div>
-                    <div className="item-facts"><span>المبلغ المسجل</span><strong>{money(item.amount_due, item.currency)}</strong><span>حالة السداد</span><strong>{payment ? (payment.paid_at ? `تم السداد · ${formatDate(payment.paid_at)}` : 'إذن الدفع مسجل') : 'لم يُسجل دفع بعد'}</strong>{payment?.payment_order_no && <><span>رقم إذن الدفع</span><strong>{payment.payment_order_no}</strong></>}{payment?.receipt_no && <><span>رقم الإيصال</span><strong>{payment.receipt_no}</strong></>}</div>
+                    <div className="item-facts"><span>المبلغ المسجل</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>حالة السداد</span><strong>{payment ? (payment.paid_at ? `تم السداد · ${formatDate(payment.paid_at)}` : 'إذن الدفع مسجل') : 'لم يُسجل دفع بعد'}</strong>{payment?.payment_order_no && <><span>رقم إذن الدفع</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>رقم الإيصال</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
                     {publication && <div className="publication-facts"><strong>بيانات النشر</strong><span>المجلة: {journal?.name_ar ?? '—'}</span><span>اللغة: {publication.paper_language === 'ar' ? 'العربية' : 'الإنجليزية'}</span><span>قرار النشر: {decisionLabel(publication.decision)}</span>{issue && <span>العدد: {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>تاريخ القبول: {formatDate(publication.accepted_at)}</span>}</div>}
                     <div className="timeline"><h4>سجل الحالة</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id))}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
                   </section>

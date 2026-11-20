@@ -27,9 +27,9 @@ Important rules:
 - Item status codes are `SUBMITTED`, `PAYMENT_ORDER`, `PAID`, `IN_PROGRESS`, `REVISIONS`, `COMPLETED`, and `DELIVERED`.
 - Publication decisions are `pending`, `revisions`, `accepted`, and `rejected`; an accepted decision requires `accepted_at`.
 - `request_items.assigned_staff_id` stores assignment per item. Admin assignment is limited to active reviewers and statisticians.
-- Use `crdc.create_service_request(...)` for request creation and `crdc.set_request_item_status(...)` for status changes. The latter validates transitions and appends `request_status_history`.
-- `crdc.update_publication_submission(...)` validates assigned operational access, journal/issue consistency, and sets `accepted_at` server-side when a decision is accepted.
-- Payment linkage remains in `crdc.link_payment_to_items(...)`. Receipt grouping is a prototype rule pending center confirmation.
+- Use `crdc.create_service_request(...)` for request creation and `crdc.set_request_item_status(...)` for status changes. The latter allows only admin/reviewer/statistician/cashier (never viewer), validates transitions, locks the item row (`FOR UPDATE`) so concurrent changes serialise, refuses staff acting on a request whose researcher profile is their own account (admin included), and appends `request_status_history`.
+- `crdc.update_publication_submission(...)` validates assigned operational access, journal/issue consistency, refuses staff deciding on their own researcher request, and sets `accepted_at` server-side the first time a decision becomes accepted (re-saving an accepted decision keeps the original date). `publication_submissions` has no direct INSERT/UPDATE grant for `authenticated`; this RPC is the only write path.
+- Payment linkage remains in `crdc.link_payment_to_items(...)`, which locks the payment and item rows and only links still-unlinked items. Once a payment is linked, its amount/currency/request are immutable and a recorded `payment_order_no`, `receipt_no` or `paid_at` cannot change (they may be filled in once while NULL). Receipt grouping is a prototype rule pending center confirmation.
 
 ## 3. Security and RLS
 
@@ -73,7 +73,7 @@ Completed product work:
 
 Workflows under `.github/workflows/`:
 
-- `crdc-sql-tests.yml` starts local Supabase, runs `supabase db reset`, and runs pgTAP SQL/RLS tests.
+- `crdc-sql-tests.yml` runs on pull requests and on pushes to `main`; it starts local Supabase, runs `supabase db reset`, and runs pgTAP SQL/RLS tests.
 - `crdc-portal-build.yml` installs portal dependencies and runs `npm run build`.
 - `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data with Playwright.
 

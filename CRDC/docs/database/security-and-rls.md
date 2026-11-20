@@ -33,8 +33,8 @@ The DB policies bind a staff account to its Auth user. Staff roles are not self-
 ## Controlled operations
 
 - `crdc.create_service_request(...)` — validates the researcher's profile and fee options, then creates one thesis or paper request with one or more service items.
-- `crdc.link_payment_to_items(...)` — cashier/admin only; limits a payment to one request and currency and checks that its amount equals the selected service-item total.
-- `crdc.set_request_item_status(...)` — appends a status event for an authorized staff member; the trigger mirrors the newest event into the current item status.
+- `crdc.link_payment_to_items(...)` — cashier/admin only; limits a payment to one request and currency and checks that its amount equals the selected service-item total. It locks the payment and item rows before validating.
+- `crdc.set_request_item_status(...)` — appends a status event for an authorized staff member; the trigger mirrors the newest event into the current item status. Viewers are rejected, the item row is locked, and staff cannot change an item that belongs to their own researcher profile.
 - A database trigger restricts publication metadata to the `PUB_PUBLISH` service item, not a separate arbitration fee item.
 
 Internal helpers use `SECURITY DEFINER` in the unexposed `private` schema, pin `search_path`, validate the caller, and revoke default execute access. Expose `crdc` in the Supabase API settings only if the portal needs its tables/RPCs through the Data API; never expose `private`.
@@ -45,7 +45,7 @@ Internal helpers use `SECURITY DEFINER` in the unexposed `private` schema, pin `
 2. Reviewers and statisticians see only assigned cases. Cashiers handle payment rows and see only researcher name/email through a limited view. Viewers receive aggregate counts, not case-level rows.
 3. Researcher profiles are immutable through the researcher session. Profile corrections and Auth account relinking are administrator workflows, to be built before real accounts are used.
 4. Email confirmation remains enabled in Supabase Auth. Staff roles are provisioned by admins, never self-selected by users.
-5. Publication decisions are restricted to assigned reviewers or admins.
+5. Publication decisions are restricted to assigned reviewers/statisticians or admins, are RPC-only, and cannot be made by staff on their own researcher request.
 
 These are conservative prototype defaults based on least privilege and data minimization. They can be revised if the center confirms different operational requirements.
 
