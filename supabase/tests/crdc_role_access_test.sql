@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(28);
+SELECT plan(30);
 
 -- Isolated, synthetic identities for the role-access matrix.
 INSERT INTO auth.users (
@@ -95,10 +95,15 @@ SELECT is((SELECT count(*)::integer FROM crdc.request_items i JOIN crdc.service_
 SELECT is((SELECT count(*)::integer FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST B'), 0, 'reviewer cannot see unassigned service item');
 SELECT is((SELECT count(*)::integer FROM crdc.publication_submissions p JOIN crdc.request_items i USING(item_id) JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST B'), 0, 'reviewer cannot see unassigned publication record');
 SELECT is((SELECT count(*)::integer FROM crdc.researchers), 0, 'reviewer cannot read researcher identity records');
-UPDATE crdc.publication_submissions SET decision='revisions'
-WHERE item_id=current_setting('test.rls.item_a')::bigint;
-UPDATE crdc.publication_submissions SET decision='revisions'
-WHERE item_id=current_setting('test.rls.item_b')::bigint;
+-- Publication decisions are RPC-only; assignment is enforced inside the RPC.
+SELECT lives_ok(
+  $$SELECT crdc.update_publication_submission(current_setting('test.rls.item_a')::bigint,'revisions',1::smallint,(SELECT min(issue_id) FROM crdc.journal_issues WHERE journal_id=1))$$,
+  'reviewer can call the publication RPC for an assigned item'
+);
+SELECT throws_ok(
+  $$SELECT crdc.update_publication_submission(current_setting('test.rls.item_b')::bigint,'revisions',1::smallint,(SELECT min(issue_id) FROM crdc.journal_issues WHERE journal_id=1))$$,
+  '42501', NULL, 'reviewer cannot call the publication RPC for an unassigned item'
+);
 RESET ROLE;
 SELECT is((SELECT decision FROM crdc.publication_submissions WHERE item_id=current_setting('test.rls.item_a')::bigint), 'revisions', 'reviewer can update an assigned publication decision');
 SELECT is((SELECT decision FROM crdc.publication_submissions WHERE item_id=current_setting('test.rls.item_b')::bigint), 'pending', 'reviewer cannot update an unassigned publication decision');
