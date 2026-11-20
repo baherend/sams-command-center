@@ -54,13 +54,12 @@ async function registerAndCreateProfile(
   await page.locator('.form-card form button.primary-button').click()
 
   const saveError = page.getByRole('alert')
-  const profileReady = page.locator('.profile-success .eyebrow').getByText('حسابك جاهز', { exact: true })
-  await expect(profileReady.or(saveError)).toBeVisible()
+  const portalNav = page.getByRole('navigation', { name: 'التنقل في حساب الباحث' })
+  await expect(portalNav.or(saveError)).toBeVisible()
   if (await saveError.isVisible()) {
     throw new Error(`Researcher profile save failed: ${await saveError.textContent()}`)
   }
-  await expect(profileReady).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('ملف الباحث اتسجل بنجاح')
+  await expect(portalNav).toBeVisible()
 }
 
 async function visibleResearcherEmails(email: string) {
@@ -75,16 +74,46 @@ async function visibleResearcherEmails(email: string) {
   return data.map((row) => row.email)
 }
 
-test('Egyptian and foreign researchers can register, save profiles, and only read their own profile', async ({ page }) => {
+async function visibleRequestTitles(email: string) {
+  const client = createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { error: signInError } = await client.auth.signInWithPassword({ email, password })
+  if (signInError) throw signInError
+
+  const { data, error } = await client.schema('crdc').from('service_requests').select('work_title').order('created_at')
+  if (error) throw error
+  return data.map((row) => row.work_title)
+}
+
+test('researchers can register, create and track a request, and only see their own data', async ({ page }) => {
   const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
   const egyptianEmail = `e2e-egyptian-${runId}@example.test`
   const foreignEmail = `e2e-foreign-${runId}@example.test`
+  const requestTitle = `Playwright test request ${runId}`
 
   await registerAndCreateProfile(page, egyptianEmail, 'egyptian')
+  await page.locator('input[name="work_title"]').fill(requestTitle)
+  await page.locator('input[name="page_count"]').fill('25')
+  await page.locator('.fee-option').filter({ hasText: 'تدقيق لغوي عربي' }).locator('input[type="checkbox"]').check()
+  await page.getByRole('button', { name: 'تقديم الطلب' }).click()
+
+  await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
+  await expect(page.getByText(requestTitle, { exact: true })).toBeVisible()
+  await expect(page.getByText('تدقيق لغوي عربي', { exact: true })).toBeVisible()
+  await page.getByRole('navigation', { name: 'التنقل في حساب الباحث' }).getByRole('button', { name: 'طلباتي' }).click()
+  const requestCard = page.getByRole('button').filter({ hasText: requestTitle })
+  await expect(requestCard).toBeVisible()
+  await requestCard.click()
+  await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
+  await expect(page.getByText(requestTitle, { exact: true })).toBeVisible()
+
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
   await expect(page.getByRole('tablist')).toBeVisible()
   await registerAndCreateProfile(page, foreignEmail, 'foreign')
 
   expect(await visibleResearcherEmails(egyptianEmail)).toEqual([egyptianEmail])
   expect(await visibleResearcherEmails(foreignEmail)).toEqual([foreignEmail])
+  expect(await visibleRequestTitles(egyptianEmail)).toContain(requestTitle)
+  expect(await visibleRequestTitles(foreignEmail)).not.toContain(requestTitle)
 })
