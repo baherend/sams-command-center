@@ -1,100 +1,98 @@
 # CRDC Platform — Claude Code Handoff
 
-**Read this first to resume work with minimal repository scanning.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PRs #4–#8 are merged to `main`. The current product is an early researcher-onboarding prototype, not a production portal.
+**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PRs #9–#13 are merged to `main`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
 
 ## 1. Project rules and environment isolation
 
-- Keep all synthetic/test data out of the shared Supabase project `sams-dev`. Its CRDC migrations and reference rows are deployed; its synthetic seed was **not** applied.
-- Use the local Supabase stack (`supabase start`, then `supabase db reset`) for development and CI. The reset loads migrations and `supabase/seed.sql`; it resets the local database.
-- A dedicated `sams-test` project is also acceptable only after confirming it is separate and configured for testing. Do not assume such a project is already connected.
-- Never apply `supabase/seed.sql` to `sams-dev`. Never use hosted credentials or the service-role key in browser code. Do not change hosted Auth/API settings without the project owner's explicit authorization.
-- Put schema changes in timestamped files under `supabase/migrations/`; document and review them through a PR before deployment.
+- Keep synthetic data out of the shared Supabase project `sams-dev`. Its CRDC migrations and reference rows may be deployed, but `supabase/seed.sql` must never be applied there.
+- Develop and test against the local Supabase stack only: `supabase start`, then `supabase db reset`. The reset applies migrations and the local synthetic seed.
+- A separate `sams-test` project is acceptable only after confirming it is isolated. Do not assume one is configured.
+- Browser code uses only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Never put a service-role key in frontend code. The service-role key appears only in disposable local CI fixtures.
+- Put schema changes in timestamped `supabase/migrations/` files and validate through a PR before any hosted deployment.
 
-## 2. Database schema: `crdc`
+## 2. Database schema and workflows
 
-The four migrations define 15 tables:
+The `crdc` schema has 15 tables:
 
 - **Catalog/reference:** `services`, `requirement_types`, `fee_schedule`, `degrees`, `degree_requirements`, `journals`, `journal_issues`, `request_statuses`.
 - **People:** `researchers`, `staff_users`.
 - **Operations/publication:** `service_requests`, `request_items`, `payments`, `request_status_history`, `publication_submissions`.
 
-Main relationships:
+Core relationships are `researchers → service_requests → request_items → request_status_history`; publication items may have one `publication_submissions` row linked to a journal and optional issue.
 
-- `researchers → service_requests → request_items → request_status_history`.
-- `service_requests → payments`; `request_items.payment_id` links items to a payment. The current model allows a payment to cover multiple items **within one request and one currency**; one item cannot be split among payments. Treat receipt grouping as a prototype rule pending confirmation by the center.
-- `request_items → publication_submissions → journals / journal_issues`.
-- `degrees → degree_requirements → requirement_types → services`; `fee_schedule` connects applicant type and service option to currency and pricing.
+Important rules:
 
-Important constraints and status vocabularies:
-
-- There are no PostgreSQL enum types; text columns use CHECK constraints and reference tables.
-- Applicant types: `egyptian`, `foreign`. Egyptian researcher profiles require a national ID; foreign profiles require passport number and nationality. Auth user ID and email are unique.
-- Work types: `thesis`, `paper`. Each thesis or paper is its own request. Multiple service items may be attached to one request.
-- Currency must match applicant type: Egyptians use `EGP`, foreign applicants use `USD`. Composite foreign keys keep fee, request, item, payment, and currency combinations consistent. Item amounts are fee snapshots calculated by `crdc.calc_fee(...)`.
-- Request/item status codes in `request_statuses`: `SUBMITTED`, `PAYMENT_ORDER`, `PAID`, `IN_PROGRESS`, `REVISIONS`, `COMPLETED`, `DELIVERED`.
-- `payments` has no separate status enum. Payment progress is represented by `PAYMENT_ORDER` and `PAID` status-history events; payment channel is `treasury` or `bank`.
-- Publication decisions: `pending`, `revisions`, `accepted`, `rejected`; paper language: `ar`, `en`. An accepted submission requires `accepted_at`.
-- The schema provides `crdc.create_service_request(...)` and `crdc.link_payment_to_items(...)` workflows. Use these RPCs for requests/payment linking instead of direct client inserts.
-
-For exact definitions, inspect `supabase/migrations/20261119072455_crdc_schema.sql` and the reference/RLS migrations listed in section 6.
+- Applicant types are `egyptian` and `foreign`; currencies are respectively `EGP` and `USD`.
+- Work types are `thesis` and `paper`. A thesis and a paper are separate requests; each request may contain multiple service items.
+- Item status codes are `SUBMITTED`, `PAYMENT_ORDER`, `PAID`, `IN_PROGRESS`, `REVISIONS`, `COMPLETED`, and `DELIVERED`.
+- Publication decisions are `pending`, `revisions`, `accepted`, and `rejected`; an accepted decision requires `accepted_at`.
+- `request_items.assigned_staff_id` stores assignment per item. Admin assignment is limited to active reviewers and statisticians.
+- Use `crdc.create_service_request(...)` for request creation and `crdc.set_request_item_status(...)` for status changes. The latter validates transitions and appends `request_status_history`.
+- `crdc.update_publication_submission(...)` validates assigned operational access, journal/issue consistency, and sets `accepted_at` server-side when a decision is accepted.
+- Payment linkage remains in `crdc.link_payment_to_items(...)`. Receipt grouping is a prototype rule pending center confirmation.
 
 ## 3. Security and RLS
 
-RLS is enabled on all 15 CRDC tables. Authorization is based on the signed-in Auth user linked through `researchers.auth_user_id` or `staff_users.auth_user_id`; do not trust client-supplied role fields.
+RLS is enabled on all CRDC tables. Authorization is based on the signed-in Auth user linked through `researchers.auth_user_id` or `staff_users.auth_user_id`; client-side role checks only control presentation.
 
-Database staff roles are `admin`, `reviewer`, `statistician`, `cashier`, and `viewer`:
+Roles:
 
-- **Researcher:** read own profile, requests/items, payments, status history, and publication records; create own profile once.
-- **Reviewer/statistician:** assigned operational cases only.
-- **Cashier:** payment operations and a limited contact view with researcher name/email; no national IDs or passport numbers.
-- **Viewer:** aggregate dashboard counts only.
-- **Admin:** broad operational access, staff management, and assignments.
+- **Researcher:** owns one profile and can see only their profile, requests, items, payments, history, and publication records.
+- **Reviewer/statistician:** see only cases with items assigned to them; can update allowed operational statuses through the status RPC. Payment statuses are rejected for these roles.
+- **Cashier:** has payment operations and limited request contact data, without national ID or passport fields.
+- **Viewer:** can access aggregate dashboards only, never individual cases or researcher identities.
+- **Admin:** has broad operational access, manages staff assignments, sees the administrative request queue, and can access operational workflows.
 
-The portal uses the Supabase publishable/anon key and the authenticated user's session; RLS remains the source of truth. The frontend must never use the service-role key or implement authorization only by hiding UI. Staff pages/role switching are not implemented yet.
+The safe aggregate views are `crdc.viewer_dashboard_summary` and `crdc.staff_dashboard_overview`. They contain grouped counts only, with no personal identifiers or case details.
 
-## 4. Synthetic seed: `supabase/seed.sql`
+## 4. Synthetic seed data
 
-The local-only generator creates **400 fictitious researchers**, with researcher and request dates spanning **2018–2026**. It uses `@example.test` emails and TEST-prefixed identifiers. It covers Egyptian/foreign applicants, degree types, separate thesis/paper requests, multi-service request items, unpaid/paid and varied status timelines, and publication outcomes including pending, revisions, accepted, and rejected. Publication issue links are only assigned when a same-year reference issue exists.
+`supabase/seed.sql` is local-only. It generates 400 fictitious researchers and historical requests from 2018–2026, using `@example.test` emails and TEST-prefixed identifiers.
 
-Use it only after local migrations with `supabase db reset`, or in an isolated dedicated test environment. No production or real-person records belong in this seed.
+It covers Egyptian and foreign profiles, degrees, separate thesis/paper requests, multi-service items, payment and status scenarios, and publication outcomes. Use it only after a local `supabase db reset` or in an explicitly isolated test environment.
 
 ## 5. Frontend: `CRDC/researcher-portal`
 
-Stack: React 19, TypeScript, Vite, and `@supabase/supabase-js`.
+Stack: React 19, TypeScript, Vite, and `@supabase/supabase-js`. Styling is responsive RTL Arabic in `src/styles.css`.
 
-Key source files:
+Key files:
 
-- `src/main.tsx` — React bootstrap.
-- `src/App.tsx` — sign-up/sign-in, confirmation-pending state, Egyptian/foreign researcher profile form, profile summary, and sign-out.
-- `src/supabase.ts` — client initialized from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- `src/styles.css` — responsive RTL styling.
-- `src/vite-env.d.ts` — Vite environment types.
+- `src/App.tsx` — authentication, staff-versus-researcher detection, researcher onboarding, and sign-out.
+- `src/ResearcherPortal.tsx` — researcher service catalog, new-request flow, request list/detail, fees, history, and publication display.
+- `src/StaffConsole.tsx` — staff shell and role-specific workspace.
+- `src/supabase.ts` — publishable/anon client setup only.
 
-Currently available screens are connection setup, account creation/login, profile completion, and saved-profile confirmation. There is no service catalog screen, request creation/list/detail screen, payment UI, password recovery, profile editing, or staff dashboard yet. Local configuration lives in `supabase/config.toml`; `.env.local` is ignored and must contain only local URL + publishable/anon key for browser runs.
+Completed product work:
 
-## 6. CI/CD and automated tests
+1. **Researcher journey (PR #10):** active service catalog, degree and fee options, request creation only through `create_service_request`, My Requests, request details, item fees/statuses, timeline, publication information, and researcher data isolation.
+2. **Staff role detection and viewer overview (PR #11):** signed-in active staff bypass researcher onboarding; staff shell shows name, role, and sign-out. Admin/viewer access a read-only aggregate overview without PII.
+3. **Admin request queue and assignments (PR #12):** admins can filter all requests, view allowed researcher context and item summaries, and assign/reassign every item in a request to an active reviewer or statistician.
+4. **Reviewer/statistician workspace (PR #13):** assigned-cases tab uses RLS-limited queries. Operational staff can update allowed statuses with a history note, and handle publication decisions, journals, and issues through secure RPCs.
+
+## 6. CI/CD and tests
 
 Workflows under `.github/workflows/`:
 
-- `crdc-sql-tests.yml` — starts isolated Supabase, runs `supabase db reset` (migrations + seed), then `supabase test db`. SQL tests cover RLS/role access; the established suite has 33 pgTAP assertions across two files.
-- `crdc-portal-build.yml` — installs portal dependencies and runs `npm run build`.
-- `crdc-researcher-e2e.yml` — starts isolated Supabase with the synthetic seed, builds the portal, launches Chromium through Playwright, and tests Egyptian/foreign registration, profile saving, and own-profile isolation. PR #8 added this workflow and its latest run passed.
+- `crdc-sql-tests.yml` starts local Supabase, runs `supabase db reset`, and runs pgTAP SQL/RLS tests.
+- `crdc-portal-build.yml` installs portal dependencies and runs `npm run build`.
+- `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data with Playwright.
 
-Preserve these CI assumptions:
+The E2E suite covers researcher registration/request isolation, viewer shell and aggregates, admin assignment persistence, and assigned reviewer status update with timeline visibility and case isolation.
 
-- Keep each workflow's path filters covering the files it validates.
-- The current portal workflows use `npm install`; a prior `npm ci` attempt failed in GitHub because the runner could not find the lockfile at that working-directory path. Don't switch back without confirming the lockfile is checked out at the expected path.
-- Playwright is installed at pinned version `1.65.1` for the CI E2E job. The local Supabase service-role key is generated inside the disposable runner only; never replace it with a hosted key.
-- Allow the local SMTP/Auth configuration and test to confirm synthetic sign-ups only inside the isolated local stack.
+Preserve these constraints:
 
-## 7. Next milestone
+- Keep workflow path filters covering portal, Supabase migrations, tests, and the workflow itself.
+- Keep `npm install` in the existing CI workflow unless the lockfile setup is intentionally corrected.
+- Playwright is pinned to `1.65.1`.
+- Supabase startup can occasionally hit public registry rate limits; retry a failed job when logs show the failure occurred before app tests.
+- Do not replace local CI values with hosted credentials.
 
-Build the authenticated **service catalog and request journey**:
+## 7. Remaining milestone
 
-1. Read active services, fee options, degree requirements, and page-based pricing from `services`, `fee_schedule`, and `degree_requirements`.
-2. Let a researcher select a work type (thesis or paper), title/page count, and service options. Keep a paper request separate from its thesis request.
-3. Submit through `crdc.create_service_request(...)`; let database logic calculate prices and create request items. Do not duplicate fee/authorization rules in the browser.
-4. Add a “My requests” list and request detail with item-level statuses/history and publication details; query only the signed-in user's records and let RLS enforce access.
-5. Test locally with the seed and add Playwright coverage for request creation, validation, and isolation before any hosted deployment.
+The remaining product items are:
 
-Before implementing payment UX, confirm the receipt-grouping policy with the center; keep cashier-only payment writes behind the existing RPC/RLS rules.
+1. **Cashier payment UX**, after the center confirms receipt grouping. Keep all payment writes behind the existing cashier/admin RLS and payment RPC rules.
+2. **Password recovery** for portal accounts.
+3. **Researcher profile editing**, with database authorization and appropriate validation.
+
+Before expanding any workflow, inspect the exact migration definitions and active RLS policies first.
