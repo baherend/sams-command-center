@@ -116,6 +116,6 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await assigned.getByRole('button', { name: 'حفظ الحالة' }).click()
   await expect(page.getByRole('status')).toContainText('تم تحديث حالة البند')
   await expect(assigned.getByText('بدأت مراجعة الاختبار')).toBeVisible()
-  await expect(assigned.getByText('قيد التنفيذ')).toBeVisible()
+  await expect(assigned.locator('.request-card-status')).toHaveText('قيد التنفيذ')
 })
 
