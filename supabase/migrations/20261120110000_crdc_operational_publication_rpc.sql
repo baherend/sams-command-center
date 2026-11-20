@@ -4,6 +4,7 @@ begin;
 -- CI creates disposable assigned-case fixtures with the local service role only.
 grant update (assigned_staff_id, status_id) on crdc.request_items to service_role;
 grant select on crdc.staff_users to service_role;
+grant select on crdc.request_items to service_role;
 
 create or replace function private.update_publication_submission_impl(
   p_item_id bigint, p_decision text, p_journal_id smallint, p_issue_id integer default null
