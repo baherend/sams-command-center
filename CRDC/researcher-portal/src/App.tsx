@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
+import ResearcherPortal from './ResearcherPortal'
 
 type Degree = {
   degree_id: number
@@ -11,11 +12,17 @@ type Degree = {
 }
 
 type ResearcherProfile = {
+  researcher_id: string
   full_name: string
   applicant_type: 'egyptian' | 'foreign'
   email: string
   degree_id: number | null
+  degree_name: string | null
   specialty: string | null
+  nationality: string | null
+  national_id: string | null
+  passport_no: string | null
+  created_at: string
 }
 
 type Mode = 'sign-in' | 'sign-up'
@@ -46,7 +53,7 @@ export default function App() {
       supabase
         .schema('crdc')
         .from('researchers')
-        .select('full_name, applicant_type, email, degree_id, specialty')
+        .select('researcher_id, full_name, applicant_type, email, degree_id, specialty, nationality, national_id, passport_no, created_at')
         .eq('auth_user_id', nextSession.user.id)
         .maybeSingle(),
       supabase.schema('crdc').from('degrees').select('degree_id, name_ar, track, level').order('degree_id'),
@@ -54,7 +61,10 @@ export default function App() {
 
     if (profileError) throw profileError
     if (degreeError) throw degreeError
-    setProfile(researcher as ResearcherProfile | null)
+    setProfile(researcher ? {
+      ...researcher,
+      degree_name: degreeRows?.find((degree) => degree.degree_id === researcher.degree_id)?.name_ar ?? null,
+    } as ResearcherProfile : null)
     setDegrees((degreeRows ?? []) as Degree[])
   }, [])
 
@@ -161,11 +171,14 @@ export default function App() {
           specialty: String(form.get('specialty') ?? '').trim() || null,
           email: session.user.email?.trim().toLowerCase(),
         })
-        .select('full_name, applicant_type, email, degree_id, specialty')
+        .select('researcher_id, full_name, applicant_type, email, degree_id, specialty, nationality, national_id, passport_no, created_at')
         .single()
 
       if (insertError) throw insertError
-      setProfile(data as ResearcherProfile)
+      setProfile({
+        ...data,
+        degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null,
+      } as ResearcherProfile)
       setNotice('ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.')
     } catch (profileError) {
       setError(errorMessage(profileError))
@@ -184,6 +197,10 @@ export default function App() {
 
   if (!supabaseConfigured || !supabase) {
     return <SetupScreen />
+  }
+
+  if (session && profile) {
+    return <ResearcherPortal profile={profile} onSignOut={signOut} />
   }
 
   return (
@@ -233,18 +250,6 @@ export default function App() {
                 <p className="form-footnote">بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.</p>
               </form>
             </>
-          ) : profile ? (
-            <div className="profile-success">
-              <div className="success-orbit"><span>✓</span></div>
-              <span className="eyebrow">حسابك جاهز</span>
-              <h2>أهلاً يا {profile.full_name}</h2>
-              <p>ملف الباحث اتسجل. الخطوة الجاية هتكون استعراض الخدمات وإنشاء طلباتك.</p>
-              <div className="profile-summary">
-                <span>نوع الباحث</span><strong>{profile.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</strong>
-                <span>البريد الإلكتروني</span><strong dir="ltr">{profile.email}</strong>
-              </div>
-              {notice && <p className="message success" role="status">{notice}</p>}
-            </div>
           ) : (
             <>
               <div className="card-heading">
@@ -284,3 +289,4 @@ export default function App() {
 function SetupScreen() {
   return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="brand-mark">م</span><span className="eyebrow">إعداد الاتصال</span><h1>اربط البوابة بـSupabase</h1><p>انسخ ملف <code>.env.example</code> باسم <code>.env.local</code>، وحط عنوان المشروع ومفتاح الـpublishable أو anon key.</p><p className="form-footnote">مفتاح service role مايتحطّش أبدًا في الواجهة الأمامية.</p></div></main>
 }
+
