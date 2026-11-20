@@ -1,6 +1,9 @@
 -- Expose only grouped request totals to active admins and viewers.
 begin;
 
+-- The CI-only service-role client needs schema usage to create isolated staff fixtures.
+grant usage on schema crdc to service_role;
+
 create or replace view crdc.staff_dashboard_overview
 with (security_barrier = true) as
   select 'total'::text as metric, 'all'::text as category, 'كل الطلبات'::text as label,
