@@ -77,3 +77,45 @@ test('admin assigns an active reviewer to a request and the assignment persists'
   await expect(refreshedRow.locator('.assigned-staff-names')).toContainText('مراجع اختبار')
 })
 
+test('assigned reviewer updates a case and cannot see another reviewer case', async ({ page }) => {
+  const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
+  const reviewerEmail = `e2e-ops-reviewer-${runId}@example.test`
+  const otherEmail = `e2e-ops-other-${runId}@example.test`
+  const { data: reviewerUser, error: reviewerError } = await admin.auth.admin.createUser({ email: reviewerEmail, password, email_confirm: true })
+  if (reviewerError) throw reviewerError
+  const { data: otherUser, error: otherError } = await admin.auth.admin.createUser({ email: otherEmail, password, email_confirm: true })
+  if (otherError) throw otherError
+  const { data: insertedStaff, error: staffError } = await admin.schema('crdc').from('staff_users').insert([
+    { auth_user_id: reviewerUser.user.id, full_name: 'مراجع تشغيل', role: 'reviewer', is_active: true },
+    { auth_user_id: otherUser.user.id, full_name: 'مراجع آخر', role: 'reviewer', is_active: true },
+  ]).select('staff_id, full_name')
+  if (staffError) throw staffError
+  const reviewerStaffId = insertedStaff.find((row) => row.full_name === 'مراجع تشغيل')!.staff_id
+  const otherStaffId = insertedStaff.find((row) => row.full_name === 'مراجع آخر')!.staff_id
+  const { data: fixtureItems, error: itemError } = await admin.schema('crdc').from('request_items').select('item_id, request_id').order('item_id').limit(2)
+  if (itemError || !fixtureItems || fixtureItems.length < 2) throw itemError ?? new Error('Seed has too few items')
+  const { data: paid, error: paidError } = await admin.schema('crdc').from('request_statuses').select('status_id').eq('code', 'PAID').single()
+  if (paidError) throw paidError
+  for (const [index, fixture] of fixtureItems.entries()) {
+    const { error: fixtureError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: index === 0 ? reviewerStaffId : otherStaffId, status_id: paid.status_id }).eq('item_id', fixture.item_id)
+    if (fixtureError) throw fixtureError
+  }
+
+  await page.goto('/')
+  await page.locator('input[name="email"]').fill(reviewerEmail)
+  await page.locator('input[name="password"]').fill(password)
+  await page.locator('.form-card form button.primary-button').click()
+  const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
+  await expect(nav).toBeVisible()
+  await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
+  const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[0].item_id}"]`)
+  await expect(assigned).toBeVisible()
+  await expect(page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[1].item_id}"]`)).toHaveCount(0)
+  await assigned.getByLabel('الحالة التشغيلية').selectOption('IN_PROGRESS')
+  await assigned.getByLabel('ملاحظة للسجل').fill('بدأت مراجعة الاختبار')
+  await assigned.getByRole('button', { name: 'حفظ الحالة' }).click()
+  await expect(page.getByRole('status')).toContainText('تم تحديث حالة البند')
+  await expect(assigned.getByText('بدأت مراجعة الاختبار')).toBeVisible()
+  await expect(assigned.getByText('قيد التنفيذ')).toBeVisible()
+})
+
