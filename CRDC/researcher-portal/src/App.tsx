@@ -325,7 +325,7 @@ export default function App() {
                 <label>نوع الباحث<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">مصري</option><option value="foreign">وافد</option></select></label>
                 <div className="two-fields">
                   {profileApplicantType === 'egyptian' ? (
-                    <label>الرقم القومي<input name="national_id" inputMode="numeric" pattern="[23][0-9](0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder="١٤ رقم" /></label>
+                    <label>الرقم القومي<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder="١٤ رقم" /></label>
                   ) : (
                     <>
                       <label>رقم جواز السفر<input name="passport_no" minLength={3} required placeholder="رقم الجواز" /></label>
