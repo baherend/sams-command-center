@@ -1,22 +1,23 @@
 # CRDC Platform — Claude Code Handoff
 
-**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PR #18 (Round 3 PR A follow-up) is merged to `main`; all three CI workflows passed on its merge commit as of 2026-11-21. Round 3 PR B is in progress on `feat/crdc-round3-pr-b`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
+**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PR #19 (Round 3 PR B) is merged to `main`. Round 3 PR C is in progress on `feat/crdc-round3-pr-c`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
 
 ## 1. Project rules and environment isolation
 
 - Keep synthetic data out of the shared Supabase project `sams-dev`. Its CRDC migrations and reference rows may be deployed, but `supabase/seed.sql` must never be applied there.
-- Develop and test against the local Supabase stack only: `supabase start`, then `supabase db reset`. The reset applies migrations and the local synthetic seed.
+- Develop and test against the local Supabase stack only: `supabase start`, `supabase db reset`, then `bash supabase/scripts/seed_local.sh`. Reset applies migrations only; the guarded seed script explicitly loads synthetic data into the verified local database URL.
+- Never run `supabase db reset --linked` or `supabase db push --include-seed` against `sams-dev`. Never apply `supabase/seed.sql` to any hosted/shared project.
 - A separate `sams-test` project is acceptable only after confirming it is isolated. Do not assume one is configured.
 - Browser code uses only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Never put a service-role key in frontend code. The service-role key appears only in disposable local CI fixtures.
 - Put schema changes in timestamped `supabase/migrations/` files and validate through a PR before any hosted deployment.
 
 ## 2. Database schema and workflows
 
-The `crdc` schema has 15 tables:
+The `crdc` schema has 16 tables:
 
 - **Catalog/reference:** `services`, `requirement_types`, `fee_schedule`, `degrees`, `degree_requirements`, `journals`, `journal_issues`, `request_statuses`.
 - **People:** `researchers`, `staff_users`.
-- **Operations/publication:** `service_requests`, `request_items`, `payments`, `request_status_history`, `publication_submissions`.
+- **Operations/publication/audit:** `service_requests`, `request_items`, `payments`, `request_status_history`, `publication_submissions`, `audit_log`.
 
 Core relationships are `researchers → service_requests → request_items → request_status_history`; publication items may have one `publication_submissions` row linked to a journal and optional issue.
 
@@ -50,9 +51,9 @@ The safe aggregate views are `crdc.viewer_dashboard_summary` and `crdc.staff_das
 
 ## 4. Synthetic seed data
 
-`supabase/seed.sql` is local-only. It generates 400 fictitious researchers and historical requests from 2018–2026, using `@example.test` emails and TEST-prefixed identifiers.
+`supabase/seed.sql` is local-only and refuses to run unless `crdc.allow_seed=on` is passed in `PGOPTIONS`; it also aborts when any existing researcher row does not match the seed's synthetic identity pattern. `supabase/config.toml` disables automatic seeding. Use `bash supabase/scripts/seed_local.sh`, which verifies the active DB URL is the local loopback database before invoking `psql`. It generates 400 fictitious researchers and historical requests from 2018–2026, using `@example.test` emails and TEST-prefixed identifiers.
 
-It covers Egyptian and foreign profiles, degrees, separate thesis/paper requests, multi-service items, payment and status scenarios, and publication outcomes. Use it only after a local `supabase db reset` or in an explicitly isolated test environment.
+It covers Egyptian and foreign profiles, degrees, separate thesis/paper requests, multi-service items, payment and status scenarios, and publication outcomes. After a local `supabase db reset`, run the guarded script before pgTAP or Playwright. Never use `db reset --linked` or `db push --include-seed` on `sams-dev`.
 
 ## 5. Frontend: `CRDC/researcher-portal`
 
@@ -72,17 +73,18 @@ Merged and completed product work:
 3. **Admin request queue and assignments (PR #12):** admins can filter all requests, view allowed researcher context and item summaries, and assign/reassign every item in a request to an active reviewer or statistician.
 4. **Reviewer/statistician workspace (PR #13):** assigned-cases tab uses RLS-limited queries. Operational staff can update allowed statuses with a history note, and handle publication decisions, journals, and issues through secure RPCs.
 5. **Round 3 PR A integrity controls (PR #17):** added normalized/validated researcher identity inputs, bounded request data, admin-only publication submission creation, and a publication-decision status allow-list.
-6. **Round 3 follow-up (PR #18):** fixed the national-ID browser pattern and corrected pgTAP role switching and RPC argument types. On merge commit `b66961d`, `crdc-sql-tests`, `crdc-portal-build`, and `crdc-researcher-e2e` all passed in GitHub Actions (2026-11-21).
+6. **Round 3 follow-up (PR #18):** fixed the national-ID browser pattern and corrected pgTAP role switching and RPC argument types.
+7. **Round 3 PR B (PR #19):** migration `20261121130000_crdc_round3_pr_b.sql` guards the last active Auth-linked administrator with a transaction advisory lock and adds an append-only audit log with per-table safe-column allow-lists. pgTAP coverage is in `supabase/tests/crdc_round3_pr_b_test.sql`; `.github/workflows/crdc-sql-tests.yml` runs `supabase/tests/crdc_last_admin_concurrency.sh` to exercise concurrent demotions in two PostgreSQL sessions.
 
-Round 3 PR B is in progress on `feat/crdc-round3-pr-b`: migration `20261121130000_crdc_round3_pr_b.sql` guards the last active admin with a transaction advisory lock and adds an append-only audit log with per-table safe-column allow-lists. pgTAP coverage is in `supabase/tests/crdc_round3_pr_b_test.sql`; `.github/workflows/crdc-sql-tests.yml` runs `supabase/tests/crdc_last_admin_concurrency.sh` to exercise concurrent demotions in two PostgreSQL sessions.
+Round 3 PR C is in progress on `feat/crdc-round3-pr-c`: safe Arabic database-error mapping, guarded local-only seed loading, server-side staff request pages, and page-bounded operational history.
 
 ## 6. CI/CD and tests
 
 Workflows under `.github/workflows/`:
 
-- `crdc-sql-tests.yml` runs on pull requests and on pushes to `main`; it starts local Supabase, runs `supabase db reset`, and runs pgTAP SQL/RLS tests.
+- `crdc-sql-tests.yml` runs on pull requests and on pushes to `main`; it starts local Supabase, runs `supabase db reset`, explicitly loads guarded synthetic data through `seed_local.sh`, and runs pgTAP SQL/RLS tests.
 - `crdc-portal-build.yml` installs portal dependencies and runs `npm run build`.
-- `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data with Playwright.
+- `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data (loaded only through `seed_local.sh`) with Playwright.
 
 The E2E suite covers researcher registration/request isolation, viewer shell and aggregates, admin assignment persistence, and assigned reviewer status update with timeline visibility and case isolation.
 

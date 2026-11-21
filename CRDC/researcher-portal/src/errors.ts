@@ -3,12 +3,34 @@ import { useCallback, useRef } from 'react'
 /** An error whose message is already a safe, user-facing Arabic sentence. */
 export class UiError extends Error {}
 
-type ErrorLike = { code?: unknown; message?: unknown; status?: unknown; name?: unknown }
+type ErrorLike = { code?: unknown; message?: unknown; details?: unknown; hint?: unknown; constraint?: unknown; status?: unknown; name?: unknown }
 
 const IDENTITY_MESSAGE = 'مش قادرين نحفظ البيانات دي. راجع البيانات المدخلة، ولو متأكد إنها صحيحة تواصل مع إدارة المركز.'
 
 // Known RPC / trigger messages (raised by our own SQL) -> Arabic. Matched on a substring.
 const MESSAGE_MAP: [string, string][] = [
+  ['Payment amount must equal the selected service items total', 'إجمالي المبلغ لازم يساوي مجموع الخدمات المختارة. راجع المبلغ وحاول تاني.'],
+  ['Payment and service items must have the same request and currency', 'إذن الدفع والخدمات لازم يكونوا لنفس الطلب وبنفس العملة.'],
+  ['A service item is already linked to another payment', 'في خدمة مرتبطة بإذن دفع تاني بالفعل. راجع الطلب قبل المحاولة.'],
+  ['Payment is linked to service items; its recorded values are locked', 'بيانات إذن الدفع اتسجلت على خدمات ومبقاش ينفع تغييرها.'],
+  ['Page count must be between 1 and 2000', 'عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.'],
+  ['Work title must be between 3 and 300 characters', 'عنوان العمل لازم يكون من ٣ إلى ٣٠٠ حرف.'],
+  ['request_status_history_note_length', 'الملاحظة لازم تكون ٥٠٠ حرف أو أقل.'],
+  ['service_requests_page_count_range', 'عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.'],
+  ['service_requests_work_title_length', 'عنوان العمل لازم يكون من ٣ إلى ٣٠٠ حرف.'],
+  ['ri_pay_fk', 'إذن الدفع والخدمات لازم يكونوا لنفس الطلب وبنفس العملة.'],
+  ['payments_receipt_no_key', 'رقم الإيصال مستخدم قبل كده. راجعه وجرب رقم تاني.'],
+  ['payments_payment_order_no_key', 'رقم إذن الدفع مستخدم قبل كده. راجعه وجرب رقم تاني.'],
+  ['Payment amount must equal', 'إجمالي المبلغ لازم يساوي مجموع الخدمات المختارة. راجع المبلغ وحاول تاني.'],
+  ['Payment and service items', 'إذن الدفع والخدمات لازم يكونوا لنفس الطلب وبنفس العملة.'],
+  ['A service item is already linked', 'في خدمة مرتبطة بإذن دفع تاني بالفعل. راجع الطلب قبل المحاولة.'],
+  ['recorded values are locked', 'بيانات إذن الدفع اتسجلت على خدمات ومبقاش ينفع تغييرها.'],
+  ['duplicate key value violates unique constraint "payments_receipt_no_key"', 'رقم الإيصال مستخدم قبل كده. راجعه وجرب رقم تاني.'],
+  ['duplicate key value violates unique constraint "payments_payment_order_no_key"', 'رقم إذن الدفع مستخدم قبل كده. راجعه وجرب رقم تاني.'],
+  ['Staff cannot be assigned to their own researcher request', 'مينفعش تعيين موظف على طلب هو صاحبه كباحث.'],
+  ['Staff cannot change the status of their own researcher request', 'مينفعش موظف يغيّر حالة طلب هو صاحبه كباحث.'],
+  ['Staff cannot decide on their own researcher request', 'مينفعش موظف يقرر في طلب نشر هو صاحبه كباحث.'],
+  ['Staff cannot create a publication submission for their own researcher request', 'مينفعش موظف ينشئ بيانات نشر لطلب هو صاحبه كباحث.'],
   ['Publication services require a separate paper request', 'خدمة النشر بتتقدم في طلب بحث منفصل عن الرسالة.'],
   ['Page count is required', 'اكتب عدد الصفحات علشان نكمل الطلب.'],
   ['Select at least one service', 'اختار خدمة واحدة على الأقل.'],
@@ -25,13 +47,21 @@ const MESSAGE_MAP: [string, string][] = [
   ['Issue does not belong to this journal', 'العدد المختار مش تابع للمجلة دي.'],
   ['Publication submission not found', 'بيانات النشر لهذا البند غير موجودة.'],
   ['Journal not found', 'المجلة المختارة غير موجودة.'],
-  ['Staff cannot be assigned', 'مينفعش تعيين موظف على طلب هو صاحبه كباحث.'],
+]
+
+const IDENTITY_CONSTRAINTS = [
+  'researchers_national_id_key',
+  'researchers_passport_nationality_key',
+  'researchers_national_id_format',
+]
+const IDENTITY_MESSAGE_MAP: [string, string][] = [
+  ['researchers_national_id_key', IDENTITY_MESSAGE],
+  ['researchers_passport_nationality_key', IDENTITY_MESSAGE],
+  ['researchers_national_id_format', IDENTITY_MESSAGE],
 ]
 
 // Postgres SQLSTATE / PostgREST codes -> Arabic.
 const CODE_MAP: Record<string, string> = {
-  '23505': IDENTITY_MESSAGE,
-  '23514': IDENTITY_MESSAGE,
   '23502': 'في بيانات مطلوبة ناقصة. كمّلها وجرب تاني.',
   '23503': 'في بيانات مرتبطة مش موجودة. حدّث الصفحة وجرب تاني.',
   '22P02': 'في قيمة مش بالصيغة المطلوبة. راجع البيانات وجرب تاني.',
@@ -53,6 +83,7 @@ const CODE_MAP: Record<string, string> = {
   over_email_send_rate_limit: 'محاولات كتير في وقت قصير. استنى شوية وجرب تاني.',
 }
 
+const INVALID_DATA = 'البيانات دي مش مقبولة، راجعها وجرب تاني.'
 const GENERIC = 'حصلت مشكلة. جرّب تاني، ولو استمرت تواصل مع إدارة المركز.'
 const NETWORK = 'مش قادرين نتصل بالخدمة. راجع الإنترنت وجرب تاني.'
 
@@ -65,9 +96,14 @@ export function friendlyError(error: unknown, codeOverrides: Record<string, stri
   const e = (typeof error === 'object' && error !== null ? error : {}) as ErrorLike
   const message = typeof e.message === 'string' ? e.message : ''
   const code = typeof e.code === 'string' ? e.code : ''
+  const diagnostic = [message, String(e.details ?? ''), String(e.hint ?? ''), String(e.constraint ?? '')].join(' ')
 
-  const byMessage = MESSAGE_MAP.find(([needle]) => message.includes(needle))
+  const identityConstraint = IDENTITY_CONSTRAINTS.find((constraint) => diagnostic.includes(constraint))
+  if (identityConstraint) return IDENTITY_MESSAGE_MAP.find(([constraint]) => constraint === identityConstraint)![1]
+
+  const byMessage = MESSAGE_MAP.find(([needle]) => diagnostic.includes(needle))
   if (byMessage) return byMessage[1]
+  if (code === '23505' || code === '23514') return INVALID_DATA
   if (code && codeOverrides[code]) return codeOverrides[code]
   if (code && CODE_MAP[code]) return CODE_MAP[code]
   if (/row-level security|permission denied/i.test(message)) return CODE_MAP['42501']

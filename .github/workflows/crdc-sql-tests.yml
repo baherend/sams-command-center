@@ -38,8 +38,11 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
-      - name: Apply migrations and synthetic seed
+      - name: Apply migrations to the isolated local database
         run: supabase db reset
+
+      - name: Load guarded synthetic data into the local database
+        run: bash supabase/scripts/seed_local.sh
 
       - name: Run pgTAP tests
         run: supabase test db

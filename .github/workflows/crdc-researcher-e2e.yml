@@ -41,6 +41,7 @@ jobs:
         run: |
           supabase start
           supabase db reset
+          bash supabase/scripts/seed_local.sh
       - name: Export local Supabase connection values
         shell: bash
         run: |

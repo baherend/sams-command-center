@@ -39,8 +39,11 @@ test('active viewer signs into the staff shell and sees aggregate stats without 
   await expect(page.getByLabel('رقم جواز السفر')).toHaveCount(0)
 })
 
-test('admin assigns an active reviewer to a request and the assignment persists', async ({ page }) => {
+test('admin paginates synthetic requests and assignments persist across pages', async ({ page }) => {
   const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
+  const { data: syntheticRequests, error: seedError } = await admin.schema('crdc').from('service_requests').select('request_id').limit(45)
+  if (seedError) throw seedError
+  expect(syntheticRequests).toHaveLength(45)
   const adminEmail = `e2e-admin-${runId}@example.test`
   const reviewerEmail = `e2e-reviewer-${runId}@example.test`
   const { data: adminUser, error: adminCreateError } = await admin.auth.admin.createUser({ email: adminEmail, password, email_confirm: true })
@@ -63,6 +66,24 @@ test('admin assigns an active reviewer to a request and the assignment persists'
   await staffNav.getByRole('button', { name: 'إدارة الطلبات والتعيينات' }).click()
   await expect(page.getByRole('heading', { name: 'إدارة الطلبات والتعيينات' })).toBeVisible()
 
+  const visibleRows = page.getByTestId('admin-request-row')
+  await expect(visibleRows).toHaveCount(20)
+  const firstPageFirstId = await visibleRows.first().getAttribute('data-request-id')
+  await page.getByRole('button', { name: 'التالي' }).click()
+  await expect(visibleRows).toHaveCount(20)
+  await expect.poll(() => visibleRows.first().getAttribute('data-request-id')).not.toBe(firstPageFirstId)
+  const secondPageFirstId = await visibleRows.first().getAttribute('data-request-id')
+  expect(secondPageFirstId).not.toBe(firstPageFirstId)
+  await page.getByRole('button', { name: 'التالي' }).click()
+  await expect(visibleRows).toHaveCount(20)
+  await expect.poll(() => visibleRows.first().getAttribute('data-request-id')).not.toBe(secondPageFirstId)
+  await page.getByRole('button', { name: 'السابق' }).click()
+  await expect(visibleRows).toHaveCount(20)
+  await expect.poll(() => visibleRows.first().getAttribute('data-request-id')).toBe(secondPageFirstId)
+  await page.getByRole('button', { name: 'السابق' }).click()
+  await expect(visibleRows).toHaveCount(20)
+  await expect(visibleRows.first()).toHaveAttribute('data-request-id', firstPageFirstId!)
+
   const requestRow = page.getByTestId('admin-request-row').first()
   await expect(requestRow).toBeVisible()
   const requestId = await requestRow.getAttribute('data-request-id')
@@ -75,6 +96,47 @@ test('admin assigns an active reviewer to a request and the assignment persists'
   const refreshedRow = page.locator(`[data-testid="admin-request-row"][data-request-id="${requestId}"]`)
   await expect(refreshedRow).toBeVisible()
   await expect(refreshedRow.locator('.assigned-staff-names')).toContainText('مراجع اختبار')
+})
+
+test('publication issue options follow the journal selected in the editor', async ({ page }) => {
+  const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
+  const email = `e2e-publication-admin-${runId}@example.test`
+  const { data: adminUser, error: createError } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
+  if (createError) throw createError
+  const { error: staffError } = await admin.schema('crdc').from('staff_users').insert({
+    auth_user_id: adminUser.user.id, full_name: 'مدير اختبار النشر', role: 'admin', is_active: true,
+  })
+  if (staffError) throw staffError
+
+  const { data: allIssues, error: issuesError } = await admin.schema('crdc').from('journal_issues')
+    .select('issue_id, journal_id').order('issue_id')
+  if (issuesError) throw issuesError
+
+  await page.goto('/')
+  await page.locator('input[name="email"]').fill(email)
+  await page.locator('input[name="password"]').fill(password)
+  await page.locator('.form-card form button.primary-button').click()
+  const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
+  await expect(nav).toBeVisible()
+  await nav.getByRole('button', { name: 'إدارة الطلبات والتعيينات' }).click()
+  await page.getByLabel('فلترة بنوع العمل').selectOption('paper')
+  await nav.getByRole('button', { name: 'كل الطلبات والبنود' }).click()
+
+  const editor = page.locator('.publication-editor').first()
+  await expect(editor).toBeVisible()
+  const journalSelect = editor.locator('select[name="journal_id"]')
+  const issueSelect = editor.locator('select[name="issue_id"]')
+  const savedJournalId = Number(await journalSelect.inputValue())
+  const targetIssue = allIssues.find((issue) => issue.journal_id !== savedJournalId)
+  expect(targetIssue).toBeTruthy()
+  const targetIssueIds = allIssues.filter((issue) => issue.journal_id === targetIssue!.journal_id).map((issue) => String(issue.issue_id))
+
+  await journalSelect.selectOption(String(targetIssue!.journal_id))
+  await expect(issueSelect).toHaveValue('')
+  await expect.poll(() => issueSelect.locator('option').evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value)))
+    .toEqual(expect.arrayContaining(['', ...targetIssueIds]))
+  const visibleIssueIds = await issueSelect.locator('option').evaluateAll((options) => options.slice(1).map((option) => (option as HTMLOptionElement).value))
+  expect(new Set(visibleIssueIds)).toEqual(new Set(targetIssueIds))
 })
 
 test('assigned reviewer updates a case and cannot see another reviewer case', async ({ page }) => {
@@ -110,6 +172,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
   const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[0].item_id}"]`)
   await expect(assigned).toBeVisible()
+  await expect(assigned.getByText('الملاحظة هتظهر للباحث')).toBeVisible()
   await expect(page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[1].item_id}"]`)).toHaveCount(0)
   await assigned.getByLabel('الحالة التشغيلية').selectOption('IN_PROGRESS')
   await assigned.getByLabel('ملاحظة للسجل').fill('بدأت مراجعة الاختبار')
@@ -117,5 +180,11 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await expect(page.getByRole('status')).toContainText('تم تحديث حالة البند')
   await expect(assigned.getByText('بدأت مراجعة الاختبار')).toBeVisible()
   await expect(assigned.locator('.request-card-status')).toHaveText('قيد التنفيذ')
+
+  const { data: savedHistory, error: historyError } = await admin.schema('crdc').from('request_status_history')
+    .select('changed_at').eq('item_id', fixtureItems[0].item_id).order('changed_at', { ascending: false }).limit(1).single()
+  if (historyError) throw historyError
+  const displayedTimestamp = assigned.locator('.timeline-row').filter({ hasText: 'بدأت مراجعة الاختبار' }).locator('time')
+  await expect(displayedTimestamp).toHaveAttribute('datetime', savedHistory.changed_at)
 })
 
