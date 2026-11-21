@@ -43,3 +43,6 @@ jobs:
 
       - name: Run pgTAP tests
         run: supabase test db
+
+      - name: Verify last-admin guard with two concurrent sessions
+        run: bash supabase/tests/crdc_last_admin_concurrency.sh

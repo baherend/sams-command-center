@@ -1,6 +1,6 @@
 # CRDC Platform — Claude Code Handoff
 
-**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PRs #9–#13 are merged to `main`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
+**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PR #18 (Round 3 PR A follow-up) is merged to `main`; all three CI workflows passed on its merge commit as of 2026-11-21. Round 3 PR B is in progress on `feat/crdc-round3-pr-b`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
 
 ## 1. Project rules and environment isolation
 
@@ -28,7 +28,7 @@ Important rules:
 - Publication decisions are `pending`, `revisions`, `accepted`, and `rejected`; an accepted decision requires `accepted_at`.
 - National IDs are trimmed and must contain 14 digits, start with century digit 2 or 3, and encode a real YYMMDD date in digits 2–7. No checksum is defined. Passport values are trimmed and uppercased before their nationality-scoped unique check.
 - Work titles contain 3–300 trimmed characters, status-history notes are at most 500 characters, and page counts are either NULL when the selected fees permit it or 1–2000.
-- Only admins create publication submission records through `crdc.create_publication_submission(...)`; direct authenticated table inserts remain denied. Publication decisions are accepted only in `IN_PROGRESS`, `REVISIONS`, or `COMPLETED` (pending center confirmation).
+- Only admins create publication submission records through `crdc.create_publication_submission(...)`; direct authenticated table inserts remain denied. Publication decisions are accepted only in `IN_PROGRESS`, `REVISIONS`, or `COMPLETED`. The project owner approved these states as the project's operating rule on 2026-11-21; do not describe this rule as awaiting center confirmation. Revisit it only if the center or project owner changes the rule for production.
 - `request_items.assigned_staff_id` stores assignment per item. Admin assignment is limited to active reviewers and statisticians.
 - Use `crdc.create_service_request(...)` for request creation and `crdc.set_request_item_status(...)` for status changes. The latter allows only admin/reviewer/statistician/cashier (never viewer), validates transitions, locks the item row (`FOR UPDATE`) so concurrent changes serialise, refuses staff acting on a request whose researcher profile is their own account (admin included), and appends `request_status_history`.
 - `crdc.update_publication_submission(...)` validates assigned operational access, journal/issue consistency, refuses staff deciding on their own researcher request, and sets `accepted_at` server-side the first time a decision becomes accepted (re-saving an accepted decision keeps the original date). `publication_submissions` has no direct INSERT/UPDATE grant for `authenticated`; this RPC is the only write path.
@@ -65,12 +65,16 @@ Key files:
 - `src/StaffConsole.tsx` — staff shell and role-specific workspace.
 - `src/supabase.ts` — publishable/anon client setup only.
 
-Completed product work:
+Merged and completed product work:
 
 1. **Researcher journey (PR #10):** active service catalog, degree and fee options, request creation only through `create_service_request`, My Requests, request details, item fees/statuses, timeline, publication information, and researcher data isolation.
 2. **Staff role detection and viewer overview (PR #11):** signed-in active staff bypass researcher onboarding; staff shell shows name, role, and sign-out. Admin/viewer access a read-only aggregate overview without PII.
 3. **Admin request queue and assignments (PR #12):** admins can filter all requests, view allowed researcher context and item summaries, and assign/reassign every item in a request to an active reviewer or statistician.
 4. **Reviewer/statistician workspace (PR #13):** assigned-cases tab uses RLS-limited queries. Operational staff can update allowed statuses with a history note, and handle publication decisions, journals, and issues through secure RPCs.
+5. **Round 3 PR A integrity controls (PR #17):** added normalized/validated researcher identity inputs, bounded request data, admin-only publication submission creation, and a publication-decision status allow-list.
+6. **Round 3 follow-up (PR #18):** fixed the national-ID browser pattern and corrected pgTAP role switching and RPC argument types. On merge commit `b66961d`, `crdc-sql-tests`, `crdc-portal-build`, and `crdc-researcher-e2e` all passed in GitHub Actions (2026-11-21).
+
+Round 3 PR B is in progress on `feat/crdc-round3-pr-b`: migration `20261121130000_crdc_round3_pr_b.sql` guards the last active admin with a transaction advisory lock and adds an append-only audit log with per-table safe-column allow-lists. pgTAP coverage is in `supabase/tests/crdc_round3_pr_b_test.sql`; `.github/workflows/crdc-sql-tests.yml` runs `supabase/tests/crdc_last_admin_concurrency.sh` to exercise concurrent demotions in two PostgreSQL sessions.
 
 ## 6. CI/CD and tests
 
