@@ -6,15 +6,15 @@ SELECT has_table('crdc', 'services', 'service catalog exists');
 SELECT is(
   (SELECT count(*)::integer FROM information_schema.tables
    WHERE table_schema = 'crdc' AND table_type = 'BASE TABLE'),
-  15,
-  'CRDC schema has the expected 15 tables'
+  16,
+  'CRDC schema has the expected 16 tables including audit_log'
 );
 SELECT is(
   (SELECT count(*)::integer FROM pg_class c
    JOIN pg_namespace n ON n.oid = c.relnamespace
    WHERE n.nspname = 'crdc' AND c.relkind = 'r' AND c.relrowsecurity),
-  15,
-  'RLS is enabled on every CRDC table'
+  16,
+  'RLS is enabled on every CRDC table including audit_log'
 );
 SELECT ok(
   EXISTS (SELECT 1 FROM pg_constraint
