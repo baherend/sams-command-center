@@ -15,7 +15,7 @@ INSERT INTO auth.users (
   ('a0000000-0000-0000-0000-000000000105','authenticated','authenticated','si-viewer@example.test','',now(),'{}','{}',now(),now());
 
 INSERT INTO crdc.researchers (researcher_id, auth_user_id, full_name, applicant_type, nationality, national_id, passport_no, degree_id, email) VALUES
-  ('b0000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','SI Researcher','egyptian',NULL,'TEST-SI-N-1',NULL,1,'si-researcher@example.test'),
+  ('b0000000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-000000000001','SI Researcher','egyptian',NULL,'29001010101001',NULL,1,'si-researcher@example.test'),
   ('b0000000-0000-0000-0000-000000000002',NULL,'SI Foreign','foreign','Testland-X',NULL,'TEST-SI-P-1',1,'si-foreign@example.test');
 
 INSERT INTO crdc.staff_users (staff_id, auth_user_id, full_name, role, is_active) VALUES
@@ -181,7 +181,7 @@ SELECT throws_ok(
   $$INSERT INTO crdc.researchers (full_name, applicant_type, national_id, email) VALUES ('Blank ID','egyptian','   ','si-blank@example.test')$$,
   '23514', NULL, 'M1: blank national_id is rejected');
 SELECT throws_ok(
-  $$INSERT INTO crdc.researchers (full_name, applicant_type, national_id, email) VALUES ('Dup ID','egyptian','TEST-SI-N-1','si-dupid@example.test')$$,
+  $$INSERT INTO crdc.researchers (full_name, applicant_type, national_id, email) VALUES ('Dup ID','egyptian','29001010101001','si-dupid@example.test')$$,
   '23505', NULL, 'M1: duplicate national_id is rejected');
 SELECT throws_ok(
   $$INSERT INTO crdc.researchers (full_name, applicant_type, nationality, passport_no, email) VALUES ('Dup Passport','foreign','Testland-X','TEST-SI-P-1','si-duppp@example.test')$$,
@@ -196,7 +196,7 @@ SELECT throws_ok(
 -- ============ M3: separation of duties on assignment ============
 -- The reviewer below is also a researcher with their own request; they must never be assigned to it.
 INSERT INTO crdc.researchers (researcher_id, auth_user_id, full_name, applicant_type, national_id, degree_id, email)
-VALUES ('b0000000-0000-0000-0000-000000000003','a0000000-0000-0000-0000-000000000102','SI Reviewer As Researcher','egyptian','TEST-SI-N-3',1,'si-reviewer@example.test');
+VALUES ('b0000000-0000-0000-0000-000000000003','a0000000-0000-0000-0000-000000000102','SI Reviewer As Researcher','egyptian','29001010101003',1,'si-reviewer@example.test');
 INSERT INTO crdc.service_requests (researcher_id, work_type, work_title, page_count)
 VALUES ('b0000000-0000-0000-0000-000000000003','paper','SI TEST SELF',10);
 INSERT INTO crdc.request_items (request_id, fee_id, status_id, amount_due)

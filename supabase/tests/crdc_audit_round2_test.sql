@@ -10,8 +10,8 @@ INSERT INTO auth.users (id, aud, role, email, encrypted_password, email_confirme
 
 -- The first admin is ALSO a researcher with their own request.
 INSERT INTO crdc.researchers (researcher_id, auth_user_id, full_name, applicant_type, national_id, degree_id, email) VALUES
-  ('b2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','R2 Admin As Researcher','egyptian','TEST-R2-N-1',1,'r2-admin-self@example.test'),
-  ('b2000000-0000-0000-0000-000000000002',NULL,'R2 Other Researcher','egyptian','TEST-R2-N-2',1,'r2-other@example.test');
+  ('b2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','R2 Admin As Researcher','egyptian','29001010101021',1,'r2-admin-self@example.test'),
+  ('b2000000-0000-0000-0000-000000000002',NULL,'R2 Other Researcher','egyptian','29001010101022',1,'r2-other@example.test');
 
 INSERT INTO crdc.staff_users (staff_id, auth_user_id, full_name, role, is_active) VALUES
   ('c2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','R2 Admin Self','admin',true),

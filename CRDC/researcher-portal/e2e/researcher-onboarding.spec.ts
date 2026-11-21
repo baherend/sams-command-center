@@ -44,7 +44,7 @@ async function registerAndCreateProfile(
   await page.getByLabel('الاسم بالكامل').fill(applicantType === 'egyptian' ? 'باحث اختبار مصري' : 'باحث اختبار وافد')
   await page.locator('select[name="applicant_type"]').selectOption(applicantType)
   if (applicantType === 'egyptian') {
-    await page.locator('input[name="national_id"]').fill('12345678901234')
+    await page.locator('input[name="national_id"]').fill('29001010101014')
   } else {
     await page.locator('input[name="passport_no"]').fill('E2E-PASSPORT-001')
     await page.locator('input[name="nationality"]').fill('Testland')
