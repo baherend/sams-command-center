@@ -95,4 +95,8 @@ $$;
 revoke all on function crdc.staff_request_page(timestamptz,bigint,text,text,text) from public, anon;
 grant execute on function crdc.staff_request_page(timestamptz,bigint,text,text,text) to authenticated;
 
+-- Trusted CI/backend fixtures use service_role to read these operational tables.
+-- Keep this allowlist explicit; audit_log remains inaccessible to service_role.
+grant select on crdc.service_requests, crdc.journal_issues, crdc.request_status_history to service_role;
+
 commit;
