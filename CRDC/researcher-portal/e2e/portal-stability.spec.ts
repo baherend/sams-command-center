@@ -9,7 +9,7 @@ const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
 // 14 digits, unique per run and per suffix, so reruns against the same database do not collide.
-const nationalId = (prefix: string) => prefix + String(Date.now()).slice(-12)
+const nationalId = (prefix: string) => `2${prefix.slice(-2)}0101${String(Date.now()).slice(-7)}`
 
 async function createConfirmedUser(email: string) {
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true })

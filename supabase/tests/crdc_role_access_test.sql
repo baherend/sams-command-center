@@ -17,8 +17,8 @@ INSERT INTO auth.users (
 INSERT INTO crdc.researchers (
   researcher_id, auth_user_id, full_name, applicant_type, national_id, degree_id, email
 ) VALUES
-  ('10000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','RLS Researcher A','egyptian','TEST-RLS-A',1,'rls-researcher-a@example.test'),
-  ('10000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000002','RLS Researcher B','egyptian','TEST-RLS-B',1,'rls-researcher-b@example.test');
+  ('10000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','RLS Researcher A','egyptian','29001010101011',1,'rls-researcher-a@example.test'),
+  ('10000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000002','RLS Researcher B','egyptian','29001010101012',1,'rls-researcher-b@example.test');
 
 INSERT INTO crdc.staff_users (staff_id, auth_user_id, full_name, role, is_active) VALUES
   ('20000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000101','RLS Reviewer A','reviewer',true),
@@ -80,7 +80,7 @@ SELECT is((SELECT count(*)::integer FROM crdc.request_status_history h JOIN crdc
 SELECT is((SELECT count(*)::integer FROM crdc.publication_submissions p JOIN crdc.request_items i USING(item_id) JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='RLS TEST A'), 1, 'researcher sees own publication record');
 SELECT throws_ok(
   $$INSERT INTO crdc.researchers (auth_user_id, full_name, applicant_type, national_id, email)
-    VALUES ('00000000-0000-0000-0000-000000000003','Forged profile','egyptian','TEST-FORGED','forged@example.test')$$,
+    VALUES ('00000000-0000-0000-0000-000000000003','Forged profile','egyptian','29001010101013','forged@example.test')$$,
   '42501', NULL, 'researcher cannot create a profile for another Auth user'
 );
 RESET ROLE;

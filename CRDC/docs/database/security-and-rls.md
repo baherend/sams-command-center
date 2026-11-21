@@ -36,6 +36,9 @@ The DB policies bind a staff account to its Auth user. Staff roles are not self-
 - `crdc.link_payment_to_items(...)` — cashier/admin only; limits a payment to one request and currency and checks that its amount equals the selected service-item total. It locks the payment and item rows before validating.
 - `crdc.set_request_item_status(...)` — appends a status event for an authorized staff member; the trigger mirrors the newest event into the current item status. Viewers are rejected, the item row is locked, and staff cannot change an item that belongs to their own researcher profile.
 - A database trigger restricts publication metadata to the `PUB_PUBLISH` service item, not a separate arbitration fee item.
+- `crdc.create_publication_submission(...)` is the admin-only creation path. It checks for `PUB_PUBLISH`, a valid journal and language, duplicate submissions, and self-approval. Authenticated users still have no direct `INSERT` or `UPDATE` grant on this table.
+- Publication decisions lock the row and require item status `IN_PROGRESS`, `REVISIONS`, or `COMPLETED`; this operational status rule is an assumption pending confirmation by the center. Accepted dates are preserved when an accepted decision is saved again.
+- Researcher national IDs are trimmed and validated as 14 digits with century digit 2 or 3 and a valid YYMMDD date; no checksum is applied. Passport numbers are trimmed and uppercased before nationality-scoped uniqueness is enforced. Titles use 3–300 trimmed characters, status notes allow at most 500 characters, and page counts allow NULL or 1–2000.
 
 Internal helpers use `SECURITY DEFINER` in the unexposed `private` schema, pin `search_path`, validate the caller, and revoke default execute access. Expose `crdc` in the Supabase API settings only if the portal needs its tables/RPCs through the Data API; never expose `private`.
 

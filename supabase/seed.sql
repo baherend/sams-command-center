@@ -26,7 +26,7 @@ begin
   select 'باحث تجريبي ' || lpad(g::text,3,'0'),
          case when g % 4 = 0 then 'foreign' else 'egyptian' end,
          case when g % 4 = 0 then 'Testland-' || chr(65 + g % 3) end,
-         case when g % 4 <> 0 then 'TEST-N-' || lpad(g::text,4,'0') end,
+         case when g % 4 <> 0 then '2' || lpad(((g - 1) % 100)::text,2,'0') || '0101' || lpad(g::text,7,'0') end,
          case when g % 4 = 0 then 'TEST-P-' || lpad(g::text,4,'0') end,
          case when g % 10 in (0,1,2) then 1 when g % 10 in (3,4,5,6) then 2 when g % 10 = 7 then 3 else 4 end,
          (array['إدارة أعمال','محاسبة','اقتصاد','تمويل','موارد بشرية'])[1 + g % 5],

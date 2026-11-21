@@ -320,7 +320,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
                 <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">بيانات العمل</span><h2>حدد نوع الطلب والخدمات</h2></div></div>
                 <label>نوع العمل<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
                 <label>عنوان الرسالة أو البحث<input name="work_title" required minLength={3} maxLength={300} placeholder="اكتب عنوان العمل" /></label>
-                <label>عدد الصفحات<input name="page_count" type="number" min="1" step="1" required placeholder="مثال: 25" /></label>
+                <label>عدد الصفحات<input name="page_count" type="number" min="1" max="2000" step="1" required placeholder="مثال: 25" /></label>
                 <div className="service-groups">
                   {services.map((service) => {
                     const options = fees.filter((fee) => fee.service_id === service.service_id)
