@@ -2,7 +2,7 @@ name: CRDC SQL tests
 
 on:
   push:
-    branches: [docs/crdc-data-model-rls]
+    branches: [main]
     paths:
       - "supabase/**"
       - "database/**"

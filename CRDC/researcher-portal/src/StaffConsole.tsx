@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
+import { UiError, friendlyError, useSingleFlight } from './errors'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -76,6 +77,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [issues, setIssues] = useState<JournalIssue[]>([])
   const [operationLoading, setOperationLoading] = useState(false)
   const [busyItem, setBusyItem] = useState<number | null>(null)
+  const singleFlight = useSingleFlight()
   const canViewOverview = staff.role === 'admin' || staff.role === 'viewer'
   const isAdmin = staff.role === 'admin'
   const canOperate = isAdmin || staff.role === 'reviewer' || staff.role === 'statistician'
@@ -193,20 +195,19 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     setNotice('')
     try {
       const requestItems = items.filter((item) => item.request_id === request.request_id)
-      if (!requestItems.length) throw new Error('الطلب ده مفيهوش بنود ينفع تتعيّن.')
+      if (!requestItems.length) throw new UiError('الطلب ده مفيهوش بنود ينفع تتعيّن.')
       const selectedStaff = assignableStaff.find((member) => member.staff_id === staffId)
-      if (!selectedStaff) throw new Error('اختار مراجع أو إحصائي نشط من القائمة.')
+      if (!selectedStaff) throw new UiError('اختار مراجع أو إحصائي نشط من القائمة.')
       const { data, error: updateError } = await supabase.schema('crdc').from('request_items')
         .update({ assigned_staff_id: staffId })
         .eq('request_id', request.request_id)
         .select('item_id')
       if (updateError) throw updateError
-      if ((data ?? []).length !== requestItems.length) throw new Error('ماقدرناش نأكد تعيين كل بنود الطلب. حدّث القائمة وراجع الطلب.')
+      if ((data ?? []).length !== requestItems.length) throw new UiError('ماقدرناش نأكد تعيين كل بنود الطلب. حدّث القائمة وراجع الطلب.')
       setItems((current) => current.map((item) => item.request_id === request.request_id ? { ...item, assigned_staff_id: staffId } : item))
       setNotice(`اتعيّن ${roleNames[selectedStaff.role]} ${selectedStaff.full_name} على كل بنود الطلب رقم ${request.request_id}.`)
     } catch (assignmentError) {
-      const detail = assignmentError instanceof Error ? assignmentError.message : ''
-      setError(detail && !detail.includes('permission denied') ? detail : 'التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.')
+      setError(friendlyError(assignmentError, { '42501': 'التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.' }))
     } finally {
       setBusyRequest(null)
     }
@@ -219,12 +220,12 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       const { error: rpcError } = await supabase.schema('crdc').rpc('set_request_item_status', { p_item_id: item.item_id, p_status_code: statusCode, p_note: note.trim() || null })
       if (rpcError) throw rpcError
       const nextStatus = statuses.find((status) => status.code === statusCode)
-      if (!nextStatus) throw new Error('الحالة غير متاحة.')
+      if (!nextStatus) throw new UiError('الحالة غير متاحة.')
       const now = new Date().toISOString()
       setItems((current) => current.map((row) => row.item_id === item.item_id ? { ...row, status_id: nextStatus.status_id } : row))
       setHistory((current) => [{ history_id: -Date.now(), item_id: item.item_id, status_id: nextStatus.status_id, changed_at: now, note: note.trim() || null }, ...current])
       setNotice('تم تحديث حالة البند وتسجيلها في السجل.')
-    } catch (operationError) { setError(operationError instanceof Error && operationError.message ? operationError.message : 'تعذر تحديث الحالة.') }
+    } catch (operationError) { setError(friendlyError(operationError)) }
     finally { setBusyItem(null) }
   }
 
@@ -238,9 +239,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       })
       if (rpcError) throw rpcError
       const decision = String(data.get('decision')) as PublicationRow['decision']
-      setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? new Date().toISOString().slice(0, 10) : null } : row))
+      setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? (row.accepted_at ?? new Date().toISOString().slice(0, 10)) : null } : row))
       setNotice('تم حفظ قرار النشر.')
-    } catch (operationError) { setError(operationError instanceof Error && operationError.message ? operationError.message : 'تعذر حفظ قرار النشر.') }
+    } catch (operationError) { setError(friendlyError(operationError)) }
     finally { setBusyItem(null) }
   }
 
@@ -303,15 +304,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                     <article className="portal-card admin-request-card" data-testid="admin-request-row" data-request-id={request.request_id} key={request.request_id}>
                       <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
                       <dl className="admin-request-facts">
-                        <dt>رقم الطلب</dt><dd>#{request.request_id}</dd>
-                        <dt>الباحث</dt><dd>{requester?.full_name ?? 'بيانات الباحث غير متاحة'} <small>{requester?.email ?? ''}</small></dd>
+                        <dt>رقم الطلب</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
+                        <dt>الباحث</dt><dd>{requester?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{requester?.email ?? ''}</small></dd>
                         <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
                         <dt>تاريخ التقديم</dt><dd>{formatDate(request.created_at)}</dd>
                         <dt>عدد البنود</dt><dd>{requestItems.length.toLocaleString('ar-EG')}</dd>
                         <dt>المعيّنون حاليًا</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : 'لسه مفيش تعيين'}</dd>
                       </dl>
                       <div className="admin-request-assignment">
-                        <label>تعيين المراجع أو الإحصائي<select aria-label="تعيين المراجع أو الإحصائي" value={selectedStaffId} disabled={busyRequest === request.request_id || !requestItems.length} onChange={(event) => void assignRequest(request, event.target.value)}>
+                        <label>تعيين المراجع أو الإحصائي<select aria-label="تعيين المراجع أو الإحصائي" value={selectedStaffId} disabled={busyRequest !== null || !requestItems.length} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignRequest(request, staffId)) }}>
                           <option value="">اختار موظف نشط</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {roleNames[member.role]}</option>)}
                         </select></label>
                         {busyRequest === request.request_id && <span className="assignment-saving">بنحفظ التعيين...</span>}
@@ -336,18 +337,18 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 if (!request) return null
                 return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
                   <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current?.name_ar ?? 'غير محدد'}</span></div>
-                  <p className="operational-meta">رقم الطلب #{request.request_id} · البند #{item.item_id}</p>
-                  <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void updateStatus(item, String(form.get('status')), String(form.get('note') ?? '')) }}>
+                  <p className="operational-meta">رقم الطلب <span dir="ltr">#{request.request_id}</span> · البند <span dir="ltr">#{item.item_id}</span></p>
+                  <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
                     <label>الحالة التشغيلية<select name="status" aria-label="الحالة التشغيلية" defaultValue=""><option value="" disabled>اختار الحالة</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{status.name_ar}</option>)}</select></label>
                     <label>ملاحظة للسجل<input name="note" placeholder="اكتب ملاحظة مختصرة (اختياري)" /></label>
-                    <button className="primary-button" disabled={busyItem === item.item_id}>حفظ الحالة</button>
+                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ الحالة'}</button>
                   </form>
                   <section className="timeline"><h4>سجل الحالة</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{statusById.get(entry.status_id)?.name_ar ?? 'تحديث'}</strong>{entry.note && <p>{entry.note}</p>}<time>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">لسه مفيش تحديثات ظاهرة.</p>}</section>
-                  {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); void updatePublication(item.item_id, event.currentTarget) }}>
+                  {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; void singleFlight(() => updatePublication(item.item_id, formElement)) }}>
                     <h4>قرار النشر</h4><label>القرار<select name="decision" defaultValue={publication.decision}><option value="pending">قيد المراجعة</option><option value="revisions">تعديلات</option><option value="accepted">مقبول</option><option value="rejected">مرفوض</option></select></label>
                     <label>المجلة<select name="journal_id" defaultValue={publication.journal_id}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{journal.name_ar}</option>)}</select></label>
                     <label>العدد<select name="issue_id" defaultValue={publication.issue_id ?? ''}><option value="">من غير عدد</option>{issues.filter((issue) => issue.journal_id === publication.journal_id).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
-                    <button className="primary-button" disabled={busyItem === item.item_id}>حفظ قرار النشر</button>
+                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ قرار النشر'}</button>
                   </form>}
                 </article>
               })}

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
 import StaffConsole from './StaffConsole'
+import { friendlyError, useSingleFlight } from './errors'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -31,9 +32,6 @@ type ResearcherProfile = {
 
 type Mode = 'sign-in' | 'sign-up'
 
-const errorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : 'حصلت مشكلة غير متوقعة. جرّب تاني.'
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<ResearcherProfile | null>(null)
@@ -47,6 +45,10 @@ export default function App() {
   const [error, setError] = useState('')
   const [confirmationPending, setConfirmationPending] = useState(false)
   const [profileApplicantType, setProfileApplicantType] = useState<'egyptian' | 'foreign'>('egyptian')
+  // The user the portal state currently belongs to. Used to ignore auth events that do not
+  // change who is signed in (token refresh, re-focus SIGNED_IN), which would otherwise reset forms.
+  const activeUserId = useRef<string | null>(null)
+  const singleFlight = useSingleFlight()
 
   const loadProfile = useCallback(async (nextSession: Session | null) => {
     setError('')
@@ -104,29 +106,38 @@ export default function App() {
     void supabase.auth.getSession().then(async ({ data, error: sessionError }) => {
       if (sessionError) throw sessionError
       if (!alive) return
+      activeUserId.current = data.session?.user.id ?? null
       setSession(data.session)
       try {
         await loadProfile(data.session)
       } catch (loadError) {
-        if (alive) setError(errorMessage(loadError))
+        if (alive) setError(friendlyError(loadError))
       } finally {
         if (alive) setLoading(false)
       }
     }).catch((loadError: unknown) => {
       if (alive) {
-        setError(errorMessage(loadError))
+        setError(friendlyError(loadError))
         setLoading(false)
       }
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!alive) return
+      const nextUserId = nextSession?.user.id ?? null
+      if (nextUserId !== null && nextUserId === activeUserId.current) {
+        // Same user (TOKEN_REFRESHED, duplicate SIGNED_IN, ...): keep the fresh session object
+        // but do not reload the profile or touch loading/notice state, so open forms keep their input.
+        setSession(nextSession)
+        return
+      }
+      activeUserId.current = nextUserId
       setSession(nextSession)
       setConfirmationPending(false)
       setLoading(Boolean(nextSession))
       window.setTimeout(() => {
         void loadProfile(nextSession)
-          .catch((loadError: unknown) => setError(errorMessage(loadError)))
+          .catch((loadError: unknown) => setError(friendlyError(loadError)))
           .finally(() => setLoading(false))
       }, 0)
     })
@@ -139,12 +150,17 @@ export default function App() {
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
+    await singleFlight(() => submitAuth(formElement))
+  }
+
+  async function submitAuth(formElement: HTMLFormElement) {
     if (!supabase) return
     setBusy(true)
     setError('')
     setNotice('')
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formElement)
     const email = String(form.get('email') ?? '').trim().toLowerCase()
     const password = String(form.get('password') ?? '')
 
@@ -165,7 +181,7 @@ export default function App() {
         if (signInError) throw signInError
       }
     } catch (authError) {
-      setError(errorMessage(authError))
+      setError(friendlyError(authError))
     } finally {
       setBusy(false)
     }
@@ -173,12 +189,17 @@ export default function App() {
 
   async function handleProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
+    await singleFlight(() => submitProfile(formElement))
+  }
+
+  async function submitProfile(formElement: HTMLFormElement) {
     if (!supabase || !session?.user) return
     setBusy(true)
     setError('')
     setNotice('')
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formElement)
     const applicantType = String(form.get('applicant_type')) as 'egyptian' | 'foreign'
     const degreeId = Number(form.get('degree_id'))
 
@@ -207,7 +228,7 @@ export default function App() {
       } as ResearcherProfile)
       setNotice('ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.')
     } catch (profileError) {
-      setError(errorMessage(profileError))
+      setError(friendlyError(profileError))
     } finally {
       setBusy(false)
     }
@@ -217,7 +238,7 @@ export default function App() {
     if (!supabase) return
     setError('')
     const { error: signOutError } = await supabase.auth.signOut()
-    if (signOutError) setError(errorMessage(signOutError))
+    if (signOutError) setError(friendlyError(signOutError))
     setProfile(null)
     setStaff(null)
     setInactiveStaff(false)
