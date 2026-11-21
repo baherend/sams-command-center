@@ -6,6 +6,30 @@
 -- Dates span 2018 through 2026 to exercise historical reporting and workflows.
 -- The generator is seeded for repeatable scenarios. Never apply to sams-dev.
 -- =====================================================================
+do $seed_guard$
+begin
+  if current_setting('crdc.allow_seed', true) is distinct from 'on' then
+    raise exception 'Refusing to apply the CRDC synthetic seed: set crdc.allow_seed=on for an explicitly approved local database session';
+  end if;
+
+  if exists (
+    select 1
+    from crdc.researchers r
+    where not (
+      r.email ~ '^researcher[0-9]{3}@example\.test$'
+      and r.full_name ~ '^باحث تجريبي [0-9]{3}$'
+      and (
+        (r.applicant_type = 'egyptian' and r.national_id ~ '^2[0-9]{13}$' and r.passport_no is null)
+        or
+        (r.applicant_type = 'foreign' and r.passport_no ~ '^TEST-P-[0-9]{4}$' and r.national_id is null)
+      )
+    )
+  ) then
+    raise exception 'Refusing to apply the CRDC synthetic seed: non-synthetic researcher rows already exist';
+  end if;
+end
+$seed_guard$;
+
 begin;
 do $$
 declare

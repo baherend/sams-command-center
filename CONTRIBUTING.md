@@ -34,7 +34,9 @@ git push -u origin feature/<اسمك>-<الموضوع>
 - تغييرات Supabase تتكتب كـ **migration جديدة** في `supabase/migrations/` باستخدام Supabase CLI. باقي ملفات SQL الخاصة بالمشروعات أو قواعد البيانات غير المدارة بـ Supabase تفضل في `database/`. ما نكررش نفس migration في المكانين.
 - **ما تعدّلش ملف SQL اتنفذ قبل كده.** اعمل ملف جديد فوقه (مثلاً `07_add_column_x.sql`).
 - شخص واحد (صاحب المشروع) هو اللي يشغّل الملفات على `sams-dev` بعد الدمج.
-- اختبر تغييرات Supabase على بيئة محلية فاضية بـ `supabase db reset` وبعدها `supabase test db`؛ ممنوع تشغيل `supabase db push` على `sams-dev` من فرع شغل.
+- اختبر تغييرات Supabase على الـlocal stack فقط: `supabase start` ثم `supabase db reset` ثم `bash supabase/scripts/seed_local.sh` وبعدها `supabase test db`. الـreset بيطبّق migrations فقط؛ تحميل بيانات الاختبار الوهمية لازم يمر من السكريبت المحلي المحمي.
+- ممنوع تمامًا تشغيل `supabase db reset --linked` أو `supabase db push --include-seed` على `sams-dev`. وممنوع تطبيق `supabase/seed.sql` على أي مشروع مستضاف أو مشترك.
+- سكريبت seed بيتأكد أن عنوان قاعدة البيانات على loopback المحلي `127.0.0.1:54322` وبيمرر `crdc.allow_seed=on` عبر `PGOPTIONS`. ملف seed نفسه يرفض التشغيل من غير الإعداد ده أو لو وجد بيانات باحثين غير وهمية.
 - لو محتاج تجرّب بحرية خارج Supabase، استخدم PostgreSQL محلي أو بيئة تجريبية منفصلة من غير بيانات إنتاج.
 
 ## Power BI

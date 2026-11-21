@@ -240,6 +240,8 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
   }, [profile.researcher_id])
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
+  const selectedFees = fees.filter((fee) => selectedFeeIds.includes(fee.fee_id))
+  const pageCountRequired = selectedFees.some((fee) => fee.included_pages !== null)
 
   function toggleFee(feeId: number) {
     setSelectedFeeIds((current) => current.includes(feeId) ? current.filter((id) => id !== feeId) : [...current, feeId])
@@ -255,10 +257,12 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
     if (!supabase) return
     const form = new FormData(formElement)
     const title = String(form.get('work_title') ?? '').trim()
-    const pageCount = Number(form.get('page_count'))
+    const rawPageCount = String(form.get('page_count') ?? '').trim()
+    const pageCount = rawPageCount === '' ? null : Number(rawPageCount)
     if (selectedFeeIds.length === 0) { setError('اختار خدمة واحدة على الأقل.'); return }
     if (!title) { setError('اكتب عنوان الرسالة أو البحث.'); return }
-    if (!Number.isInteger(pageCount) || pageCount < 1) { setError('عدد الصفحات لازم يكون رقم صحيح أكبر من صفر.'); return }
+    if (pageCountRequired && pageCount === null) { setError('اكتب عدد الصفحات علشان نكمل الطلب.'); return }
+    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError('عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.'); return }
     setSubmitting(true)
     setError('')
     setNotice('')
@@ -320,7 +324,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
                 <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">بيانات العمل</span><h2>حدد نوع الطلب والخدمات</h2></div></div>
                 <label>نوع العمل<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
                 <label>عنوان الرسالة أو البحث<input name="work_title" required minLength={3} maxLength={300} placeholder="اكتب عنوان العمل" /></label>
-                <label>عدد الصفحات<input name="page_count" type="number" min="1" max="2000" step="1" required placeholder="مثال: 25" /></label>
+                <label>عدد الصفحات{!pageCountRequired && <small>اختياري حسب الخدمات المختارة</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder="مثال: 25" /></label>
                 <div className="service-groups">
                   {services.map((service) => {
                     const options = fees.filter((fee) => fee.service_id === service.service_id)

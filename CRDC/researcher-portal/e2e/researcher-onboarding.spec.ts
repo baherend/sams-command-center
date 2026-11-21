@@ -93,9 +93,12 @@ test('researchers can register, create and track a request, and only see their o
   const requestTitle = `Playwright test request ${runId}`
 
   await registerAndCreateProfile(page, egyptianEmail, 'egyptian')
+  const pageCountInput = page.locator('input[name="page_count"]')
+  await expect(pageCountInput).toHaveJSProperty('required', false)
+  await page.locator('.fee-option').filter({ hasText: 'تدقيق لغوي عربي' }).locator('input[type="checkbox"]').check()
+  await expect(pageCountInput).toHaveJSProperty('required', true)
   await page.locator('input[name="work_title"]').fill(requestTitle)
   await page.locator('input[name="page_count"]').fill('25')
-  await page.locator('.fee-option').filter({ hasText: 'تدقيق لغوي عربي' }).locator('input[type="checkbox"]').check()
   await page.getByRole('button', { name: 'تقديم الطلب' }).click()
 
   await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
@@ -107,6 +110,14 @@ test('researchers can register, create and track a request, and only see their o
   await requestCard.click()
   await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
   await expect(page.getByText(requestTitle, { exact: true })).toBeVisible()
+
+  await page.getByRole('navigation', { name: 'التنقل في حساب الباحث' }).getByRole('button', { name: 'كتالوج الخدمات وتقديم طلب جديد' }).click()
+  await page.locator('input[name="work_title"]').fill(`Playwright no-page-count ${runId}`)
+  await page.locator('.fee-option').filter({ hasText: 'قياس نسبة الاقتباس' }).locator('input[type="checkbox"]').check()
+  await expect(pageCountInput).toHaveJSProperty('required', false)
+  await page.getByRole('button', { name: 'تقديم الطلب' }).click()
+  await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
+  await expect(page.getByText(`Playwright no-page-count ${runId}`, { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
   await expect(page.getByRole('tablist')).toBeVisible()

@@ -14,6 +14,9 @@ type QueueRequest = {
   work_title: string
   page_count: number | null
   created_at: string
+  queue_status_code: string
+  item_count: number
+  has_more: boolean
 }
 type Requester = { researcher_id: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
 type RequestItem = { item_id: number; request_id: number; service_id: number; status_id: number; assigned_staff_id: string | null }
@@ -26,33 +29,8 @@ type JournalIssue = { issue_id: number; journal_id: number; issue_year: number; 
 const roleNames: Record<StaffRole, string> = {
   admin: 'مدير النظام', reviewer: 'مراجع', statistician: 'إحصائي', cashier: 'أمين خزينة', viewer: 'مشاهد',
 }
-const pageSize = 500
-
-async function fetchRequests(): Promise<QueueRequest[]> {
-  if (!supabase) return []
-  const result: QueueRequest[] = []
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.schema('crdc').from('service_requests')
-      .select('request_id, researcher_id, applicant_type, work_type, work_title, page_count, created_at')
-      .order('created_at', { ascending: false }).range(offset, offset + pageSize - 1)
-    if (error) throw error
-    result.push(...(data ?? []) as QueueRequest[])
-    if (!data || data.length < pageSize) return result
-  }
-}
-
-async function fetchRequestItems(): Promise<RequestItem[]> {
-  if (!supabase) return []
-  const result: RequestItem[] = []
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.schema('crdc').from('request_items')
-      .select('item_id, request_id, service_id, status_id, assigned_staff_id')
-      .order('item_id').range(offset, offset + pageSize - 1)
-    if (error) throw error
-    result.push(...(data ?? []) as RequestItem[])
-    if (!data || data.length < pageSize) return result
-  }
-}
+type PageCursor = { created_at: string; request_id: number }
+const pageSize = 20
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value))
 
@@ -68,6 +46,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [queueLoading, setQueueLoading] = useState(false)
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterWorkType, setFilterWorkType] = useState('all')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [cursorStack, setCursorStack] = useState<(PageCursor | null)[]>([null])
+  const [pageHasMore, setPageHasMore] = useState(false)
   const [busyRequest, setBusyRequest] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -75,12 +56,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [publications, setPublications] = useState<PublicationRow[]>([])
   const [journals, setJournals] = useState<Journal[]>([])
   const [issues, setIssues] = useState<JournalIssue[]>([])
+  const [selectedJournalByItem, setSelectedJournalByItem] = useState<Record<number, number>>({})
+  const [selectedIssueByItem, setSelectedIssueByItem] = useState<Record<number, number | ''>>({})
   const [operationLoading, setOperationLoading] = useState(false)
   const [busyItem, setBusyItem] = useState<number | null>(null)
   const singleFlight = useSingleFlight()
   const canViewOverview = staff.role === 'admin' || staff.role === 'viewer'
   const isAdmin = staff.role === 'admin'
   const canOperate = isAdmin || staff.role === 'reviewer' || staff.role === 'statistician'
+  const pageCursor = cursorStack[pageIndex] ?? null
 
   useEffect(() => {
     if (!canViewOverview || !supabase) return
@@ -102,69 +86,102 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   }, [canViewOverview])
 
   useEffect(() => {
-    if (!isAdmin || view !== 'requests' || !supabase) return
+    const shouldLoadPage = (view === 'requests' && isAdmin) || (view === 'assigned' && canOperate)
+    if (!shouldLoadPage || !supabase) return
     let alive = true
-    setQueueLoading(true)
+    if (view === 'requests') setQueueLoading(true)
+    else setOperationLoading(true)
     setError('')
+
     void (async () => {
       try {
-        const [requestRows, itemRows, statusResult, staffResult] = await Promise.all([
-          fetchRequests(),
-          fetchRequestItems(),
+        const { data: pageData, error: pageError } = await supabase.schema('crdc').rpc('staff_request_page', {
+          p_after_created_at: pageCursor?.created_at ?? null,
+          p_after_request_id: pageCursor?.request_id ?? null,
+          p_direction: 'next',
+          p_work_type: filterWorkType === 'all' ? null : filterWorkType,
+          p_status_code: filterStatus === 'all' ? null : filterStatus,
+        })
+        if (pageError) throw pageError
+        const fetchedRows = (pageData ?? []) as QueueRequest[]
+        const requestRows = fetchedRows.slice(0, pageSize)
+        const requestIds = requestRows.map((request) => request.request_id)
+        const itemPromise = requestIds.length
+          ? supabase.schema('crdc').from('request_items').select('item_id, request_id, service_id, status_id, assigned_staff_id').in('request_id', requestIds).order('item_id')
+          : Promise.resolve({ data: [], error: null })
+        const [itemResult, statusResult, staffResult] = await Promise.all([
+          itemPromise,
           supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
-          supabase.schema('crdc').from('staff_users').select('staff_id, full_name, role, is_active').order('full_name'),
+          isAdmin && view === 'requests'
+            ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, role, is_active').order('full_name')
+            : Promise.resolve({ data: [], error: null }),
         ])
-        if (statusResult.error) throw statusResult.error
-        if (staffResult.error) throw staffResult.error
-        const researcherIds = [...new Set(requestRows.map((request) => request.researcher_id))]
-        const researcherRows: Requester[] = []
-        for (let offset = 0; offset < researcherIds.length; offset += 100) {
+        if (itemResult.error || statusResult.error || staffResult.error) throw itemResult.error ?? statusResult.error ?? staffResult.error
+        const itemRows = (itemResult.data ?? []) as RequestItem[]
+        const itemIds = itemRows.map((item) => item.item_id)
+
+        let researcherRows: Requester[] = []
+        if (isAdmin && view === 'requests' && requestRows.length) {
+          const researcherIds = [...new Set(requestRows.map((request) => request.researcher_id))]
           const { data, error: researcherError } = await supabase.schema('crdc').from('researchers')
-            .select('researcher_id, full_name, email, applicant_type')
-            .in('researcher_id', researcherIds.slice(offset, offset + 100))
+            .select('researcher_id, full_name, email, applicant_type').in('researcher_id', researcherIds)
           if (researcherError) throw researcherError
-          researcherRows.push(...(data ?? []) as Requester[])
+          researcherRows = (data ?? []) as Requester[]
         }
+
+        let historyRows: HistoryRow[] = []
+        let publicationRows: PublicationRow[] = []
+        let journalRows: Journal[] = []
+        let issueRows: JournalIssue[] = []
+        if (view === 'assigned' && itemIds.length) {
+          const [historyResult, publicationResult] = await Promise.all([
+            supabase.schema('crdc').from('request_status_history')
+              .select('history_id, item_id, status_id, changed_at, note').in('item_id', itemIds).order('changed_at', { ascending: false }),
+            supabase.schema('crdc').from('publication_submissions')
+              .select('submission_id, item_id, journal_id, issue_id, decision, accepted_at').in('item_id', itemIds),
+          ])
+          if (historyResult.error || publicationResult.error) throw historyResult.error ?? publicationResult.error
+          historyRows = (historyResult.data ?? []) as HistoryRow[]
+          publicationRows = (publicationResult.data ?? []) as PublicationRow[]
+          const journalIds = [...new Set(publicationRows.map((publication) => publication.journal_id))]
+          if (journalIds.length) {
+            const [journalResult, issueResult] = await Promise.all([
+              supabase.schema('crdc').from('journals').select('journal_id, name_ar').in('journal_id', journalIds),
+              supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month')
+                .in('journal_id', journalIds).order('issue_year', { ascending: false }),
+            ])
+            if (journalResult.error || issueResult.error) throw journalResult.error ?? issueResult.error
+            journalRows = (journalResult.data ?? []) as Journal[]
+            issueRows = (issueResult.data ?? []) as JournalIssue[]
+          }
+        }
+
         if (!alive) return
         setRequests(requestRows)
+        setPageHasMore(Boolean(fetchedRows[0]?.has_more))
         setItems(itemRows)
         setStatuses((statusResult.data ?? []) as RequestStatus[])
         setStaffMembers((staffResult.data ?? []) as StaffProfile[])
         setRequesters(new Map(researcherRows.map((researcher) => [researcher.researcher_id, researcher])))
+        setHistory(historyRows)
+        setPublications(publicationRows)
+        setJournals(journalRows)
+        setIssues(issueRows)
+        setSelectedJournalByItem({})
+        setSelectedIssueByItem({})
       } catch {
-        if (alive) setError('حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.')
+        if (alive) setError(view === 'requests'
+          ? 'حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.'
+          : 'مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.')
       } finally {
-        if (alive) setQueueLoading(false)
+        if (alive) {
+          setQueueLoading(false)
+          setOperationLoading(false)
+        }
       }
     })()
     return () => { alive = false }
-  }, [isAdmin, view])
-
-  useEffect(() => {
-    if (!canOperate || view !== 'assigned' || !supabase) return
-    let alive = true
-    setOperationLoading(true)
-    setError('')
-    void (async () => {
-      try {
-        const [requestRows, itemRows, statusResult, historyResult, publicationResult, journalResult, issueResult] = await Promise.all([
-          fetchRequests(), fetchRequestItems(),
-          supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
-          supabase.schema('crdc').from('request_status_history').select('history_id, item_id, status_id, changed_at, note').order('changed_at', { ascending: false }),
-          supabase.schema('crdc').from('publication_submissions').select('submission_id, item_id, journal_id, issue_id, decision, accepted_at'),
-          supabase.schema('crdc').from('journals').select('journal_id, name_ar').order('journal_id'),
-          supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month').order('issue_year', { ascending: false }),
-        ])
-        if (statusResult.error || historyResult.error || publicationResult.error || journalResult.error || issueResult.error) throw new Error('load')
-        if (!alive) return
-        setRequests(requestRows); setItems(itemRows); setStatuses((statusResult.data ?? []) as RequestStatus[])
-        setHistory((historyResult.data ?? []) as HistoryRow[]); setPublications((publicationResult.data ?? []) as PublicationRow[])
-        setJournals((journalResult.data ?? []) as Journal[]); setIssues((issueResult.data ?? []) as JournalIssue[])
-      } catch { if (alive) setError('مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.') }
-      finally { if (alive) setOperationLoading(false) }
-    })()
-    return () => { alive = false }
-  }, [canOperate, view])
+  }, [isAdmin, canOperate, view, filterStatus, filterWorkType, pageIndex, pageCursor])
 
   const countFor = (metric: string, category: string) =>
     Number(rows.find((row) => row.metric === metric && row.category === category)?.request_count ?? 0)
@@ -173,20 +190,34 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const foreign = countFor('applicant_type', 'foreign')
   const summaryStatuses = rows.filter((row) => row.metric === 'status')
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
+  const statusByCode = useMemo(() => new Map(statuses.map((status) => [status.code, status])), [statuses])
   const assignableStaff = staffMembers.filter((member) => member.is_active && (member.role === 'reviewer' || member.role === 'statistician'))
 
-  const getRequestStatus = (requestId: number) => {
-    const requestItems = items.filter((item) => item.request_id === requestId)
-    const codes = [...new Set(requestItems.map((item) => statusById.get(item.status_id)?.code).filter(Boolean))] as string[]
-    if (!codes.length) return { code: 'NO_ITEMS', label: 'بدون بنود' }
-    if (codes.length > 1) return { code: 'MIXED', label: 'مراحل مختلفة' }
-    return { code: codes[0], label: statusById.get(requestItems[0].status_id)?.name_ar ?? 'غير محدد' }
+  const getRequestStatus = (request: QueueRequest) => ({
+    code: request.queue_status_code,
+    label: request.queue_status_code === 'MIXED' ? 'مراحل مختلفة'
+      : request.queue_status_code === 'NO_ITEMS' ? 'بدون بنود'
+        : statusByCode.get(request.queue_status_code)?.name_ar ?? 'غير محدد',
+  })
+
+  function resetPagination() {
+    setPageIndex(0)
+    setCursorStack([null])
   }
 
-  const visibleRequests = requests.filter((request) => {
-    if (filterWorkType !== 'all' && request.work_type !== filterWorkType) return false
-    return filterStatus === 'all' || getRequestStatus(request.request_id).code === filterStatus
-  })
+  function nextPage() {
+    if (!pageHasMore || !requests.length) return
+    const lastRequest = requests[requests.length - 1]
+    setCursorStack((current) => [
+      ...current.slice(0, pageIndex + 1),
+      { created_at: lastRequest.created_at, request_id: lastRequest.request_id },
+    ])
+    setPageIndex((current) => current + 1)
+  }
+
+  function previousPage() {
+    if (pageIndex > 0) setPageIndex((current) => current - 1)
+  }
 
   async function assignRequest(request: QueueRequest, staffId: string) {
     if (!supabase || !staffId) return
@@ -221,12 +252,25 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       if (rpcError) throw rpcError
       const nextStatus = statuses.find((status) => status.code === statusCode)
       if (!nextStatus) throw new UiError('الحالة غير متاحة.')
-      const now = new Date().toISOString()
+      const { data: savedHistory, error: historyError } = await supabase.schema('crdc').from('request_status_history')
+        .select('history_id, item_id, status_id, changed_at, note').eq('item_id', item.item_id).order('changed_at', { ascending: false })
+      if (historyError) throw historyError
       setItems((current) => current.map((row) => row.item_id === item.item_id ? { ...row, status_id: nextStatus.status_id } : row))
-      setHistory((current) => [{ history_id: -Date.now(), item_id: item.item_id, status_id: nextStatus.status_id, changed_at: now, note: note.trim() || null }, ...current])
+      setHistory((current) => [
+        ...current.filter((row) => row.item_id !== item.item_id),
+        ...((savedHistory ?? []) as HistoryRow[]),
+      ])
       setNotice('تم تحديث حالة البند وتسجيلها في السجل.')
     } catch (operationError) { setError(friendlyError(operationError)) }
     finally { setBusyItem(null) }
+  }
+
+  async function loadJournalIssues(journalId: number) {
+    if (!supabase || issues.some((issue) => issue.journal_id === journalId)) return
+    const { data, error: issueError } = await supabase.schema('crdc').from('journal_issues')
+      .select('issue_id, journal_id, issue_year, issue_month').eq('journal_id', journalId).order('issue_year', { ascending: false })
+    if (issueError) { setError(friendlyError(issueError)); return }
+    setIssues((current) => [...current.filter((issue) => issue.journal_id !== journalId), ...((data ?? []) as JournalIssue[])])
   }
 
   async function updatePublication(itemId: number, form: HTMLFormElement) {
@@ -258,7 +302,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
         {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>نظرة عامة وإحصائيات</button>}
         {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>إدارة الطلبات والتعيينات</button>}
-        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>الطلبات المسندة إليّ</button>}
+        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</button>}
       </nav>
 
       <section className="portal-content" id="staff-home">
@@ -287,19 +331,19 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             <div className="queue-filters portal-card">
-              <label>الحالة<select aria-label="فلترة بالحالة" value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}><option value="all">كل الحالات</option>{statuses.map((status) => <option key={status.code} value={status.code}>{status.name_ar}</option>)}<option value="MIXED">مراحل مختلفة</option><option value="NO_ITEMS">بدون بنود</option></select></label>
-              <label>نوع العمل<select aria-label="فلترة بنوع العمل" value={filterWorkType} onChange={(event) => setFilterWorkType(event.target.value)}><option value="all">كل أنواع العمل</option><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
-              <span className="queue-result-count">النتائج: {visibleRequests.length.toLocaleString('ar-EG')}</span>
+              <label>الحالة<select aria-label="فلترة بالحالة" value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">كل الحالات</option>{statuses.map((status) => <option key={status.code} value={status.code}>{status.name_ar}</option>)}<option value="MIXED">مراحل مختلفة</option><option value="NO_ITEMS">بدون بنود</option></select></label>
+              <label>نوع العمل<select aria-label="فلترة بنوع العمل" value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">كل أنواع العمل</option><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
+              <span className="queue-result-count">طلبات الصفحة: {requests.length.toLocaleString('ar-EG')}</span>
             </div>
-            {queueLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : error && !requests.length ? null : visibleRequests.length ? (
+            {queueLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : error && !requests.length ? null : requests.length ? (
               <div className="request-list admin-request-list">
-                {visibleRequests.map((request) => {
+                {requests.map((request) => {
                   const requestItems = items.filter((item) => item.request_id === request.request_id)
                   const assignedIds = [...new Set(requestItems.map((item) => item.assigned_staff_id).filter(Boolean))] as string[]
                   const selectedStaffId = assignedIds.length === 1 && requestItems.every((item) => item.assigned_staff_id === assignedIds[0]) ? assignedIds[0] : ''
                   const assignedNames = assignedIds.map((id) => staffMembers.find((member) => member.staff_id === id)?.full_name ?? 'موظف غير متاح')
                   const requester = requesters.get(request.researcher_id)
-                  const overall = getRequestStatus(request.request_id)
+                  const overall = getRequestStatus(request)
                   return (
                     <article className="portal-card admin-request-card" data-testid="admin-request-row" data-request-id={request.request_id} key={request.request_id}>
                       <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
@@ -308,7 +352,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                         <dt>الباحث</dt><dd>{requester?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{requester?.email ?? ''}</small></dd>
                         <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
                         <dt>تاريخ التقديم</dt><dd>{formatDate(request.created_at)}</dd>
-                        <dt>عدد البنود</dt><dd>{requestItems.length.toLocaleString('ar-EG')}</dd>
+                        <dt>عدد البنود</dt><dd>{request.item_count.toLocaleString('ar-EG')}</dd>
                         <dt>المعيّنون حاليًا</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : 'لسه مفيش تعيين'}</dd>
                       </dl>
                       <div className="admin-request-assignment">
@@ -322,10 +366,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 })}
               </div>
             ) : <div className="portal-card empty-requests"><h2>مفيش طلبات مطابقة</h2><p>غيّر الفلاتر علشان تعرض طلبات تانية.</p></div>}
+            {!queueLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات">
+              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
+              <span>صفحة {(pageIndex + 1).toLocaleString('ar-EG')}</span>
+              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
+            </nav>}
           </>
         ) : (
           <>
-            <div className="portal-heading"><span className="eyebrow">مساحة العمل</span><h1>الطلبات المسندة إليّ</h1><p>حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.</p></div>
+            <div className="portal-heading"><span className="eyebrow">مساحة العمل</span><h1>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</h1><p>{isAdmin ? 'بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.' : 'حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.'}</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             {operationLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : items.length ? <div className="request-list operational-list">
@@ -340,19 +389,29 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   <p className="operational-meta">رقم الطلب <span dir="ltr">#{request.request_id}</span> · البند <span dir="ltr">#{item.item_id}</span></p>
                   <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
                     <label>الحالة التشغيلية<select name="status" aria-label="الحالة التشغيلية" defaultValue=""><option value="" disabled>اختار الحالة</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{status.name_ar}</option>)}</select></label>
-                    <label>ملاحظة للسجل<input name="note" placeholder="اكتب ملاحظة مختصرة (اختياري)" /></label>
+                    <label>ملاحظة للسجل<input name="note" placeholder="اكتب ملاحظة مختصرة (اختياري)" /><small>الملاحظة هتظهر للباحث</small></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ الحالة'}</button>
                   </form>
-                  <section className="timeline"><h4>سجل الحالة</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{statusById.get(entry.status_id)?.name_ar ?? 'تحديث'}</strong>{entry.note && <p>{entry.note}</p>}<time>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">لسه مفيش تحديثات ظاهرة.</p>}</section>
+                  <section className="timeline"><h4>سجل الحالة</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{statusById.get(entry.status_id)?.name_ar ?? 'تحديث'}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">لسه مفيش تحديثات ظاهرة.</p>}</section>
                   {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; void singleFlight(() => updatePublication(item.item_id, formElement)) }}>
                     <h4>قرار النشر</h4><label>القرار<select name="decision" defaultValue={publication.decision}><option value="pending">قيد المراجعة</option><option value="revisions">تعديلات</option><option value="accepted">مقبول</option><option value="rejected">مرفوض</option></select></label>
-                    <label>المجلة<select name="journal_id" defaultValue={publication.journal_id}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{journal.name_ar}</option>)}</select></label>
-                    <label>العدد<select name="issue_id" defaultValue={publication.issue_id ?? ''}><option value="">من غير عدد</option>{issues.filter((issue) => issue.journal_id === publication.journal_id).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
+                    <label>المجلة<select name="journal_id" value={selectedJournalByItem[item.item_id] ?? publication.journal_id} onChange={(event) => {
+                      const journalId = Number(event.target.value)
+                      setSelectedJournalByItem((current) => ({ ...current, [item.item_id]: journalId }))
+                      setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: '' }))
+                      void loadJournalIssues(journalId)
+                    }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{journal.name_ar}</option>)}</select></label>
+                    <label>العدد<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">من غير عدد</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ قرار النشر'}</button>
                   </form>}
                 </article>
               })}
-            </div> : <div className="portal-card empty-requests"><h2>مفيش طلبات مسندة ليك</h2><p>هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.</p></div>}
+            </div> : <div className="portal-card empty-requests"><h2>{isAdmin ? 'مفيش بنود للعرض' : 'مفيش طلبات مسندة ليك'}</h2><p>{isAdmin ? 'لا توجد بنود ضمن الصفحة الحالية.' : 'هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.'}</p></div>}
+            {!operationLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات المسندة">
+              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
+              <span>صفحة {(pageIndex + 1).toLocaleString('ar-EG')}</span>
+              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
+            </nav>}
           </>
         )}
       </section>
