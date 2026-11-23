@@ -40,9 +40,9 @@ test('researcher uploads a receipt and cashier approval records PAID', async ({ 
   await page.locator('input[name="work_title"]').fill(requestTitle)
   await page.getByRole('button', { name: 'تقديم الطلب' }).click()
   const requestHeading = page.getByRole('heading', { name: 'تفاصيل الطلب' })
-  const requestError = page.getByRole('alert')
-  await expect(requestHeading.or(requestError)).toBeVisible()
-  if (await requestError.isVisible()) throw new Error(`Request creation failed: ${await requestError.textContent()}`)
+  const creationAlert = page.getByRole('alert')
+  await expect(requestHeading.or(creationAlert)).toBeVisible()
+  if (await creationAlert.isVisible()) throw new Error(`Request creation failed: ${await creationAlert.textContent()}`)
 
   const researcher = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
   const cashier = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
