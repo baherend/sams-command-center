@@ -167,7 +167,7 @@ SELECT throws_ok($$UPDATE crdc.payments SET paid_at=current_date - 3 WHERE payme
 RESET ROLE;
 
 SELECT throws_ok(
-  $$INSERT INTO crdc.payments (request_id, receipt_no, amount, currency, channel, paid_at) VALUES (current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','10','EGP','bank',current_date),(current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','11','EGP','bank',current_date)$$,
+  $$INSERT INTO crdc.payments (request_id, receipt_no, amount, currency, channel, paid_at, receipt_status) VALUES (current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','10','EGP','bank',current_date,'pending_review'),(current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','11','EGP','bank',current_date,'pending_review')$$,
   '23505', NULL, 'H1: duplicate receipt_no is rejected');
 SELECT throws_ok(
   $$INSERT INTO crdc.payments (request_id, payment_order_no, amount, currency, channel) VALUES (current_setting('test.si.pay_req')::bigint,'SI-ORDER-1',10,'EGP','bank')$$,
