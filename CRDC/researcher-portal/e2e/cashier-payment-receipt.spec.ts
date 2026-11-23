@@ -108,7 +108,7 @@ test('researcher uploads a receipt and cashier approval records PAID', async ({ 
   const { data: paidStatus, error: statusError } = await admin.schema('crdc').from('request_statuses').select('status_id').eq('code', 'PAID').single()
   if (statusError) throw statusError
   expect(paidItems.every((item) => item.status_id === paidStatus.status_id)).toBe(true)
-  const { data: finalPayment, error: finalPaymentError } = await admin.schema('crdc').from('payments').select('receipt_status,verified_at').eq('payment_id', payment.payment_id).single()
+  const { data: finalPayment, error: finalPaymentError } = await cashier.schema('crdc').from('payments').select('receipt_status,verified_at').eq('payment_id', payment.payment_id).single()
   if (finalPaymentError) throw finalPaymentError
   expect(finalPayment.receipt_status).toBe('verified')
   expect(finalPayment.verified_at).toBeTruthy()
