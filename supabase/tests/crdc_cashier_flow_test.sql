@@ -52,9 +52,11 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $$SELECT crdc.submit_payment_receipt(current_setting('test.r4.payment')::bigint,'bank'::text,'R4-RECEIPT-1'::text,current_date::date,current_setting('test.r4.path')::text)$$,
   'owner submits a valid receipt');
+SELECT set_config('request.jwt.claims','{"sub":"d4000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
 SELECT throws_ok(
   $$SELECT crdc.submit_payment_receipt(current_setting('test.r4.payment')::bigint,'bank'::text,'R4-RECEIPT-OTHER'::text,current_date::date,current_setting('test.r4.path')::text)$$,
   '42501'::text,'Payment order does not belong to this researcher'::text,'another researcher cannot submit a receipt');
+SELECT set_config('request.jwt.claims','{"sub":"d4000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 SELECT is((SELECT count(*)::integer FROM storage.objects WHERE bucket_id='payment-receipts' AND name=current_setting('test.r4.path')),
           1,'researcher can read their own receipt object');
 RESET ROLE;
