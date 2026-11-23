@@ -34,12 +34,15 @@ test('researcher uploads a receipt and cashier approval records PAID', async ({ 
   await expect(page.getByRole('navigation', { name: 'التنقل في حساب الباحث' })).toBeVisible()
 
   const requestTitle = `R4 receipt flow ${runId}`
-  await page.locator('.fee-option input[type="checkbox"]').first().check()
+  await page.locator('.fee-option').filter({ hasText: 'تدقيق لغوي عربي' }).locator('input[type="checkbox"]').check()
   const pageCount = page.locator('input[name="page_count"]')
   if (await pageCount.isVisible()) await pageCount.fill('20')
   await page.locator('input[name="work_title"]').fill(requestTitle)
   await page.getByRole('button', { name: 'تقديم الطلب' }).click()
-  await expect(page.getByRole('heading', { name: 'تفاصيل الطلب' })).toBeVisible()
+  const requestHeading = page.getByRole('heading', { name: 'تفاصيل الطلب' })
+  const requestError = page.getByRole('alert')
+  await expect(requestHeading.or(requestError)).toBeVisible()
+  if (await requestError.isVisible()) throw new Error(`Request creation failed: ${await requestError.textContent()}`)
 
   const researcher = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
   const cashier = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
