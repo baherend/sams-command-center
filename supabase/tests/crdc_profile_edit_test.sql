@@ -14,7 +14,12 @@ select set_config('request.jwt.claims','{"sub":"d5000000-0000-0000-0000-00000000
 set local role authenticated;
 select lives_ok($$update crdc.researchers set full_name='R5 Updated', specialty='Updated specialty', degree_id=2 where researcher_id='f5000000-0000-0000-0000-000000000001'$$,'researcher can update allowed fields on their profile');
 select is((select full_name from crdc.researchers where researcher_id='f5000000-0000-0000-0000-000000000001'),'R5 Updated','allowed name update persisted');
-select is((with changed as (update crdc.researchers set full_name='Unauthorized change' where researcher_id='f5000000-0000-0000-0000-000000000002' returning 1) select count(*)::int from changed),0,'researcher cannot update another profile');
+with changed as (
+  update crdc.researchers set full_name='Unauthorized change'
+  where researcher_id='f5000000-0000-0000-0000-000000000002'
+  returning 1
+)
+select is((select count(*)::int from changed),0,'researcher cannot update another profile');
 select throws_ok($$update crdc.researchers set applicant_type='foreign' where researcher_id='f5000000-0000-0000-0000-000000000001'$$,'42501',null,'applicant_type is locked');
 select throws_ok($$update crdc.researchers set national_id='29001010101053' where researcher_id='f5000000-0000-0000-0000-000000000001'$$,'42501',null,'national_id is locked');
 select throws_ok($$update crdc.researchers set passport_no='R5-PASSPORT' where researcher_id='f5000000-0000-0000-0000-000000000001'$$,'42501',null,'passport_no is locked');
