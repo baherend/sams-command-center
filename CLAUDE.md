@@ -1,6 +1,6 @@
 # CRDC Platform — Claude Code Handoff
 
-**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. PR #19 (Round 3 PR B) is merged to `main`. Round 3 PR C is in progress on `feat/crdc-round3-pr-c`. The platform is an authenticated researcher and staff prototype; it is not production-ready.
+**Read this first before changing the CRDC platform.** The repository is `baherend/sams-command-center`; CRDC lives under `CRDC/`. Round 3 PRs A, B, and C are merged to `main` through PR #20. The platform is an authenticated researcher and staff prototype; it is not production-ready.
 
 ## 1. Project rules and environment isolation
 
@@ -33,7 +33,9 @@ Important rules:
 - `request_items.assigned_staff_id` stores assignment per item. Admin assignment is limited to active reviewers and statisticians.
 - Use `crdc.create_service_request(...)` for request creation and `crdc.set_request_item_status(...)` for status changes. The latter allows only admin/reviewer/statistician/cashier (never viewer), validates transitions, locks the item row (`FOR UPDATE`) so concurrent changes serialise, refuses staff acting on a request whose researcher profile is their own account (admin included), and appends `request_status_history`.
 - `crdc.update_publication_submission(...)` validates assigned operational access, journal/issue consistency, refuses staff deciding on their own researcher request, and sets `accepted_at` server-side the first time a decision becomes accepted (re-saving an accepted decision keeps the original date). `publication_submissions` has no direct INSERT/UPDATE grant for `authenticated`; this RPC is the only write path.
-- Payment linkage remains in `crdc.link_payment_to_items(...)`, which locks the payment and item rows and only links still-unlinked items. Once a payment is linked, its amount/currency/request are immutable and a recorded `payment_order_no`, `receipt_no` or `paid_at` cannot change (they may be filled in once while NULL). Receipt grouping is a prototype rule pending center confirmation.
+- Payment linkage remains in `crdc.link_payment_to_items(...)`, which locks the payment and item rows and only links still-unlinked items. Team lead approved the receipt grouping rule: one payment covers one or more items from one `service_request` in one currency (`EGP` or `USD`); an item cannot be split across payments.
+- A linked payment is a payment order. Researchers upload proof through the private `payment-receipts` bucket and `crdc.submit_payment_receipt(...)`; only an active cashier or admin can approve/reject through `crdc.approve_payment_receipt(...)` / `crdc.reject_payment_receipt(...)`. Approval locks the payment and items, verifies the order, changes the receipt to `verified`, and appends `PAID` status history. The generic status RPC must never be used to mark an item `PAID`.
+- Receipt files are limited to PDF/JPG/PNG and 5 MiB. Object paths are scoped to Auth user, request, and payment; researchers read their own file and active cashiers/admins read pending/verified proofs. No overwrite/delete policy exists. Audit logs record only the safe `receipt_status` transition; never add receipt numbers, object paths, rejection text, or researcher identity fields to audit values.
 
 ## 3. Security and RLS
 
@@ -75,8 +77,8 @@ Merged and completed product work:
 5. **Round 3 PR A integrity controls (PR #17):** added normalized/validated researcher identity inputs, bounded request data, admin-only publication submission creation, and a publication-decision status allow-list.
 6. **Round 3 follow-up (PR #18):** fixed the national-ID browser pattern and corrected pgTAP role switching and RPC argument types.
 7. **Round 3 PR B (PR #19):** migration `20261121130000_crdc_round3_pr_b.sql` guards the last active Auth-linked administrator with a transaction advisory lock and adds an append-only audit log with per-table safe-column allow-lists. pgTAP coverage is in `supabase/tests/crdc_round3_pr_b_test.sql`; `.github/workflows/crdc-sql-tests.yml` runs `supabase/tests/crdc_last_admin_concurrency.sh` to exercise concurrent demotions in two PostgreSQL sessions.
-
-Round 3 PR C is in progress on `feat/crdc-round3-pr-c`: safe Arabic database-error mapping, guarded local-only seed loading, server-side staff request pages, and page-bounded operational history.
+8. **Round 3 PR C (PR #20):** added safe Arabic database-error mapping and unit tests; made the synthetic seed opt-in with a loopback-only loader; added keyset-paginated staff queues with page-bounded history/publication queries; made page count optional only for fee options that do not require it; and clarified researcher-visible staff notes. The migration grants `service_role` only the operational-table reads used by trusted CI/backend fixtures, while keeping `audit_log` excluded. The portal CI uses `supabase/setup-cli@v3` with `v2.stable` to avoid the rate-limited latest-release lookup and to remain on the CLI v2 line.
+9. **Round 4 Cashier & Receipt Verification:** adds private receipt storage, researcher submission and cashier/admin approval/rejection RPCs, immutable verified payments, and an admin/cashier receipt queue with safe signed previews. The grouping rule is confirmed: a payment covers items from only one request and one currency, and each item belongs to at most one payment.
 
 ## 6. CI/CD and tests
 
@@ -86,22 +88,21 @@ Workflows under `.github/workflows/`:
 - `crdc-portal-build.yml` installs portal dependencies and runs `npm run build`.
 - `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data (loaded only through `seed_local.sh`) with Playwright.
 
-The E2E suite covers researcher registration/request isolation, viewer shell and aggregates, admin assignment persistence, and assigned reviewer status update with timeline visibility and case isolation.
+The E2E suite covers researcher registration/request isolation, researcher receipt submission and cashier approval, viewer shell and aggregates, keyset pagination across multiple pages, admin assignment persistence, publication issue filtering by the currently selected journal, optional page-count rules, and assigned reviewer status update with server timestamp and case isolation.
 
 Preserve these constraints:
 
 - Keep workflow path filters covering portal, Supabase migrations, tests, and the workflow itself.
-- Keep `npm install` in the existing CI workflow unless the lockfile setup is intentionally corrected.
+- Use `npm ci` in portal CI and `npm test` for the Playwright suite; Playwright is a pinned dev dependency in the lockfile.
 - Playwright is pinned to `1.65.1`.
-- Supabase startup can occasionally hit public registry rate limits; retry a failed job when logs show the failure occurred before app tests.
+- Supabase CLI setup uses `supabase/setup-cli@v3` with `version: v2.stable` to avoid the GitHub API latest-release lookup. Docker image pulls during `supabase start` can still fail independently; distinguish registry throttling from port conflicts or migration/test failures before retrying.
 - Do not replace local CI values with hosted credentials.
 
 ## 7. Remaining milestone
 
 The remaining product items are:
 
-1. **Cashier payment UX**, after the center confirms receipt grouping. Keep all payment writes behind the existing cashier/admin RLS and payment RPC rules.
-2. **Password recovery** for portal accounts.
-3. **Researcher profile editing**, with database authorization and appropriate validation.
+1. **Password recovery** for portal accounts.
+2. **Researcher profile editing**, with database authorization and appropriate validation.
 
 Before expanding any workflow, inspect the exact migration definitions and active RLS policies first.
