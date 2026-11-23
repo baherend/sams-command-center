@@ -103,8 +103,9 @@ where item_id=(select min(item_id) from crdc.request_items where request_id=curr
 select ok(exists(
   select 1 from crdc.audit_log where table_name='payments'::text
     and row_key=current_setting('test.r3b.payment')::text and action='INSERT'::text
-    and new_values ? 'amount' and not (new_values ? 'receipt_no')
-),'payment insert is audited with only whitelisted fields');
+    and new_values ? 'amount' and new_values->>'receipt_no'='R3B-PRIVATE-RECEIPT'::text
+    and not (new_values ?| array['full_name','national_id','passport_no','email']::text[])
+),'payment insert logs allow-listed receipt values without researcher PII');
 select ok(exists(
   select 1 from crdc.audit_log where table_name='payments'::text
     and row_key=current_setting('test.r3b.payment')::text and action='UPDATE'::text
@@ -162,15 +163,13 @@ select ok(not exists(
   select 1 from crdc.audit_log l
   where coalesce(l.old_values,'{}'::jsonb)::text like '%R3B PRIVATE%'
      or coalesce(l.new_values,'{}'::jsonb)::text like '%R3B PRIVATE%'
-     or coalesce(l.old_values,'{}'::jsonb)::text like '%R3B-PRIVATE-RECEIPT%'
-     or coalesce(l.new_values,'{}'::jsonb)::text like '%R3B-PRIVATE-RECEIPT%'
      or coalesce(l.old_values,'{}'::jsonb)::text like '%@example.test%'
      or coalesce(l.new_values,'{}'::jsonb)::text like '%@example.test%'
      or coalesce(l.old_values,'{}'::jsonb)::text like '%29001010101011%'
      or coalesce(l.new_values,'{}'::jsonb)::text like '%29001010101011%'
      or coalesce(l.old_values,'{}'::jsonb)::text like '%TEST-P-%'
      or coalesce(l.new_values,'{}'::jsonb)::text like '%TEST-P-%'
-),'sensitive fixture names and receipt identifiers are not logged');
+ ),'sensitive fixture names and researcher identifiers are not logged; allow-listed receipt references may be logged');
 
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000000b01","email":"r3b-admin-a@example.test","role":"authenticated"}'::text,true);
