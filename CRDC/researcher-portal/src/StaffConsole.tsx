@@ -326,7 +326,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     if (!supabase) return
     setError('')
     const { data, error: signedError } = await supabase.storage.from('payment-receipts')
-      .createSignedUrl(payment.receipt_storage_path, 300)
+      .createSignedUrl(payment.receipt_storage_path, 300, { download: true })
     if (signedError) { setError(friendlyError(signedError)); return }
     setCashierSignedUrls((current) => ({ ...current, [payment.payment_id]: data.signedUrl }))
   }
