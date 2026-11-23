@@ -44,6 +44,8 @@ export default function App() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [confirmationPending, setConfirmationPending] = useState(false)
+  const [recoveryMode, setRecoveryMode] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState(false)
   const [profileApplicantType, setProfileApplicantType] = useState<'egyptian' | 'foreign'>('egyptian')
   // The user the portal state currently belongs to. Used to ignore auth events that do not
   // change who is signed in (token refresh, re-focus SIGNED_IN), which would otherwise reset forms.
@@ -122,8 +124,12 @@ export default function App() {
       }
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!alive) return
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true)
+        setError('')
+      }
       const nextUserId = nextSession?.user.id ?? null
       if (nextUserId !== null && nextUserId === activeUserId.current) {
         // Same user (TOKEN_REFRESHED, duplicate SIGNED_IN, ...): keep the fresh session object
@@ -152,6 +158,43 @@ export default function App() {
     event.preventDefault()
     const formElement = event.currentTarget
     await singleFlight(() => submitAuth(formElement))
+  }
+
+  async function handlePasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase) return
+    const email = String(new FormData(event.currentTarget).get('email') ?? '').trim().toLowerCase()
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+      if (resetError) throw resetError
+      setNotice('لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.')
+    } catch (resetError) {
+      setError(friendlyError(resetError))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleNewPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!supabase) return
+    const password = String(new FormData(event.currentTarget).get('password') ?? '')
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+      if (updateError) throw updateError
+      setRecoveryMode(false)
+      setNotice('تم تعيين كلمة المرور الجديدة بنجاح.')
+    } catch (updateError) {
+      setError(friendlyError(updateError))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function submitAuth(formElement: HTMLFormElement) {
@@ -248,8 +291,10 @@ export default function App() {
     return <SetupScreen />
   }
 
+  if (recoveryMode) return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="eyebrow">تأمين الحساب</span><h1>تعيين كلمة مرور جديدة</h1><form className="form-stack" onSubmit={handleNewPassword}><label>كلمة المرور الجديدة<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? 'لحظة واحدة...' : 'حفظ كلمة المرور'}</button></form></div></main>
+
   if (session && profile) {
-    return <ResearcherPortal profile={profile} onSignOut={signOut} />
+    return <ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} />
   }
 
   if (session && staff) return <StaffConsole staff={staff} onSignOut={signOut} />
@@ -295,14 +340,19 @@ export default function App() {
                 <span className="card-icon">↗</span>
                 <div>
                   <span className="eyebrow">أهلاً بيك</span>
-                  <h2>{mode === 'sign-up' ? 'إنشاء حساب جديد' : 'سجّل دخولك'}</h2>
+                  <h2>{forgotPassword ? 'استعادة كلمة المرور' : mode === 'sign-up' ? 'إنشاء حساب جديد' : 'سجّل دخولك'}</h2>
                 </div>
               </div>
-              <div className="mode-switch" role="tablist" aria-label="نوع العملية">
+              {!forgotPassword && <div className="mode-switch" role="tablist" aria-label="نوع العملية">
                 <button className={mode === 'sign-in' ? 'active' : ''} onClick={() => { setMode('sign-in'); setNotice(''); setError(''); setConfirmationPending(false) }}>تسجيل الدخول</button>
                 <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => { setMode('sign-up'); setNotice(''); setError(''); setConfirmationPending(false) }}>حساب جديد</button>
-              </div>
-              <form className="form-stack" onSubmit={handleAuth}>
+              </div>}
+              {forgotPassword ? <form className="form-stack" onSubmit={handlePasswordReset}>
+                <label>البريد الإلكتروني<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
+                {notice && <p className="message success" role="status">{notice}</p>}{error && <p className="message error" role="alert">{error}</p>}
+                <button className="primary-button" disabled={busy}>{busy ? 'لحظة واحدة...' : 'إرسال رابط الاستعادة'}</button>
+                <button type="button" className="quiet-button" onClick={() => { setForgotPassword(false); setNotice(''); setError('') }}>العودة لتسجيل الدخول</button>
+              </form> : <form className="form-stack" onSubmit={handleAuth}>
                 <label>البريد الإلكتروني<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
                 <label>كلمة المرور<input name="password" type="password" minLength={8} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} placeholder="٨ أحرف على الأقل" required /></label>
                 {notice && <p className="message success" role="status">{notice}</p>}
@@ -310,8 +360,9 @@ export default function App() {
                 <button className="primary-button" disabled={busy || confirmationPending}>
                   {busy ? 'لحظة واحدة...' : mode === 'sign-up' ? 'إنشاء الحساب' : 'دخول'} <span>←</span>
                 </button>
+                {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(''); setError('') }}>نسيت كلمة المرور؟</button>}
                 <p className="form-footnote">بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.</p>
-              </form>
+              </form>}
             </>
           ) : (
             <>
