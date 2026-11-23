@@ -87,7 +87,7 @@ const money = (amount: number | string, currency: string) =>
 const Money = ({ amount, currency }: { amount: number | string; currency: string }) => <span dir="ltr">{money(amount, currency)}</span>
 const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
-export default function ResearcherPortal({ profile, onSignOut }: { profile: ResearcherProfile; onSignOut: () => void }) {
+export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
   const [view, setView] = useState<View>('catalog')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
@@ -115,6 +115,45 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
   const singleFlight = useSingleFlight()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [degrees, setDegrees] = useState<{ degree_id: number; name_ar: string }[]>([])
+
+  useEffect(() => {
+    if (!supabase) return
+    void supabase.schema('crdc').from('degrees').select('degree_id, name_ar').order('degree_id')
+      .then(({ data }) => setDegrees(data ?? []))
+  }, [])
+
+  async function submitProfileEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formElement = event.currentTarget
+    await singleFlight(async () => {
+      if (!supabase) return
+      setProfileSaving(true)
+      setError('')
+      setNotice('')
+      const form = new FormData(formElement)
+      const degreeId = Number(form.get('degree_id'))
+      try {
+        const { data, error: updateError } = await supabase.schema('crdc').from('researchers')
+          .update({
+            full_name: String(form.get('full_name') ?? '').trim(),
+            degree_id: Number.isFinite(degreeId) && degreeId > 0 ? degreeId : null,
+            specialty: String(form.get('specialty') ?? '').trim() || null,
+          })
+          .eq('researcher_id', profile.researcher_id)
+          .select('researcher_id, full_name, applicant_type, email, degree_id, specialty, nationality, national_id, passport_no, created_at')
+          .single()
+        if (updateError) throw updateError
+        onProfileUpdated({ ...data, degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null } as ResearcherProfile)
+        setNotice('تم تحديث بياناتك الشخصية.')
+      } catch (updateError) {
+        setError(friendlyError(updateError))
+      } finally {
+        setProfileSaving(false)
+      }
+    })
+  }
 
   const loadCatalog = useCallback(async () => {
     if (!supabase) return
@@ -436,7 +475,20 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
 
           {view === 'profile' && <>
             <div className="portal-heading"><span className="eyebrow">حساب الباحث</span><h1>ملفي الشخصي</h1><p>بياناتك الأساسية المسجلة في حساب الباحث.</p></div>
-            <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">حسابك جاهز</span><h2>{profile.full_name}</h2></div></div><dl className="profile-details"><dt>نوع الباحث</dt><dd>{profile.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd><dt>البريد الإلكتروني</dt><dd dir="ltr">{profile.email}</dd><dt>{profile.applicant_type === 'egyptian' ? 'الرقم القومي' : 'رقم جواز السفر'}</dt><dd dir="ltr">{profile.applicant_type === 'egyptian' ? profile.national_id : profile.passport_no}</dd>{profile.applicant_type === 'foreign' && <><dt>الجنسية</dt><dd>{profile.nationality}</dd></>}<dt>الدرجة العلمية</dt><dd>{profile.degree_name || '—'}</dd><dt>التخصص</dt><dd>{profile.specialty || '—'}</dd><dt>تاريخ إنشاء الملف</dt><dd>{formatDate(profile.created_at)}</dd></dl><p className="form-footnote">تعديل البيانات الشخصية بيتم عن طريق إدارة المركز.</p></article>
+            <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">حسابك جاهز</span><h2>{profile.full_name}</h2></div></div>
+              <h3>تعديل البيانات الشخصية</h3>
+              <form className="form-stack" onSubmit={submitProfileEdit}>
+                <label>نوع الباحث<input value={profile.applicant_type === 'egyptian' ? 'مصري' : 'وافد'} readOnly /></label>
+                <label>البريد الإلكتروني<input value={profile.email} dir="ltr" readOnly /></label>
+                <label>{profile.applicant_type === 'egyptian' ? 'الرقم القومي' : 'رقم جواز السفر'}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
+                {profile.applicant_type === 'foreign' && <label>الجنسية<input value={profile.nationality ?? ''} readOnly /></label>}
+                <label>الاسم بالكامل<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
+                <label>الدرجة العلمية<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+                <label>التخصص<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
+                <button className="primary-button" disabled={profileSaving}>{profileSaving ? 'بنحفظ التعديلات...' : 'حفظ التعديلات'}</button>
+              </form>
+              <dl className="profile-details"><dt>تاريخ إنشاء الملف</dt><dd>{formatDate(profile.created_at)}</dd></dl>
+            </article>
           </>}
         </section>
       )}

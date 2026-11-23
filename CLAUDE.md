@@ -79,6 +79,7 @@ Merged and completed product work:
 7. **Round 3 PR B (PR #19):** migration `20261121130000_crdc_round3_pr_b.sql` guards the last active Auth-linked administrator with a transaction advisory lock and adds an append-only audit log with per-table safe-column allow-lists. pgTAP coverage is in `supabase/tests/crdc_round3_pr_b_test.sql`; `.github/workflows/crdc-sql-tests.yml` runs `supabase/tests/crdc_last_admin_concurrency.sh` to exercise concurrent demotions in two PostgreSQL sessions.
 8. **Round 3 PR C (PR #20):** added safe Arabic database-error mapping and unit tests; made the synthetic seed opt-in with a loopback-only loader; added keyset-paginated staff queues with page-bounded history/publication queries; made page count optional only for fee options that do not require it; and clarified researcher-visible staff notes. The migration grants `service_role` only the operational-table reads used by trusted CI/backend fixtures, while keeping `audit_log` excluded. The portal CI uses `supabase/setup-cli@v3` with `v2.stable` to avoid the rate-limited latest-release lookup and to remain on the CLI v2 line.
 9. **Round 4 Cashier & Receipt Verification:** adds private receipt storage, researcher submission and cashier/admin approval/rejection RPCs, immutable verified payments, and an admin/cashier receipt queue with safe signed previews. The grouping rule is confirmed: a payment covers items from only one request and one currency, and each item belongs to at most one payment.
+10. **Round 5 Password Recovery & Profile Editing:** researchers can request password recovery with a non-enumerating Arabic confirmation and complete the `PASSWORD_RECOVERY` flow with an eight-character minimum. Researchers can edit only `full_name`, `degree_id`, and `specialty` on their own profile; identity fields are read-only in the portal and protected by column grants plus a database trigger. `identity_verified_at` is an optional protected timestamp added for the identity-verification workflow.
 
 ## 6. CI/CD and tests
 
@@ -88,7 +89,7 @@ Workflows under `.github/workflows/`:
 - `crdc-portal-build.yml` installs portal dependencies and runs `npm run build`.
 - `crdc-researcher-e2e.yml` runs the portal against local Supabase and synthetic data (loaded only through `seed_local.sh`) with Playwright.
 
-The E2E suite covers researcher registration/request isolation, researcher receipt submission and cashier approval, viewer shell and aggregates, keyset pagination across multiple pages, admin assignment persistence, publication issue filtering by the currently selected journal, optional page-count rules, and assigned reviewer status update with server timestamp and case isolation.
+The E2E suite covers researcher registration/request isolation, password recovery and profile editing, researcher receipt submission and cashier approval, viewer shell and aggregates, keyset pagination across multiple pages, admin assignment persistence, publication issue filtering by the currently selected journal, optional page-count rules, and assigned reviewer status update with server timestamp and case isolation.
 
 Preserve these constraints:
 
@@ -102,7 +103,6 @@ Preserve these constraints:
 
 The remaining product items are:
 
-1. **Password recovery** for portal accounts.
-2. **Researcher profile editing**, with database authorization and appropriate validation.
+All currently defined researcher portal milestones are implemented. Continue to inspect migration definitions and active RLS policies before expanding workflows.
 
 Before expanding any workflow, inspect the exact migration definitions and active RLS policies first.
