@@ -17,7 +17,7 @@ INSERT INTO crdc.staff_users(staff_id,auth_user_id,full_name,role,is_active) VAL
 INSERT INTO crdc.service_requests(researcher_id,work_type,work_title,page_count)
 VALUES ('d4100000-0000-0000-0000-000000000001','paper','R4 CASHIER TEST',20);
 INSERT INTO crdc.payments(request_id,payment_order_no,amount,currency,channel)
-SELECT sr.request_id,'R4-ORDER-1',crdc.calc_fee(f.fee_id,sr.page_count),f.currency,'treasury'
+SELECT sr.request_id,'R4-ORDER-1',crdc.calc_fee(f.fee_id,sr.page_count),'EGP','treasury'
 FROM crdc.service_requests sr
 CROSS JOIN LATERAL (SELECT fee_id FROM crdc.fee_schedule WHERE applicant_type='egyptian' ORDER BY fee_id LIMIT 1) f
 WHERE sr.work_title='R4 CASHIER TEST';

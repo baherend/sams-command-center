@@ -154,20 +154,20 @@ SELECT throws_ok($$UPDATE crdc.payments SET payment_order_no = 'SI-ORDER-CHANGED
 SELECT throws_ok($$UPDATE crdc.payments SET payment_order_no = NULL WHERE payment_id=current_setting('test.si.payment')::bigint$$,
   '23514', NULL, 'H1: a recorded payment_order_no cannot be cleared');
 
--- Payment is recorded after the order: filling paid_at/receipt_no once must stay possible, then they lock.
+-- Receipt metadata is now RPC-only; a cashier cannot mutate payment rows directly.
 SELECT set_config('request.jwt.claims','{"sub":"a0000000-0000-0000-0000-000000000104","role":"authenticated"}',true);
 SET LOCAL ROLE authenticated;
-SELECT lives_ok(
+SELECT throws_ok(
   $$UPDATE crdc.payments SET paid_at=current_date, receipt_no='SI-RECEIPT-1' WHERE payment_id=current_setting('test.si.payment')::bigint$$,
-  'H1: cashier can record paid_at and receipt_no once, after the order');
+  '42501', NULL, 'H1: cashier cannot directly set receipt metadata');
 SELECT throws_ok($$UPDATE crdc.payments SET receipt_no='SI-RECEIPT-2' WHERE payment_id=current_setting('test.si.payment')::bigint$$,
-  '23514', NULL, 'H1: a recorded receipt_no cannot be changed');
+  '42501', NULL, 'H1: cashier cannot directly change a receipt reference');
 SELECT throws_ok($$UPDATE crdc.payments SET paid_at=current_date - 3 WHERE payment_id=current_setting('test.si.payment')::bigint$$,
-  '23514', NULL, 'H1: a recorded paid_at cannot be changed');
+  '42501', NULL, 'H1: cashier cannot directly change payment date');
 RESET ROLE;
 
 SELECT throws_ok(
-  $$INSERT INTO crdc.payments (request_id, receipt_no, amount, currency, channel, paid_at) VALUES (current_setting('test.si.pay_req')::bigint,'SI-RECEIPT-1',10,'EGP','bank',current_date)$$,
+  $$INSERT INTO crdc.payments (request_id, receipt_no, amount, currency, channel, paid_at) VALUES (current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','10','EGP','bank',current_date),(current_setting('test.si.pay_req')::bigint,'SI-DUP-RECEIPT','11','EGP','bank',current_date)$$,
   '23505', NULL, 'H1: duplicate receipt_no is rejected');
 SELECT throws_ok(
   $$INSERT INTO crdc.payments (request_id, payment_order_no, amount, currency, channel) VALUES (current_setting('test.si.pay_req')::bigint,'SI-ORDER-1',10,'EGP','bank')$$,
