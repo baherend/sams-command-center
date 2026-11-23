@@ -31,6 +31,10 @@ test('friendlyError maps payment integrity errors to safe Arabic messages', () =
     .toBe('رقم الإيصال مستخدم قبل كده. راجعه وجرب رقم تاني.')
   expect(friendlyError({ code: '23505', message: 'duplicate', constraint: 'payments_payment_order_no_key' }))
     .toBe('رقم إذن الدفع مستخدم قبل كده. راجعه وجرب رقم تاني.')
+  expect(friendlyError({ code: '23505', message: 'Receipt reference is already in use' }))
+    .toBe('رقم الإيصال مستخدم قبل كده. راجعه وجرب رقم تاني.')
+  expect(friendlyError({ code: '23514', message: 'This receipt is not awaiting verification' }))
+    .toBe('الإيصال اتراجع بالفعل أو مش موجود في قائمة المراجعة. حدّث الصفحة.')
 })
 
 test('friendlyError maps request bounds and never exposes raw database text', () => {

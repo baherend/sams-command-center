@@ -25,4 +25,6 @@ Thumbs.db
 .vscode/
 .idea/
 node_modules/
+CRDC/researcher-portal/test-results/
+CRDC/researcher-portal/playwright-report/
 __pycache__/

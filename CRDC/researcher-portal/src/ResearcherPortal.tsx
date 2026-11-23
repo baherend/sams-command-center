@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
-import { friendlyError, useSingleFlight } from './errors'
+import { friendlyError, UiError, useSingleFlight } from './errors'
 
 type ApplicantType = 'egyptian' | 'foreign'
 type WorkType = 'thesis' | 'paper'
@@ -72,6 +72,10 @@ type PaymentRow = {
   currency: string
   channel: string
   paid_at: string | null
+  receipt_status: 'awaiting_receipt' | 'pending_review' | 'rejected' | 'verified'
+  receipt_storage_path: string | null
+  submitted_by_researcher_at: string | null
+  rejection_reason: string | null
 }
 
 const statusName = (status: StatusRow | undefined) => status?.name_ar ?? 'غير محدد'
@@ -204,7 +208,7 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
         serviceIds.length ? supabase.schema('crdc').from('services').select('service_id, code, name_ar, is_active').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
         itemIds.length ? supabase.schema('crdc').from('request_status_history').select('history_id, item_id, status_id, changed_at, note').in('item_id', itemIds).order('changed_at') : Promise.resolve({ data: [], error: null }),
         itemIds.length ? supabase.schema('crdc').from('publication_submissions').select('submission_id, item_id, journal_id, issue_id, paper_language, decision, accepted_at').in('item_id', itemIds) : Promise.resolve({ data: [], error: null }),
-        paymentIds.length ? supabase.schema('crdc').from('payments').select('payment_id, payment_order_no, receipt_no, amount, currency, channel, paid_at').in('payment_id', paymentIds) : Promise.resolve({ data: [], error: null }),
+        paymentIds.length ? supabase.schema('crdc').from('payments').select('payment_id, payment_order_no, receipt_no, amount, currency, channel, paid_at, receipt_status, receipt_storage_path, submitted_by_researcher_at, rejection_reason').in('payment_id', paymentIds) : Promise.resolve({ data: [], error: null }),
         supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
       ])
       for (const result of [feesResult, servicesResult, historyResult, publicationResult, paymentsResult, statusResult]) {
@@ -238,6 +242,41 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
       setDetailLoading(false)
     }
   }, [profile.researcher_id])
+
+  async function submitPaymentReceipt(payment: PaymentRow, formData: FormData) {
+    if (!supabase || !detail) return
+    const receiptNo = String(formData.get('receipt_no') ?? '').trim()
+    const paidAt = String(formData.get('paid_at') ?? '')
+    const channel = String(formData.get('channel') ?? '')
+    const file = formData.get('receipt_file')
+    if (!(file instanceof File) || file.size === 0) throw new UiError('اختار ملف الإيصال الأول.')
+    if (file.size > 5 * 1024 * 1024) throw new UiError('حجم الإيصال لازم يكون ٥ ميجابايت أو أقل.')
+    const extensions: Record<string, string> = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }
+    const extension = extensions[file.type]
+    if (!extension) throw new UiError('ارفع الإيصال بصيغة PDF أو JPG أو PNG.')
+    if (!receiptNo || receiptNo.length > 100) throw new UiError('اكتب رقم الإيصال في حدود ١٠٠ حرف.')
+    if (!paidAt || paidAt > new Date().toISOString().slice(0, 10)) throw new UiError('اختار تاريخ سداد صحيحًا.')
+
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError) throw userError
+    if (!userData.user) throw new UiError('سجّل دخولك الأول وجرب تاني.')
+    const path = `${userData.user.id}/${detail.request.request_id}/${payment.payment_id}/${crypto.randomUUID()}.${extension}`
+    const { error: uploadError } = await supabase.storage.from('payment-receipts').upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+    })
+    if (uploadError) throw uploadError
+    const { error: rpcError } = await supabase.schema('crdc').rpc('submit_payment_receipt', {
+      p_payment_id: Number(payment.payment_id),
+      p_channel: channel,
+      p_receipt_no: receiptNo,
+      p_paid_at: paidAt,
+      p_receipt_storage_path: path,
+    })
+    if (rpcError) throw rpcError
+    await loadRequestDetail(String(detail.request.request_id))
+    setNotice('وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.')
+  }
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
   const selectedFees = fees.filter((fee) => selectedFeeIds.includes(fee.fee_id))
@@ -369,6 +408,25 @@ export default function ResearcherPortal({ profile, onSignOut }: { profile: Rese
                     <div className="timeline"><h4>سجل الحالة</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id))}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
                   </section>
                 })}</div>
+                {detail.payments.map((payment) => {
+                  const paymentItems = detail.items.filter((item) => String(item.payment_id) === String(payment.payment_id))
+                  if (!paymentItems.length) return null
+                  const paymentStatus = payment.receipt_status === 'pending_review' ? 'بانتظار مراجعة الخزينة'
+                    : payment.receipt_status === 'verified' ? 'تم اعتماد السداد'
+                      : payment.receipt_status === 'rejected' ? 'مرفوض — يرجى إعادة الرفع'
+                        : 'ارفع إيصال الدفع'
+                  const canSubmitReceipt = ['awaiting_receipt','rejected'].includes(payment.receipt_status)
+                    && payment.payment_order_no !== null
+                    && paymentItems.every((item) => detail.statuses.find((status) => status.status_id === item.status_id)?.code === 'PAYMENT_ORDER')
+                  return <section className="portal-card payment-receipt-card" data-testid="payment-receipt-card" key={payment.payment_id}>
+                    <div className="payment-receipt-heading"><div><span className="eyebrow">إيصال السداد</span><h3>إذن الدفع <Ltr>{payment.payment_order_no ?? String(payment.payment_id)}</Ltr></h3></div><span className={`status-pill receipt-status-${payment.receipt_status}`}>{paymentStatus}</span></div>
+                    <p>المبلغ المطلوب <strong><Money amount={payment.amount} currency={payment.currency} /></strong></p>
+                    {payment.receipt_status === 'rejected' && payment.rejection_reason && <p className="message error receipt-rejection-reason">سبب الرفض: {payment.rejection_reason}</p>}
+                    {payment.receipt_status === 'pending_review' && payment.receipt_no && <p>رقم الإيصال: <Ltr>{payment.receipt_no}</Ltr></p>}
+                    {payment.receipt_status === 'verified' && payment.paid_at && <p>تاريخ السداد: {formatDate(payment.paid_at)}</p>}
+                    {canSubmitReceipt && <PaymentReceiptForm payment={payment} items={paymentItems} services={detail.services} onSubmit={submitPaymentReceipt} onError={(message) => setError(message)} />}
+                  </section>
+                })}
                 {!detail.items.length && <p className="empty-state">مفيش خدمات مرتبطة بالطلب ده.</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
@@ -405,5 +463,50 @@ function optionLabel(code: string) {
 
 function decisionLabel(decision: PublicationRow['decision']) {
   return ({ pending: 'قيد التحكيم', revisions: 'تعديلات مطلوبة', accepted: 'مقبول', rejected: 'مرفوض' })[decision]
+}
+
+function PaymentReceiptForm({
+  payment,
+  items,
+  services,
+  onSubmit,
+  onError,
+}: {
+  payment: PaymentRow
+  items: ItemRow[]
+  services: Service[]
+  onSubmit: (payment: PaymentRow, formData: FormData) => Promise<void>
+  onError: (message: string) => void
+}) {
+  const [submitting, setSubmitting] = useState(false)
+  const singleFlight = useSingleFlight()
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    setSubmitting(true)
+    onError('')
+    try {
+      await singleFlight(() => onSubmit(payment, new FormData(form)))
+    } catch (submitError) {
+      onError(friendlyError(submitError))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return <form className="payment-receipt-form" onSubmit={handleSubmit}>
+    <div className="receipt-covered-items"><strong>الخدمات المشمولة بالإيصال</strong><ul>{items.map((item) => <li key={item.item_id}>
+      <span>{services.find((service) => service.service_id === item.service_id)?.name_ar ?? 'خدمة'}</span>
+      <Money amount={item.amount_due} currency={item.currency} />
+    </li>)}</ul></div>
+    <label>قناة السداد<select name="channel" defaultValue={payment.channel} required>
+      <option value="treasury">الخزينة</option><option value="bank">البنك</option>
+    </select></label>
+    <label>رقم الإيصال<input name="receipt_no" required maxLength={100} autoComplete="off" /></label>
+    <label>تاريخ السداد<input name="paid_at" type="date" required max={new Date().toISOString().slice(0, 10)} /></label>
+    <label>صورة أو ملف الإيصال<input name="receipt_file" type="file" required accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" /><small>PDF أو JPG أو PNG، بحد أقصى ٥ ميجابايت.</small></label>
+    <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'بنرفع الإيصال...' : 'إرسال الإيصال للمراجعة'}</button>
+  </form>
 }
 

@@ -25,11 +25,29 @@ type HistoryRow = { history_id: number; item_id: number; status_id: number; chan
 type PublicationRow = { submission_id: number; item_id: number; journal_id: number; issue_id: number | null; decision: 'pending' | 'revisions' | 'accepted' | 'rejected'; accepted_at: string | null }
 type Journal = { journal_id: number; name_ar: string }
 type JournalIssue = { issue_id: number; journal_id: number; issue_year: number; issue_month: number }
+type CashierPayment = {
+  payment_id: number
+  request_id: number
+  receipt_no: string
+  amount: number | string
+  currency: 'EGP' | 'USD'
+  channel: 'treasury' | 'bank'
+  paid_at: string
+  receipt_storage_path: string
+  submitted_by_researcher_at: string
+  has_more: boolean
+}
+type CashierContact = { request_id: number; work_type: WorkType; work_title: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
+type CashierItem = { item_id: number; payment_id: number; request_id: number; fee_id: number; service_id: number; currency: string; amount_due: number | string; status_id: number }
+type CashierItemDisplay = CashierItem & { service_name: string; option_code: string }
+type CashierCursor = { submitted_by_researcher_at: string; payment_id: number }
+type CashierQueueRow = { payment: CashierPayment; contact: CashierContact | undefined; items: CashierItemDisplay[] }
 
 const roleNames: Record<StaffRole, string> = {
   admin: 'مدير النظام', reviewer: 'مراجع', statistician: 'إحصائي', cashier: 'أمين خزينة', viewer: 'مشاهد',
 }
 type PageCursor = { created_at: string; request_id: number }
+const receiptPageSize = 20
 const pageSize = 20
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value))
@@ -37,7 +55,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateSty
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
-  const [view, setView] = useState<'overview' | 'requests' | 'assigned'>('overview')
+  const [view, setView] = useState<'overview' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : 'overview')
   const [requests, setRequests] = useState<QueueRequest[]>([])
   const [requesters, setRequesters] = useState<Map<string, Requester>>(new Map())
   const [items, setItems] = useState<RequestItem[]>([])
@@ -60,11 +78,82 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [selectedIssueByItem, setSelectedIssueByItem] = useState<Record<number, number | ''>>({})
   const [operationLoading, setOperationLoading] = useState(false)
   const [busyItem, setBusyItem] = useState<number | null>(null)
+  const [cashierRows, setCashierRows] = useState<CashierQueueRow[]>([])
+  const [cashierLoading, setCashierLoading] = useState(false)
+  const [cashierPageIndex, setCashierPageIndex] = useState(0)
+  const [cashierCursorStack, setCashierCursorStack] = useState<(CashierCursor | null)[]>([null])
+  const [cashierHasMore, setCashierHasMore] = useState(false)
+  const [cashierBusyPayment, setCashierBusyPayment] = useState<number | null>(null)
+  const [cashierSignedUrls, setCashierSignedUrls] = useState<Record<number, string>>({})
+  const [cashierReasons, setCashierReasons] = useState<Record<number, string>>({})
+  const [cashierRefreshToken, setCashierRefreshToken] = useState(0)
   const singleFlight = useSingleFlight()
   const canViewOverview = staff.role === 'admin' || staff.role === 'viewer'
   const isAdmin = staff.role === 'admin'
+  const isCashier = staff.role === 'cashier'
   const canOperate = isAdmin || staff.role === 'reviewer' || staff.role === 'statistician'
   const pageCursor = cursorStack[pageIndex] ?? null
+  const cashierPageCursor = cashierCursorStack[cashierPageIndex] ?? null
+
+  useEffect(() => {
+    if (view !== 'cashier' || (!isAdmin && !isCashier) || !supabase) return
+    let alive = true
+    setCashierLoading(true)
+    setError('')
+    void (async () => {
+      try {
+        const { data: pageData, error: pageError } = await supabase.schema('crdc').rpc('cashier_payment_receipt_page', {
+          p_after_submitted_at: cashierPageCursor?.submitted_by_researcher_at ?? null,
+          p_after_payment_id: cashierPageCursor?.payment_id ?? null,
+          p_direction: 'next',
+        })
+        if (pageError) throw pageError
+        const fetchedPayments = (pageData ?? []) as CashierPayment[]
+        const pagePayments = fetchedPayments.slice(0, receiptPageSize)
+        const paymentIds = pagePayments.map((payment) => payment.payment_id)
+        const requestIds = [...new Set(pagePayments.map((payment) => payment.request_id))]
+        const [itemResult, contactResult, statusResult] = await Promise.all([
+          paymentIds.length
+            ? supabase.schema('crdc').from('request_items').select('item_id,payment_id,request_id,fee_id,service_id,currency,amount_due,status_id').in('payment_id', paymentIds).order('item_id')
+            : Promise.resolve({ data: [], error: null }),
+          requestIds.length
+            ? supabase.schema('crdc').from('cashier_request_contacts').select('request_id,work_type,work_title,full_name,email,applicant_type').in('request_id', requestIds)
+            : Promise.resolve({ data: [], error: null }),
+          supabase.schema('crdc').from('request_statuses').select('status_id,code,name_ar,sort_order').order('sort_order'),
+        ])
+        if (itemResult.error || contactResult.error || statusResult.error) throw itemResult.error ?? contactResult.error ?? statusResult.error
+        const itemRows = (itemResult.data ?? []) as CashierItem[]
+        const serviceIds = [...new Set(itemRows.map((item) => item.service_id))]
+        const feeIds = [...new Set(itemRows.map((item) => item.fee_id))]
+        const [serviceResult, feeResult] = await Promise.all([
+          serviceIds.length ? supabase.schema('crdc').from('services').select('service_id,name_ar').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
+          feeIds.length ? supabase.schema('crdc').from('fee_schedule').select('fee_id,option_code').in('fee_id', feeIds) : Promise.resolve({ data: [], error: null }),
+        ])
+        if (serviceResult.error || feeResult.error) throw serviceResult.error ?? feeResult.error
+        if (!alive) return
+        const serviceNames = new Map((serviceResult.data ?? []).map((row) => [row.service_id, row.name_ar]))
+        const feeCodes = new Map((feeResult.data ?? []).map((row) => [row.fee_id, row.option_code]))
+        const contacts = new Map(((contactResult.data ?? []) as CashierContact[]).map((row) => [row.request_id, row]))
+        const itemsByPayment = new Map<number, CashierItemDisplay[]>()
+        for (const item of itemRows) {
+          const display = { ...item, service_name: serviceNames.get(item.service_id) ?? 'خدمة', option_code: feeCodes.get(item.fee_id) ?? '' }
+          itemsByPayment.set(item.payment_id, [...(itemsByPayment.get(item.payment_id) ?? []), display])
+        }
+        setCashierRows(pagePayments.map((payment) => ({
+          payment,
+          contact: contacts.get(payment.request_id),
+          items: itemsByPayment.get(payment.payment_id) ?? [],
+        })))
+        setCashierHasMore(Boolean(fetchedPayments[0]?.has_more))
+        setStatuses((statusResult.data ?? []) as RequestStatus[])
+      } catch (queueError) {
+        if (alive) setError(friendlyError(queueError))
+      } finally {
+        if (alive) setCashierLoading(false)
+      }
+    })()
+    return () => { alive = false }
+  }, [view, isAdmin, isCashier, cashierPageIndex, cashierPageCursor, cashierRefreshToken])
 
   useEffect(() => {
     if (!canViewOverview || !supabase) return
@@ -219,6 +308,65 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     if (pageIndex > 0) setPageIndex((current) => current - 1)
   }
 
+  function nextCashierPage() {
+    if (!cashierHasMore || !cashierRows.length) return
+    const lastPayment = cashierRows[cashierRows.length - 1].payment
+    setCashierCursorStack((current) => [
+      ...current.slice(0, cashierPageIndex + 1),
+      { submitted_by_researcher_at: lastPayment.submitted_by_researcher_at, payment_id: lastPayment.payment_id },
+    ])
+    setCashierPageIndex((current) => current + 1)
+  }
+
+  function previousCashierPage() {
+    if (cashierPageIndex > 0) setCashierPageIndex((current) => current - 1)
+  }
+
+  async function previewReceipt(payment: CashierPayment) {
+    if (!supabase) return
+    setError('')
+    const { data, error: signedError } = await supabase.storage.from('payment-receipts')
+      .createSignedUrl(payment.receipt_storage_path, 300)
+    if (signedError) { setError(friendlyError(signedError)); return }
+    setCashierSignedUrls((current) => ({ ...current, [payment.payment_id]: data.signedUrl }))
+  }
+
+  async function approveReceipt(payment: CashierPayment) {
+    if (!supabase) return
+    setCashierBusyPayment(payment.payment_id); setError(''); setNotice('')
+    try {
+      const { error: approveError } = await supabase.schema('crdc').rpc('approve_payment_receipt', { p_payment_id: payment.payment_id })
+      if (approveError) throw approveError
+      setNotice('تم اعتماد السداد وتحديث حالات الخدمات.')
+      setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
+      setCashierRefreshToken((value) => value + 1)
+    } catch (approveError) {
+      setError(friendlyError(approveError))
+    } finally {
+      setCashierBusyPayment(null)
+    }
+  }
+
+  async function rejectReceipt(payment: CashierPayment, reason: string) {
+    if (!supabase) return
+    setCashierBusyPayment(payment.payment_id); setError(''); setNotice('')
+    try {
+      const { error: rejectError } = await supabase.schema('crdc').rpc('reject_payment_receipt', {
+        p_payment_id: payment.payment_id,
+        p_reason: reason.trim(),
+      })
+      if (rejectError) throw rejectError
+      setNotice('تم رفض الإيصال وإرسال السبب للباحث.')
+      setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
+      setCashierReasons((current) => ({ ...current, [payment.payment_id]: '' }))
+      setCashierRefreshToken((value) => value + 1)
+    } catch (rejectError) {
+      setError(friendlyError(rejectError))
+    } finally {
+      setCashierBusyPayment(null)
+    }
+  }
+
   async function assignRequest(request: QueueRequest, staffId: string) {
     if (!supabase || !staffId) return
     setBusyRequest(request.request_id)
@@ -301,12 +449,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
       <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
         {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>نظرة عامة وإحصائيات</button>}
+        {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(''); setNotice('') }}>مراجعة إيصالات السداد</button>}
         {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>إدارة الطلبات والتعيينات</button>}
         {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</button>}
       </nav>
 
       <section className="portal-content" id="staff-home">
-        {!canViewOverview && !isAdmin && !canOperate ? (
+        {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
           <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
         ) : view === 'overview' ? (
           <>
@@ -324,6 +473,44 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 </section>
               </>
             )}
+          </>
+        ) : view === 'cashier' ? (
+          <>
+            <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>مراجعة إيصالات السداد</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
+            {notice && <p className="message success" role="status">{notice}</p>}
+            {error && <p className="message error" role="alert">{error}</p>}
+            {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الإيصالات...</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
+              {cashierRows.map(({ payment, contact, items: coveredItems }) => <article className="portal-card cashier-receipt-card" data-testid="cashier-receipt" data-payment-id={payment.payment_id} key={payment.payment_id}>
+                <div className="cashier-receipt-heading"><div><span className="eyebrow">إيصال بانتظار المراجعة</span><h2>{contact?.work_title ?? `طلب رقم ${payment.request_id}`}</h2></div><span className="status-pill">بانتظار مراجعة الخزينة</span></div>
+                <dl className="cashier-receipt-facts">
+                  <dt>رقم الطلب</dt><dd><span dir="ltr">#{payment.request_id}</span></dd>
+                  <dt>الباحث</dt><dd>{contact?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{contact?.email ?? ''}</small></dd>
+                  <dt>نوع الباحث</dt><dd>{contact?.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
+                  <dt>رقم الإيصال</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
+                  <dt>تاريخ السداد</dt><dd>{formatDate(payment.paid_at)}</dd>
+                  <dt>قناة السداد</dt><dd>{payment.channel === 'treasury' ? 'الخزينة' : 'البنك'}</dd>
+                  <dt>إجمالي المبلغ</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString('ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
+                  <dt>وصل للمراجعة</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
+                </dl>
+                <section className="cashier-covered-items"><h3>الخدمات المشمولة</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
+                  <span>{item.service_name}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{statusById.get(item.status_id)?.name_ar ?? 'غير محدد'} · <span dir="ltr">{Number(item.amount_due).toLocaleString('ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
+                </li>)}</ul> : <p className="empty-state">مفيش بنود مرتبطة بإذن الدفع.</p>}</section>
+                <div className="cashier-receipt-actions">
+                  <button className="quiet-button" disabled={cashierBusyPayment !== null} onClick={() => void singleFlight(() => previewReceipt(payment))}>إنشاء رابط معاينة آمن</button>
+                  {cashierSignedUrls[payment.payment_id] && <a className="quiet-button" href={cashierSignedUrls[payment.payment_id]} target="_blank" rel="noreferrer">معاينة الإيصال</a>}
+                  <button className="primary-button" disabled={cashierBusyPayment !== null || !coveredItems.length} onClick={() => void singleFlight(() => approveReceipt(payment))}>{cashierBusyPayment === payment.payment_id ? 'بنحفظ...' : 'اعتماد السداد'}</button>
+                </div>
+                <form className="cashier-rejection-form" onSubmit={(event) => { event.preventDefault(); const reason = cashierReasons[payment.payment_id] ?? ''; void singleFlight(() => rejectReceipt(payment, reason)) }}>
+                  <label>سبب الرفض<textarea required minLength={3} maxLength={500} value={cashierReasons[payment.payment_id] ?? ''} onChange={(event) => setCashierReasons((current) => ({ ...current, [payment.payment_id]: event.target.value }))} placeholder="اكتب سببًا واضحًا للباحث" /></label>
+                  <button className="quiet-button" type="submit" disabled={cashierBusyPayment !== null}>رفض الإيصال وإبلاغ الباحث</button>
+                </form>
+              </article>)}
+            </div> : <div className="portal-card empty-requests"><h2>مفيش إيصالات بانتظار المراجعة</h2><p>أي إيصال جديد هتلاقيه هنا مع تفاصيل المبلغ والخدمات.</p></div>}
+            {!cashierLoading && cashierRows.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين إيصالات السداد">
+              <button className="quiet-button" disabled={cashierPageIndex === 0} onClick={previousCashierPage}>السابق</button>
+              <span>صفحة {(cashierPageIndex + 1).toLocaleString('ar-EG')}</span>
+              <button className="quiet-button" disabled={!cashierHasMore} onClick={nextCashierPage}>التالي</button>
+            </nav>}
           </>
         ) : view === 'requests' ? (
           <>
