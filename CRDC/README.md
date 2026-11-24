@@ -12,14 +12,13 @@ The platform centralizes the center's research services, researcher onboarding, 
 
 ## 2. Current Project Status
 
-- **Stage:** Functional Operational Prototype (Rounds 1–5 Completed & Verified via CI).
+- **Stage:** Functional Operational Prototype (Rounds 1–6 Completed & Verified via CI).
 - **Completed Modules:**
   - **Database & Security (`supabase/`):** 15-table PostgreSQL schema (`crdc`), strict Row-Level Security (RLS), `SECURITY DEFINER` RPC workflows, serialized last-admin guard, and append-only `crdc.audit_log`.
   - **Researcher Portal (`CRDC/researcher-portal/`):** Registration & password recovery, Egyptian National ID / foreign passport validation, safe profile editing, service catalog with automated EGP/USD fee calculation, separate thesis/paper requests, and payment receipt upload.
-  - **Staff, Admin & Cashier Console:** Server-side keyset-paginated request queue, staff assignment with conflict-of-interest checks, journal publication decisions, aggregate viewer metrics, and a dedicated Cashier workspace for verifying and approving/rejecting payment receipts.
+  - **Staff, Admin & Cashier Console:** Server-side keyset-paginated request queue, staff assignment with conflict-of-interest checks, journal publication decisions, aggregate viewer metrics, a dedicated Cashier workspace for verifying and approving/rejecting payment receipts, and the **Analytics & KPIs Dashboard** (admin/viewer only: KPI cards, EGP/USD verified revenue, service/status/applicant-mix charts, and a 12-month trend, all PII-free via `crdc.get_analytics_dashboard`).
   - **Automated CI/CD (`.github/workflows/`):** Automated `pgTAP` database security tests (200+ assertions), Vite production build checks, and Playwright end-to-end browser tests.
 - **Remaining Milestones:**
-  - Enhanced Analytics & KPIs Dashboard visualizations.
   - Integrating the `CRDC/RAG` assistant into the Researcher Portal.
 
 ## 3. Approved Technology Stack
