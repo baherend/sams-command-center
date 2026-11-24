@@ -397,3 +397,88 @@ body, .form-card, .setup-card, .kb-assistant-panel, .kb-assistant-body, .kb-msg-
   border-color: #28443c;
   color: #cde0d6;
 }
+
+
+/* Interactive Spring Card Physics */
+@keyframes portalCardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.portal-card,
+.staff-stat-card,
+.request-card,
+.request-item,
+.kb-result-card {
+  animation: portalCardEntrance 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s ease,
+    background-color 0.28s ease !important;
+  will-change: transform;
+}
+
+.staff-stat-card:nth-child(1), .request-card:nth-child(1) { animation-delay: 0.04s; }
+.staff-stat-card:nth-child(2), .request-card:nth-child(2) { animation-delay: 0.09s; }
+.staff-stat-card:nth-child(3), .request-card:nth-child(3) { animation-delay: 0.14s; }
+.staff-stat-card:nth-child(4), .request-card:nth-child(4) { animation-delay: 0.19s; }
+.staff-stat-card:nth-child(5), .request-card:nth-child(5) { animation-delay: 0.24s; }
+.staff-stat-card:nth-child(6), .request-card:nth-child(6) { animation-delay: 0.29s; }
+.staff-stat-card:nth-child(7), .request-card:nth-child(7) { animation-delay: 0.34s; }
+
+.portal-card:hover,
+.staff-stat-card:hover,
+.request-card:hover,
+.request-item:hover,
+.kb-result-card:hover {
+  transform: translateY(-5px) scale(1.012);
+  box-shadow: 0 16px 36px rgba(24, 91, 72, 0.14);
+  border-color: var(--green, #185b48) !important;
+}
+
+.portal-card:active,
+.staff-stat-card:active,
+.request-card:active,
+.request-item:active,
+.kb-result-card:active,
+.form-card:active {
+  transform: translateY(-1px) scale(0.972);
+  transition-duration: 0.12s !important;
+}
+
+.primary-button,
+.quiet-button,
+.researcher-nav button,
+.mode-switch button {
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.2s ease,
+    box-shadow 0.25s ease !important;
+}
+
+.primary-button:hover:not(:disabled),
+.researcher-nav button:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.primary-button:active:not(:disabled),
+.researcher-nav button:active,
+.mode-switch button:active {
+  transform: scale(0.95);
+}
+
+[data-theme="dark"] .portal-card:hover,
+[data-theme="dark"] .staff-stat-card:hover,
+[data-theme="dark"] .request-card:hover,
+[data-theme="dark"] .request-item:hover,
+[data-theme="dark"] .kb-result-card:hover {
+  box-shadow: 0 16px 38px rgba(44, 165, 128, 0.22);
+  border-color: #34c397 !important;
+}
