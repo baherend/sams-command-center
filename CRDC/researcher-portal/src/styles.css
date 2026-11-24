@@ -482,3 +482,10 @@ body, .form-card, .setup-card, .kb-assistant-panel, .kb-assistant-body, .kb-msg-
   box-shadow: 0 16px 38px rgba(44, 165, 128, 0.22);
   border-color: #34c397 !important;
 }
+
+
+[data-theme="dark"] .kb-suggestions button:hover:not(:disabled) {
+  background: #223c34 !important;
+  color: #ffffff !important;
+  border-color: #34c397 !important;
+}
