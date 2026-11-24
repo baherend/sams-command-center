@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from './supabase'
 import { friendlyError } from './errors'
 
@@ -90,73 +91,97 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
 
   return (
     <div className="kb-assistant-root" dir="rtl">
-      {open && (
-        <section className="kb-assistant-panel" aria-label="المساعد الذكي للدليل الإجرائي">
-          <header className="kb-assistant-header">
-            <div>
-              <strong>المساعد الذكي للمركز</strong>
-              <small>الدليل الإجرائي المعتمد</small>
-            </div>
-            <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق المساعد">
-              ×
-            </button>
-          </header>
-
-          <div className="kb-assistant-body">
-            {messages.map((m) => (
-              <div key={m.id} className={`kb-msg kb-msg-${m.role}`}>
-                <p>{m.text}</p>
-                {m.results && m.results.length > 0 && (
-                  <div className="kb-results">
-                    {m.results.map((r) => (
-                      <article key={r.chunk_id} className="kb-result-card">
-                        <div className="kb-result-meta">
-                          <span className="kb-source-badge">{r.source}</span>
-                          <strong>{r.section}</strong>
-                        </div>
-                        <p className="kb-result-content">{r.content}</p>
-                      </article>
-                    ))}
-                  </div>
-                )}
+      <AnimatePresence>
+        {open && (
+          <motion.section
+            className="kb-assistant-panel"
+            aria-label="المساعد الذكي للدليل الإجرائي"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+          >
+            <header className="kb-assistant-header">
+              <div>
+                <strong>المساعد الذكي للمركز</strong>
+                <small>الدليل الإجرائي المعتمد</small>
               </div>
-            ))}
-            {busy && <div className="kb-msg kb-msg-assistant"><p>جاري البحث في الدليل الإجرائي...</p></div>}
-          </div>
-
-          <div className="kb-suggestions">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" disabled={busy} onClick={() => void askQuestion(s)}>
-                {s}
+              <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق المساعد">
+                ×
               </button>
-            ))}
-          </div>
+            </header>
 
-          <form className="kb-assistant-form" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="اكتب سؤالك هنا..."
-              aria-label="سؤالك للمساعد الذكي"
-              disabled={busy}
-            />
-            <button type="submit" disabled={busy || !query.trim()}>
-              إرسال
-            </button>
-          </form>
-        </section>
-      )}
+            <div className="kb-assistant-body">
+              {messages.map((m) => (
+                <motion.div
+                  key={m.id}
+                  className={`kb-msg kb-msg-${m.role}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22 }}
+                >
+                  <p>{m.text}</p>
+                  {m.results && m.results.length > 0 && (
+                    <div className="kb-results">
+                      {m.results.map((r) => (
+                        <article key={r.chunk_id} className="kb-result-card">
+                          <div className="kb-result-meta">
+                            <span className="kb-source-badge">{r.source}</span>
+                            <strong>{r.section}</strong>
+                          </div>
+                          <p className="kb-result-content">{r.content}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+              {busy && <div className="kb-msg kb-msg-assistant"><p>جاري البحث في الدليل الإجرائي...</p></div>}
+            </div>
 
-      <button
+            <div className="kb-suggestions">
+              {SUGGESTIONS.map((s) => (
+                <motion.button
+                  key={s}
+                  type="button"
+                  disabled={busy}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => void askQuestion(s)}
+                >
+                  {s}
+                </motion.button>
+              ))}
+            </div>
+
+            <form className="kb-assistant-form" onSubmit={handleSubmit}>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="اكتب سؤالك هنا..."
+                aria-label="سؤالك للمساعد الذكي"
+                disabled={busy}
+              />
+              <button type="submit" disabled={busy || !query.trim()}>
+                إرسال
+              </button>
+            </form>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      <motion.button
         type="button"
         className="kb-assistant-fab"
         onClick={() => setOpen((v) => !v)}
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
         aria-expanded={open}
         aria-label="فتح المساعد الذكي"
       >
         {open ? 'إغلاق المساعد' : '💬 اسأل المساعد الذكي'}
-      </button>
+      </motion.button>
     </div>
   )
 }
