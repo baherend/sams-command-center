@@ -1,4 +1,4 @@
-BEGIN;
+﻿BEGIN;
 SELECT plan(5);
 
 -- Structural baseline for the CRDC database draft. Run with `supabase test db`.
@@ -6,14 +6,14 @@ SELECT has_table('crdc', 'services', 'service catalog exists');
 SELECT is(
   (SELECT count(*)::integer FROM information_schema.tables
    WHERE table_schema = 'crdc' AND table_type = 'BASE TABLE'),
-  16,
-  'CRDC schema has the expected 16 tables including audit_log'
+  17,
+  'CRDC schema has the expected 17 tables including audit_log'
 );
 SELECT is(
   (SELECT count(*)::integer FROM pg_class c
    JOIN pg_namespace n ON n.oid = c.relnamespace
    WHERE n.nspname = 'crdc' AND c.relkind = 'r' AND c.relrowsecurity),
-  16,
+  17,
   'RLS is enabled on every CRDC table including audit_log'
 );
 SELECT ok(
@@ -31,3 +31,4 @@ SELECT ok(
 
 SELECT * FROM finish();
 ROLLBACK;
+
