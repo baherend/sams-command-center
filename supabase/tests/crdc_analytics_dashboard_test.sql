@@ -26,43 +26,43 @@ SELECT set_config('test.an.items', (SELECT count(*)::text FROM crdc.request_item
 SELECT set_config('request.jwt.claims',
   '{"sub":"30000000-0000-0000-0000-000000000602","email":"analytics-viewer@example.test","role":"authenticated"}', true);
 SET LOCAL ROLE authenticated;
-SELECT is(jsonb_typeof(crdc.get_analytics_dashboard()), 'object', 'viewer receives the dashboard object');
+SELECT is(jsonb_typeof(crdc.get_analytics_dashboard()), 'object'::text, 'viewer receives the dashboard object'::text);
 SELECT set_config('test.an.payload', crdc.get_analytics_dashboard()::text, true);
 SELECT set_config('test.an.payload30', crdc.get_analytics_dashboard(30)::text, true);
 
 -- Admin: allowed.
 SELECT set_config('request.jwt.claims',
   '{"sub":"30000000-0000-0000-0000-000000000601","email":"analytics-admin@example.test","role":"authenticated"}', true);
-SELECT is(jsonb_typeof(crdc.get_analytics_dashboard(365)), 'object', 'admin receives the dashboard object');
+SELECT is(jsonb_typeof(crdc.get_analytics_dashboard(365)), 'object'::text, 'admin receives the dashboard object'::text);
 SELECT throws_ok($$SELECT crdc.get_analytics_dashboard(0)$$, '22023', NULL, 'p_days below 1 is rejected');
 
 RESET ROLE;
 
 SELECT is(
   (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(current_setting('test.an.payload')::jsonb) k),
-  ARRAY['applicant_mix','by_service','by_status','kpis','monthly_trend'],
-  'payload has exactly the five documented sections'
+  ARRAY['applicant_mix','by_service','by_status','kpis','monthly_trend']::text[],
+  'payload has exactly the five documented sections'::text
 );
 SELECT is(
   (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(current_setting('test.an.payload')::jsonb->'kpis') k),
-  ARRAY['active_items','avg_turnaround_days','completed_items','total_items','total_requests','verified_revenue_egp','verified_revenue_usd'],
-  'kpis has exactly the documented keys'
+  ARRAY['active_items','avg_turnaround_days','completed_items','total_items','total_requests','verified_revenue_egp','verified_revenue_usd']::text[],
+  'kpis has exactly the documented keys'::text
 );
 SELECT is((current_setting('test.an.payload')::jsonb->'kpis'->>'total_requests')::bigint,
-  current_setting('test.an.requests')::bigint, 'total_requests matches all requests when p_days is NULL');
+  current_setting('test.an.requests')::bigint, 'total_requests matches all requests when p_days is NULL'::text);
 SELECT is((current_setting('test.an.payload')::jsonb->'kpis'->>'total_items')::bigint,
-  current_setting('test.an.items')::bigint, 'total_items matches all items when p_days is NULL');
+  current_setting('test.an.items')::bigint, 'total_items matches all items when p_days is NULL'::text);
 SELECT is(
-  (current_setting('test.an.payload')::jsonb->'applicant_mix'->>'egyptian_requests')::bigint
-  + (current_setting('test.an.payload')::jsonb->'applicant_mix'->>'foreign_requests')::bigint,
-  current_setting('test.an.requests')::bigint, 'applicant mix adds up to total requests'
+  ((current_setting('test.an.payload')::jsonb->'applicant_mix'->>'egyptian_requests')::bigint
+  + (current_setting('test.an.payload')::jsonb->'applicant_mix'->>'foreign_requests')::bigint)::bigint,
+  current_setting('test.an.requests')::bigint, 'applicant mix adds up to total requests'::text
 );
 SELECT is(
-  (SELECT sum((e->>'item_count')::bigint) FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_status') e),
-  current_setting('test.an.items')::bigint, 'by_status counts add up to total items'
+  COALESCE((SELECT sum((e->>'item_count')::bigint)::bigint FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_status') e), 0::bigint),
+  current_setting('test.an.items')::bigint, 'by_status counts add up to total items'::text
 );
-SELECT is(jsonb_array_length(current_setting('test.an.payload')::jsonb->'monthly_trend'), 12,
-  'monthly_trend covers 12 months');
+SELECT is(jsonb_array_length(current_setting('test.an.payload')::jsonb->'monthly_trend')::integer, 12::integer,
+  'monthly_trend covers 12 months'::text);
 SELECT ok(
   (current_setting('test.an.payload30')::jsonb->'kpis'->>'total_requests')::bigint
     <= (current_setting('test.an.payload')::jsonb->'kpis'->>'total_requests')::bigint,
@@ -76,7 +76,7 @@ SELECT is(
         LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(o) = 'object' THEN o ELSE '{}'::jsonb END) k
    WHERE k ~* '(name$|^name|email|national|passport|nationality|researcher|auth_user|staff|title)'
      AND k NOT IN ('service_name_ar','status_name_ar')),
-  0, 'payload contains no PII keys at any depth'
+  0::integer, 'payload contains no PII keys at any depth'::text
 );
 SELECT is(
   (SELECT count(*)::integer FROM crdc.researchers r
@@ -84,7 +84,7 @@ SELECT is(
       OR position(r.full_name in current_setting('test.an.payload')) > 0
       OR position(r.national_id in current_setting('test.an.payload')) > 0
       OR position(r.passport_no in current_setting('test.an.payload')) > 0),
-  0, 'no researcher name, email, national ID or passport value appears in the payload'
+  0::integer, 'no researcher name, email, national ID or passport value appears in the payload'::text
 );
 
 -- Denied callers.
