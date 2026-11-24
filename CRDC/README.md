@@ -1,310 +1,87 @@
-# CRDC — Research & Development Center Platform
+# CRDC — Center for Research, Development & Consulting Platform
 
-[English](README.md) | [العربية](README.ar.md)
+English | العربية
 
 ## 1. Project Overview
 
-The **CRDC Platform** is a proposed digital platform for the Consultancy, Research and Development Center (CRDC) at Sadat Academy.
+The **CRDC Platform** is a full-stack digital prototype for the Consultancy, Research and Development Center (CRDC) at Sadat Academy for Management Sciences.
 
-The project aims to develop an integrated prototype demonstrating how the center's services, researcher requests, administrative operations, chatbot assistance, and performance analytics can be managed through one centralized platform.
+The platform centralizes the center's research services, researcher onboarding, administrative case management, cashier payment receipt verification, and performance analytics into one secure web application.
 
-The prototype will initially be developed independently from the current Sadat Academy website. Future integration with the existing Joomla/PHP website may be evaluated after the prototype is presented and the Academy approves the next phase.
+**Important:** This is a zero-budget training and demonstration initiative. No real researcher personal data is stored in this repository, and no modifications are made to the official Academy website during this phase.
 
-> **Important:** This is a free training and demonstration initiative. The prototype is not an official Academy system and is not connected to the Academy's production systems.
+## 2. Current Project Status
 
-## 2. Project Objectives
+- **Stage:** Functional Operational Prototype (Rounds 1–5 Completed & Verified via CI).
+- **Completed Modules:**
+  - **Database & Security (`supabase/`):** 15-table PostgreSQL schema (`crdc`), strict Row-Level Security (RLS), `SECURITY DEFINER` RPC workflows, serialized last-admin guard, and append-only `crdc.audit_log`.
+  - **Researcher Portal (`CRDC/researcher-portal/`):** Registration & password recovery, Egyptian National ID / foreign passport validation, safe profile editing, service catalog with automated EGP/USD fee calculation, separate thesis/paper requests, and payment receipt upload.
+  - **Staff, Admin & Cashier Console:** Server-side keyset-paginated request queue, staff assignment with conflict-of-interest checks, journal publication decisions, aggregate viewer metrics, and a dedicated Cashier workspace for verifying and approving/rejecting payment receipts.
+  - **Automated CI/CD (`.github/workflows/`):** Automated `pgTAP` database security tests (200+ assertions), Vite production build checks, and Playwright end-to-end browser tests.
+- **Remaining Milestones:**
+  - Enhanced Analytics & KPIs Dashboard visualizations.
+  - Integrating the `CRDC/RAG` assistant into the Researcher Portal.
 
-- Organize and digitize information about CRDC services.
-- Provide researchers with a portal to explore services and submit demonstration requests.
-- Allow researchers to track their application status and updates.
-- Provide center staff with an administrative interface to manage requests.
-- Develop a chatbot to answer questions about the center's services.
-- Provide management with dashboards and Key Performance Indicators (KPIs).
-- Demonstrate the feasibility of a future digital transformation solution for CRDC.
+## 3. Approved Technology Stack
 
-## 3. Project Scope
+| Component | Implemented Technology |
+| :--- | :--- |
+| **Frontend** | React 19, TypeScript, Vite (RTL Arabic-first responsive UI) |
+| **Backend & Database** | Supabase (PostgreSQL, Auth, Private Storage, RLS, RPCs) |
+| **Testing & CI/CD** | GitHub Actions, `pgTAP` (`supabase test db`), Playwright E2E |
+| **Chatbot / RAG** | Python (`CRDC/RAG/`) |
+| **Version Control** | Git / GitHub (PR-based workflow with mandatory CI checks) |
 
-The prototype is planned as a full integrated platform consisting of the following modules.
-
-### 3.1 Researcher Portal
-
-- Researcher registration and login.
-- Researcher profile management.
-- Browse available CRDC services.
-- View service descriptions and requirements.
-- Submit demonstration service requests.
-- Upload demonstration documents.
-- Generate a unique Application ID.
-- Track application status and updates.
-- View additional document requests and notifications.
-
-### 3.2 Admin Dashboard
-
-- Staff/Admin authentication and authorization.
-- View and manage researcher applications.
-- Search and filter applications.
-- Review submitted information and documents.
-- Update application statuses.
-- Request additional documents.
-- Maintain application history.
-- Manage service information.
-
-### 3.3 Chatbot
-
-- Build a Knowledge Base using available CRDC documentation.
-- Answer questions about center services.
-- Explain service requirements and procedures.
-- Provide guidance based on available source documents.
-- Integrate the chatbot into the main platform.
-
-#### Proposed Chatbot Development Roadmap
-
-The chatbot will be developed incrementally in four stages. Each stage should be implemented, tested, and evaluated before moving to the next one:
-
-1. **Phase 1 – Basic RAG:** Build a basic Retrieval-Augmented Generation (RAG) system using the available CRDC documents as its knowledge source.
-2. **Phase 2 – Retrieval Improvements:** Improve retrieval quality by introducing **Hybrid Search** and **Reranking**.
-3. **Phase 3 – Conversation Context & Sources:** Add **Conversation Memory** to support follow-up questions and provide clear source references for answers.
-4. **Phase 4 – Platform Integration:** Connect the chatbot to the platform **Backend** and **Researcher Portal**, subject to the platform APIs, authentication, and authorization design.
-
-Progression between stages will be based on testing and evaluation of the current stage, including answer relevance, retrieval quality, and source-grounding. The implementation should remain compatible with the project's zero-budget policy and local-development approach.
-
-### 3.4 Analytics & KPIs
-
-- Total applications.
-- Applications by service.
-- Applications by status.
-- Completed and pending applications.
-- Average processing time.
-- Service performance indicators.
-
-### 3.5 Backend & Database
-
-- Centralized data management.
-- Authentication and role-based authorization.
-- Application and service management.
-- Document management.
-- REST API development.
-- Integration between platform modules.
-
-## 4. Approved Project Decisions
-
-The following decisions are approved for the current prototype:
-
-| Item | Approved Decision |
-|---|---|
-| Architecture | Standalone Prototype |
-| Scope | Full Integrated Platform |
-| Development/Execution | Local Development |
-| Budget | Zero Budget (0 EGP) |
-| Data | Synthetic / Generated Data Only |
-| Future Integration | Joomla/PHP website, subject to Academy approval |
-
-### Important Notes
-
-- The platform will initially operate independently.
-- No changes will be made to the official Academy website during this project phase.
-- No real researcher personal data will be used.
-- Demonstration accounts, applications, and documents will use synthetic data.
-- Future integration with Joomla will be evaluated after the prototype is presented and the Academy approves proceeding.
-
-## 5. Proposed Technology Stack
-
-The technologies below are initial proposals, not mandatory or final decisions.
-
-| Component | Proposed Technology |
-|---|---|
-| Frontend | React |
-| Backend | Laravel / PHP |
-| Database | MySQL |
-| Chatbot Service | Python / FastAPI |
-| API Communication | REST APIs |
-| Version Control | Git / GitHub |
-
-### Technology Selection Policy
-
-The final technology stack will be determined collaboratively after reviewing:
-
-1. Team members' existing technical skills.
-2. Available development environments and hardware.
-3. Compatibility between selected technologies.
-4. Integration requirements between modules.
-5. Free and open-source availability.
-6. Long-term maintainability and possible Joomla integration.
-
-Team members are encouraged to suggest alternative technologies with clear technical reasons and an explanation of their impact on the rest of the system.
-
-No proposed technology is mandatory until the team discusses and approves the final stack. The selected stack and this README may be updated as the project evolves.
-
-## 6. Zero-Budget Policy
-
-This is a free training initiative. All development and demonstration activities must follow a strict zero-budget policy.
-
-- No paid hosting services.
-- No paid APIs.
-- No paid software licenses.
-- No paid AI subscriptions.
-- No paid domains.
-- Prefer free and open-source technologies.
-- Use free-tier services only when their limits are acceptable and no payment is required.
-
-Any service that may introduce a cost must be discussed and approved before use. Local development is the current deployment decision; no cloud hosting is required for the current phase.
-
-## 7. Development Roadmap
-
-| Phase | Description | Main Deliverable |
-|---|---|---|
-| Phase 1 | Requirements & System Design | Requirements and Architecture |
-| Phase 2 | Database & Backend | Database Schema and APIs |
-| Phase 3 | Frontend Development | Researcher and Admin Interfaces |
-| Phase 4 | Chatbot Development | Integrated CRDC Chatbot |
-| Phase 5 | Analytics & KPIs | Management Dashboard |
-| Phase 6 | Integration & Testing | Integrated Prototype |
-| Phase 7 | Local Demo & Presentation | Demonstration-Ready Product |
-
-Phase progress will be tracked using:
-
-- Not Started
-- In Progress
-- Completed
-
-## 8. Team Structure & Responsibilities
-
-### Team Leader — Baher
-
-- Overall project coordination.
-- Requirements and scope supervision.
-- Communication between development teams.
-- Pull Request reviews and final merging.
-- System integration and quality supervision.
-- Project documentation.
-
-### Chatbot Team
-
-**Members:** Hager, Nada, Alaa
-
-**Responsibilities:**
-- Knowledge Base preparation.
-- Chatbot development.
-- CRDC service information integration.
-- Answer accuracy testing.
-- Chatbot integration with the main platform.
-
-### Platform Development Team
-
-**Members:** Salma, Samar, Omar
-
-**Responsibilities:**
-- Frontend development.
-- Backend development.
-- Database implementation.
-- API development.
-- Authentication and authorization.
-- Researcher Portal and Admin Dashboard.
-- Integration with other modules.
-
-### Dashboard & KPIs
-
-**Member:** Menna
-
-**Responsibilities:**
-- Dashboard interface.
-- KPI definitions.
-- Data visualization.
-- Application statistics.
-- Performance indicators.
-
-This responsibility will be coordinated with the Platform Development Team so analytics uses the platform's shared data and APIs.
-
-> Team responsibilities are the current proposed allocation and may be adjusted after discussing members' skills, availability, and preferences.
-
-## 9. Proposed Repository Structure
+## 4. Actual Repository Structure
 
 ```text
-CRDC/
-├── README.md
-├── README.ar.md
-├── docs/
-│   ├── requirements/
-│   ├── architecture/
-│   ├── database/
-│   ├── api/
-│   └── user-guides/
-├── frontend/
-├── backend/
-├── chatbot/
-├── analytics/
-├── database/
-│   ├── schema/
-│   ├── migrations/
-│   └── seeders/
-└── tests/
+sams-command-center/
+├── CRDC/
+│   ├── researcher-portal/       # React + TypeScript + Vite portal & Playwright E2E tests
+│   │   ├── src/                 # ResearcherPortal, StaffConsole, Auth & error mapping
+│   │   └── e2e/                 # Automated end-to-end browser test suites
+│   ├── RAG/                     # Retrieval-Augmented Generation knowledge base & index
+│   ├── docs/database/           # Database schema, decisions, and RLS documentation
+│   ├── README.md                # English project documentation
+│   └── README.ar.md             # Arabic project documentation
+├── supabase/
+│   ├── migrations/              # Timestamped PostgreSQL migrations (Schema, RLS, RPCs, Audit)
+│   ├── tests/                   # pgTAP database & security test suites
+│   ├── scripts/seed_local.sh    # Guarded local-only synthetic data loader
+│   ├── seed.sql                 # Synthetic dataset generator (400 test researchers)
+│   └── config.toml              # Local Supabase stack configuration
+└── .github/workflows/           # Automated CI pipelines (SQL, Build, E2E)
 ```
 
-The repository structure may be adjusted according to the final technology stack and the team's workflow.
+## 5. Roles & Security Model
 
-## 10. GitHub Collaboration Workflow
+- **Researcher:** Creates profile once, edits non-identity fields, submits thesis/paper service requests, uploads payment receipts, and tracks item status timelines.
+- **Reviewer / Statistician:** Processes assigned items and updates workflow statuses.
+- **Cashier:** Reviews payment orders, downloads uploaded receipt proofs from private storage, and approves or rejects payments via audited RPCs (National IDs and passport numbers are masked).
+- **Viewer:** Views aggregate dashboard metrics without access to researcher PII.
+- **Admin:** Full operational oversight, staff assignment, role management (protected by a last-admin guard), and read-only access to `crdc.audit_log`.
 
-To maintain code quality and avoid conflicts:
+## 6. Team Structure & Responsibilities
 
-1. The `main` branch is intended to contain the stable project version.
-2. Direct pushes to `main` should be avoided.
-3. Each contributor should work on a dedicated feature branch.
-4. Changes should be submitted through Pull Requests.
-5. Pull Requests should be reviewed before merging.
-6. The Team Leader coordinates final integration.
-7. Important technical decisions and changes should be documented.
+- **Team Leader — Baher:** Overall coordination, architecture & security supervision, PR reviews & merging, CI/CD pipelines, and documentation.
+- **Platform Development Team (Salma, Samar, Omar):** Researcher Portal, Staff & Cashier Consoles, Supabase schema, RLS policies, RPCs, and testing.
+- **Dashboard & KPIs (Menna):** Executive KPIs, dashboard visualizations, and performance analytics.
+- **Chatbot Team (Hager, Nada, Alaa):** Knowledge base preparation, RAG retrieval pipeline (`CRDC/RAG`), and portal chatbot integration.
 
-### Suggested Branch Naming
+## 7. Local Development & Testing
 
-- `feature/researcher-portal`
-- `feature/admin-dashboard`
-- `feature/backend-api`
-- `feature/database`
-- `feature/chatbot`
-- `feature/kpis`
-- `feature/documentation`
-- `feature/testing`
-
-## 11. Project Development Principles
-
-- Modular and maintainable code.
-- Clear separation of responsibilities.
-- Consistent API communication.
-- Secure authentication and authorization.
-- Synthetic data only.
-- Free and open-source tools whenever possible.
-- Documentation for important changes.
-- Collaborative technical decisions.
-
-## 12. Future Integration with Sadat Academy Website
-
-According to information provided by the Academy website manager, the current website uses Joomla and PHP.
-
-After the prototype is completed and the Academy approves proceeding, the team may work with the Academy's technical representative to evaluate possible integration approaches, such as:
-
-- Developing a custom Joomla component.
-- Integrating the standalone platform through APIs.
-- Deploying the application on an Academy-approved subdomain.
-- Upgrading or adapting the existing hosting environment when necessary.
-
-The final approach will depend on the existing Joomla and PHP versions, hosting capabilities, security requirements, and the Academy's approval.
-
-No production integration or modification of the official website is included in the current prototype scope.
-
-## 13. Project Status
-
-**Current Status:** Planning & System Design
-
-**Current Objective:** Establish requirements, architecture, team workflow, and the final technology stack before implementation.
-
-**Project Budget:** 0 EGP
-
-**Data Policy:** Synthetic Data Only
-
----
-
-*This README is a living project document. It may be updated as the project evolves, technical decisions change, and the team agrees on new requirements or implementation approaches. The English and Arabic versions should be kept consistent.*
-
-## 14. Database Design Draft
-
-A PostgreSQL/Supabase prototype for the 15-table CRDC data model, reference data, and initial RLS policies is documented under [`docs/database`](docs/database/). The migrations were applied to the shared `sams-dev` project after authorization from the project owner; synthetic sample data was not added there. [`supabase/seed.sql`](../supabase/seed.sql) is for isolated local testing only and generates 400 fictitious researchers with requests dated from 2018 through 2026; never run it against `sams-dev`. A React/Supabase Auth researcher onboarding prototype is available under [`researcher-portal`](researcher-portal/). Both remain early prototypes, and the final technology and deployment approach still require team agreement. Record future database changes as migrations, review them through a Pull Request, and get the project owner's authorization before applying them to `sams-dev`.
+1. **Start local Supabase stack & apply migrations:**
+   ```bash
+   npx supabase start
+   npx supabase db reset
+   ```
+2. **Run database security tests (`pgTAP`):**
+   ```bash
+   npx supabase test db
+   ```
+3. **Run the frontend portal:**
+   ```bash
+   cd CRDC/researcher-portal
+   npm install
+   npm run dev
+   ```
