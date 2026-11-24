@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyError, useSingleFlight } from './errors'
+import AnalyticsDashboard from './AnalyticsDashboard'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -55,7 +56,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateSty
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
-  const [view, setView] = useState<'overview' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : 'overview')
+  const [view, setView] = useState<'overview' | 'analytics' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : staff.role === 'viewer' ? 'analytics' : 'overview')
   const [requests, setRequests] = useState<QueueRequest[]>([])
   const [requesters, setRequesters] = useState<Map<string, Requester>>(new Map())
   const [items, setItems] = useState<RequestItem[]>([])
@@ -437,6 +438,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     finally { setBusyItem(null) }
   }
 
+  const analyticsButton = canViewOverview ? <button className={view === 'analytics' ? 'active' : ''} aria-current={view === 'analytics' ? 'page' : undefined} onClick={() => { setView('analytics'); setError(''); setNotice('') }}>الإحصائيات والمؤشرات</button> : null
+
   return (
     <main className="page-shell researcher-shell staff-shell" dir="rtl">
       <header className="topbar">
@@ -448,7 +451,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       </header>
 
       <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
+        {staff.role === 'viewer' && analyticsButton}
         {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>نظرة عامة وإحصائيات</button>}
+        {isAdmin && analyticsButton}
         {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(''); setNotice('') }}>مراجعة إيصالات السداد</button>}
         {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>إدارة الطلبات والتعيينات</button>}
         {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</button>}
@@ -457,6 +462,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
           <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
+        ) : view === 'analytics' && canViewOverview ? (
+          <AnalyticsDashboard />
         ) : view === 'overview' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>نظرة عامة وإحصائيات</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>

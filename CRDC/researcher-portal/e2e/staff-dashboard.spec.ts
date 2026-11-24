@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
+import type { Page, Response } from '@playwright/test'
 
 const supabaseUrl = process.env.SUPABASE_URL!
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -8,7 +9,88 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-test('active viewer signs into the staff shell and sees aggregate stats without researcher onboarding', async ({ page }) => {
+const arabicDigits = '٠١٢٣٤٥٦٧٨٩'
+const latinDigits = (text: string) => text.replace(/[٠-٩]/g, (digit) => String(arabicDigits.indexOf(digit)))
+const toNumber = (text: string) => Number(latinDigits(text).replace(/٬|,/g, '').replace(/٫/g, '.').replace(/[^0-9.]/g, ''))
+const collectKeys = (value: unknown): string[] => Array.isArray(value)
+  ? value.flatMap(collectKeys)
+  : value && typeof value === 'object'
+    ? Object.entries(value).flatMap(([key, inner]) => [key, ...collectKeys(inner)])
+    : []
+const piiKey = /name$|^name|email|national|passport|nationality|researcher|auth_user|staff|title/i
+const allowedNameKeys = ['service_name_ar', 'status_name_ar']
+const kpiLabels = [
+  'إجمالي الطلبات', 'إجمالي البنود', 'البنود النشطة', 'البنود المكتملة',
+  'متوسط مدة الإنجاز', 'الإيراد الموثّق (جنيه)', 'الإيراد الموثّق (دولار)',
+]
+const rangeLabels = ['الكل', 'آخر 30 يوم', 'آخر 90 يوم', 'آخر سنة']
+const trendTitles = ['عدد الطلبات شهريًا', 'الإيراد الموثّق شهريًا (جنيه)', 'الإيراد الموثّق شهريًا (دولار)']
+const isAnalyticsCall = (response: Response) => response.url().includes('get_analytics_dashboard') && response.request().method() === 'POST'
+
+async function expectNoResearcherPii(page: Page, payload: unknown) {
+  const badKeys = collectKeys(payload).filter((key) => piiKey.test(key) && !allowedNameKeys.includes(key))
+  expect(badKeys).toEqual([])
+  expect(JSON.stringify(payload)).not.toMatch(/@|example\.test|TEST-/i)
+  const pageText = latinDigits(await page.locator('main').innerText())
+  expect(pageText).not.toMatch(/@|example\.test|TEST-/i)
+  expect(pageText).not.toMatch(/\b[23]\d{13}\b/)
+  await expect(page.getByLabel('الرقم القومي')).toHaveCount(0)
+  await expect(page.getByLabel('رقم جواز السفر')).toHaveCount(0)
+}
+
+async function expectAnalyticsDashboard(page: Page, firstPayload: unknown) {
+  await expect(page.getByRole('heading', { name: 'الإحصائيات والمؤشرات', exact: true })).toBeVisible()
+  const body = page.locator('.analytics-body')
+  await expect(body).toHaveAttribute('aria-busy', 'false')
+
+  const { count: requestCount, error: requestCountError } = await admin.schema('crdc').from('service_requests').select('request_id', { count: 'exact', head: true })
+  if (requestCountError) throw requestCountError
+  const { count: statusCount, error: statusCountError } = await admin.schema('crdc').from('request_statuses').select('status_id', { count: 'exact', head: true })
+  if (statusCountError) throw statusCountError
+
+  const kpis = page.locator('.analytics-kpis .staff-stat-card')
+  await expect(kpis).toHaveCount(kpiLabels.length)
+  for (const label of kpiLabels) {
+    const card = kpis.filter({ hasText: label })
+    await expect(card).toHaveCount(1)
+    if (label !== 'متوسط مدة الإنجاز') await expect(card.locator('[dir="ltr"]').first()).toBeVisible()
+  }
+  await expect(kpis.filter({ hasText: '(جنيه)' })).toContainText('EGP')
+  await expect(kpis.filter({ hasText: '(دولار)' })).toContainText('USD')
+  const totalCard = kpis.filter({ hasText: 'إجمالي الطلبات' }).locator('strong')
+  expect(toNumber(await totalCard.innerText())).toBe(requestCount)
+
+  const charts = body.locator('svg[role="img"]')
+  const serviceRows = await body.locator('ul[aria-label="عدد البنود لكل خدمة"] > li').count()
+  expect(serviceRows).toBeGreaterThan(0)
+  await expect(charts).toHaveCount(serviceRows + (statusCount ?? 0) + 1 + trendTitles.length)
+  const unnamed = await charts.evaluateAll((elements) => elements.filter((element) => !element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby')).length)
+  expect(unnamed).toBe(0)
+  for (const title of trendTitles) await expect(body.getByRole('img', { name: title })).toHaveCount(1)
+
+  // Trend axis reads left to right: oldest month on the left, newest on the right.
+  await expect(body.locator('.analytics-chart-scroll').first()).toHaveAttribute('dir', 'ltr')
+  const bars = body.getByRole('img', { name: trendTitles[0] }).locator('rect.bar')
+  await expect(bars).toHaveCount(12)
+  const xs = await bars.evaluateAll((elements) => elements.map((element) => Number(element.getAttribute('x'))))
+  expect(xs).toEqual([...xs].sort((a, b) => a - b))
+
+  await expectNoResearcherPii(page, firstPayload)
+
+  const group = page.getByRole('group', { name: 'الفترة الزمنية' })
+  for (const label of rangeLabels) await expect(group.getByRole('button', { name: label, exact: true })).toBeVisible()
+  await expect(group.getByRole('button', { name: 'الكل', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  const windowResponse = page.waitForResponse((response) => isAnalyticsCall(response) && (response.request().postData() ?? '').includes('"p_days":30'))
+  await group.getByRole('button', { name: 'آخر 30 يوم', exact: true }).click()
+  const payload30 = await (await windowResponse).json()
+  expect(payload30.kpis.total_requests).toBeLessThanOrEqual(requestCount ?? 0)
+  await expect(group.getByRole('button', { name: 'آخر 30 يوم', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(body).toHaveAttribute('aria-busy', 'false')
+  await expect.poll(async () => toNumber(await totalCard.innerText())).toBe(payload30.kpis.total_requests)
+  await expectNoResearcherPii(page, payload30)
+}
+
+test('active viewer lands on the analytics dashboard, keeps the overview tab, and sees no researcher data', async ({ page }) => {
   const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
   const email = `e2e-viewer-${runId}@example.test`
   const { data: created, error: createError } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
@@ -25,11 +107,16 @@ test('active viewer signs into the staff shell and sees aggregate stats without 
   await page.goto('/')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
+  const firstResponse = page.waitForResponse(isAnalyticsCall)
   await page.locator('.form-card form button.primary-button').click()
 
-  await expect(page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })).toBeVisible()
+  const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
+  await expect(nav).toBeVisible()
   await expect(page.getByText('موظف اختبار المشاهد')).toBeVisible()
   await expect(page.getByText('مشاهد', { exact: true })).toBeVisible()
+  await expectAnalyticsDashboard(page, await (await firstResponse).json())
+
+  await nav.getByRole('button', { name: 'نظرة عامة وإحصائيات', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'نظرة عامة وإحصائيات' })).toBeVisible()
   await expect(page.getByText('إجمالي الطلبات')).toBeVisible()
   await expect(page.getByText('طلبات المصريين')).toBeVisible()
@@ -37,6 +124,29 @@ test('active viewer signs into the staff shell and sees aggregate stats without 
   await expect(page.getByRole('heading', { name: 'بيانات الباحث' })).toHaveCount(0)
   await expect(page.getByLabel('الرقم القومي')).toHaveCount(0)
   await expect(page.getByLabel('رقم جواز السفر')).toHaveCount(0)
+})
+
+test('admin opens the analytics tab from the overview and sees the same aggregate-only dashboard', async ({ page }) => {
+  const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
+  const email = `e2e-analytics-admin-${runId}@example.test`
+  const { data: created, error: createError } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
+  if (createError) throw createError
+  const { error: staffError } = await admin.schema('crdc').from('staff_users').insert({
+    auth_user_id: created.user.id, full_name: 'مدير اختبار الإحصائيات', role: 'admin', is_active: true,
+  })
+  if (staffError) throw staffError
+
+  await page.goto('/')
+  await page.locator('input[name="email"]').fill(email)
+  await page.locator('input[name="password"]').fill(password)
+  await page.locator('.form-card form button.primary-button').click()
+  const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
+  await expect(nav).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'نظرة عامة وإحصائيات' })).toBeVisible()
+
+  const firstResponse = page.waitForResponse(isAnalyticsCall)
+  await nav.getByRole('button', { name: 'الإحصائيات والمؤشرات', exact: true }).click()
+  await expectAnalyticsDashboard(page, await (await firstResponse).json())
 })
 
 test('admin paginates synthetic requests and assignments persist across pages', async ({ page }) => {
