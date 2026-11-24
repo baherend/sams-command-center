@@ -28,3 +28,8 @@ node_modules/
 CRDC/researcher-portal/test-results/
 CRDC/researcher-portal/playwright-report/
 __pycache__/
+
+# ---- CRDC chatbot (Murshid): model and index are built locally / at Docker build ----
+CRDC/chatbot/models/
+CRDC/chatbot/index/
+CRDC/chatbot/logs/

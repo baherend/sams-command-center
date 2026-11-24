@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مُرشِد – مساعد الباحث في مركز الاستشارات والبحوث والتطوير</title>
+<style>
+/* Readex Pro is self-hosted (SIL Open Font License, see static/fonts/LICENSE-Readex-Pro.txt): no request to Google. */
+@font-face{font-family:'Readex Pro';font-weight:400;font-display:swap;src:url(static/fonts/readex-pro-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:'Readex Pro';font-weight:500;font-display:swap;src:url(static/fonts/readex-pro-arabic-500-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:'Readex Pro';font-weight:700;font-display:swap;src:url(static/fonts/readex-pro-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:'Readex Pro';font-weight:400;font-display:swap;src:url(static/fonts/readex-pro-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Readex Pro';font-weight:500;font-display:swap;src:url(static/fonts/readex-pro-latin-500-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Readex Pro';font-weight:700;font-display:swap;src:url(static/fonts/readex-pro-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+:root{
+  --indigo:#2B2D6E; --sky:#EEF2F7; --sheet:#FFFFFF; --gold:#D49A1E; --gold-soft:#FBF1DC;
+  --slate:#5E6B7A; --line:#D9E0EA; --broken:#A3ADBA; --on-indigo:#FFFFFF;
+  --font:'Readex Pro','Segoe UI',Tahoma,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{--indigo:#B9BCF5;--sky:#12141F;--sheet:#1B1E2C;--gold:#E8B54A;--gold-soft:#2E2716;--slate:#9DA6B5;--line:#2C3142;--broken:#5D6577;--on-indigo:#12141F}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--sky);color:var(--indigo);font:400 15.5px/1.8 var(--font);display:flex;flex-direction:column}
+
+header{background:var(--sheet);border-bottom:1px solid var(--line);padding:16px max(18px, calc((100% - 720px) / 2 + 18px))}
+.brand{display:flex;align-items:center;gap:12px}
+.name{font:700 2.1rem/1 var(--font);letter-spacing:0}
+.name small{display:block;font:500 .72rem/1.4 var(--font);color:var(--slate);letter-spacing:.04em;margin-top:4px}
+.mini-chain{display:flex;align-items:center;gap:0}
+.mini-chain i{width:9px;height:9px;border-radius:50%;background:var(--gold)}
+.mini-chain b{width:14px;height:2px;background:var(--gold)}
+.tagline{margin:8px 0 0;font-size:.88rem;color:var(--slate)}
+
+#log{flex:1;overflow-y:auto;padding:22px 18px 10px;display:flex;flex-direction:column;gap:16px;max-width:720px;width:100%;margin:0 auto}
+
+.user{align-self:flex-start;max-width:85%;background:var(--indigo);color:var(--on-indigo);padding:9px 16px;border-radius:18px 18px 18px 6px;font-weight:500}
+.user[dir=ltr]{border-radius:18px 18px 6px 18px}
+
+.card{align-self:stretch;background:var(--sheet);border:1px solid var(--line);border-radius:6px 18px 18px 18px;padding:14px 18px 12px}
+.card[dir=ltr]{border-radius:18px 6px 18px 18px}
+.card h3{margin:0 0 4px;font:500 .82rem/1.5 var(--font);color:var(--slate)}
+.card .body a{color:var(--indigo);font-weight:500;direction:ltr;unicode-bidi:isolate;display:inline-block;overflow-wrap:anywhere;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:4px}
+
+.sanad{display:flex;align-items:center;flex-wrap:wrap;row-gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:.76rem;color:var(--slate)}
+.sanad .step{display:inline-flex;align-items:center}
+.sanad .node{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sanad .node::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.sanad .link{width:22px;height:2px;background:var(--gold);margin:0 6px}
+.sanad .node.root{color:var(--indigo);font-weight:500}
+.sanad.broken .node::before{background:var(--broken)}
+.sanad.broken .link{background:none;border-top:2px dashed var(--broken);width:26px}
+.sanad.broken .gap{width:10px}
+.sanad.broken .node.root{color:var(--slate)}
+
+.choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.choices button{font:500 .86rem/1.4 var(--font);color:var(--indigo);background:var(--sky);border:1px solid var(--line);border-radius:10px;padding:7px 13px;cursor:pointer}
+.choices button:hover{border-color:var(--gold);background:var(--gold-soft)}
+.label{font-size:.76rem;color:var(--slate);margin-top:12px}
+
+.waiting{align-self:stretch;display:flex;align-items:center;gap:0;padding:6px 4px;color:var(--slate);font-size:.85rem}
+.waiting i{width:8px;height:8px;border-radius:50%;background:var(--gold);opacity:.3}
+.waiting b{width:14px;height:2px;background:var(--gold);opacity:.3}
+.waiting span{margin-inline-start:10px}
+@media (prefers-reduced-motion:no-preference){.waiting i,.waiting b{animation:link 1.2s infinite}.waiting b:nth-of-type(1),.waiting i:nth-of-type(2){animation-delay:.2s}.waiting b:nth-of-type(2),.waiting i:nth-of-type(3){animation-delay:.4s}@keyframes link{0%,100%{opacity:.25}50%{opacity:1}}}
+
+form{background:var(--sheet);border-top:1px solid var(--line);padding:12px max(18px, calc((100% - 720px) / 2 + 18px))}
+.row{display:flex;gap:10px}
+input{flex:1;min-width:0;font:400 1rem/1.4 var(--font);color:var(--indigo);background:var(--sky);border:1px solid var(--line);border-radius:12px;padding:12px 15px}
+input::placeholder{color:var(--slate)}
+.send{font:700 .98rem/1 var(--font);color:var(--on-indigo);background:var(--indigo);border:0;border-radius:12px;padding:0 22px;cursor:pointer}
+.send:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.note{margin:8px 0 0;font-size:.72rem;color:var(--slate);text-align:center}
+@media (max-width:480px){.name{font-size:1.8rem}#log{padding:16px 12px 8px}.card{padding:12px 14px 10px}.send{padding:0 16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="name">مُرشِد<small>MURSHID</small></div>
+    <div class="mini-chain" aria-hidden="true"><i></i><b></b><i></i><b></b><i></i></div>
+  </div>
+  <p class="tagline">مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. كل إجابة مربوطة بمصدرها في الدليل الإجرائي للمركز.</p>
+</header>
+
+<main id="log" aria-live="polite"></main>
+
+<form id="f">
+  <div class="row">
+    <input id="q" autocomplete="off" maxlength="500" placeholder="اكتب سؤالك عن خدمات المركز…" aria-label="سؤالك">
+    <button class="send" type="submit">اسأل</button>
+  </div>
+  <p class="note">الرسوم محسوبة من جدول الرسوم المعتمد. المركز هو المرجع النهائي.</p>
+</form>
+
+<script>
+(function () {
+  // API location: same server by default; override with ?api=https://your-api.example.com when the page is hosted elsewhere.
+  var API = (new URLSearchParams(location.search).get('api') || '') + '/api/chat';
+  var log = document.getElementById('log'), form = document.getElementById('f'), input = document.getElementById('q');
+  var sendBtn = form.querySelector('.send');
+  var STARTERS = ['ايه الخدمات اللي بيقدمها المركز؟', 'انا ماجستير أكاديمي، محتاج ايه؟', 'كام رسوم نشر بحث 32 صفحة؟',
+                  'مواصفات تنسيق البحث', 'النسبة المقبولة للاقتباس كام؟', 'أنشر بحثي في أنهي مجلة؟'];
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+  function scroll() { log.scrollTop = log.scrollHeight; }
+
+  // Buttons that send a question: items are strings, or {label, value} (label shown, value sent).
+  function choices(items) {
+    var box = el('div', 'choices');
+    items.forEach(function (it) {
+      var label = typeof it === 'string' ? it : it.label, value = typeof it === 'string' ? it : it.value;
+      var b = el('button', '', label); b.type = 'button'; b.onclick = function () { ask(value); }; box.appendChild(b);
+    });
+    return box;
+  }
+
+  // The source chain: links the answer back to its source in the guide. A refusal shows the chain broken.
+  function chain(nodes, broken, detail) {
+    var c = el('div', 'sanad' + (broken ? ' broken' : ''));
+    if (detail) c.title = detail;
+    nodes.forEach(function (n, i) {
+      // Each link travels with the node after it, so a wrapped chain never leaves a dangling link.
+      var step = el('span', 'step');
+      if (i) { step.appendChild(el('span', 'link')); if (broken && i === nodes.length - 1) step.appendChild(el('span', 'gap')); }
+      step.appendChild(el('span', 'node' + (i === nodes.length - 1 ? ' root' : ''), n));
+      c.appendChild(step);
+    });
+    return c;
+  }
+
+  function sanadFor(r) {
+    var en = r.lang === 'en', src = r.sources && r.sources[0];
+    if (r.route === 'retrieval' && src) return chain([en ? 'Answer' : 'الإجابة', src.title, en ? 'Procedural guide' : 'الدليل الإجرائي'], false, src.source);
+    if (r.route === 'calculator') return chain([en ? 'Calculation' : 'الحساب', en ? 'Fee table' : 'جدول الرسوم', en ? 'Procedural guide' : 'الدليل الإجرائي'], false, src && src.source);
+    if (r.route === 'journal') {
+      var proposed = src ? /مقترح|proposed/.test(src.source) : true;
+      return chain([en ? 'Guidance' : 'التوجيه', en ? 'Center journals' : 'مجلات المركز',
+                    proposed ? (en ? 'Proposed, pending approval' : 'مقترح للمراجعة') : (en ? 'Approved' : 'معتمد')], false, src && src.source);
+    }
+    if (r.route === 'refusal') return chain([en ? 'Your question' : 'سؤالك', en ? 'No source in the guide' : 'مفيش مصدر في الدليل'], true);
+    return null;
+  }
+
+  function userMessage(q) { var m = el('div', 'user', q); m.dir = 'auto'; log.appendChild(m); scroll(); }
+
+  function answerCard(r) {
+    var en = r.lang === 'en';
+    var card = el('article', 'card'); card.dir = en ? 'ltr' : 'rtl';
+    if (r.route === 'retrieval' && r.sources && r.sources[0]) card.appendChild(el('h3', '', r.sources[0].title));
+    var body = el('div', 'body'); body.innerHTML = r.answer_html;   // escaped and linkified on the server
+    card.appendChild(body);
+    if (r.options && r.options.length) card.appendChild(choices(r.options));
+    if (r.suggestions && r.suggestions.length) { card.appendChild(el('div', 'label', en ? 'Related topics' : 'مواضيع قريبة')); card.appendChild(choices(r.suggestions)); }
+    var s = sanadFor(r); if (s) card.appendChild(s);
+    log.appendChild(card); scroll();
+  }
+
+  function notice(msg) {
+    var card = el('article', 'card'); card.appendChild(el('div', 'body', msg));
+    card.appendChild(chain(['الاتصال', 'الخادم مش متاح'], true)); log.appendChild(card); scroll();
+  }
+
+  function ask(q) {
+    q = (q || '').trim(); if (!q) return;
+    userMessage(q); input.value = ''; sendBtn.disabled = true;
+    var wait = el('div', 'waiting'); wait.innerHTML = '<i></i><b></b><i></i><b></b><i></i>';
+    wait.appendChild(el('span', '', 'بندوّر في الدليل الإجرائي'));
+    log.appendChild(wait); scroll();
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })
+      .then(function (res) { if (res.status === 429) throw new Error('rate'); if (!res.ok) throw new Error('http'); return res.json(); })
+      .then(function (r) { wait.remove(); answerCard(r); })
+      .catch(function (e) {
+        wait.remove();
+        notice(e.message === 'rate' ? 'وصلت لحد الأسئلة في الدقيقة. استنى دقيقة واسأل تاني.'
+                                    : 'مش قادر أوصل للخادم دلوقتي. جرّب تاني، أو راسل المركز على crdc-2@sadatacademy.edu.eg');
+      })
+      .finally(function () { sendBtn.disabled = false; input.focus(); });
+  }
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); ask(input.value); });
+
+  var hello = el('article', 'card');
+  hello.appendChild(el('h3', '', 'أهلًا بيك'));
+  hello.appendChild(el('div', 'body', 'أنا مُرشِد. اسألني عن الخدمات الخمس، والرسوم وحسابها، والإجراءات، وشروط النشر، وتنسيق البحث، والمطلوب لدرجتك، وأنهي مجلة تناسب بحثك. لو الإجابة مش في الدليل الإجرائي هقولك بصراحة. You can also ask in English.'));
+  hello.appendChild(choices(STARTERS));
+  log.appendChild(hello);
+})();
+</script>
+</body>
+</html>
