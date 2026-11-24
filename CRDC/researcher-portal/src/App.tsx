@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
 import StaffConsole from './StaffConsole'
+import AssistantWidget from './AssistantWidget'
 import { friendlyError, useSingleFlight } from './errors'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
@@ -294,10 +295,10 @@ export default function App() {
   if (recoveryMode) return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="eyebrow">تأمين الحساب</span><h1>تعيين كلمة مرور جديدة</h1><form className="form-stack" onSubmit={handleNewPassword}><label>كلمة المرور الجديدة<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? 'لحظة واحدة...' : 'حفظ كلمة المرور'}</button></form></div></main>
 
   if (session && profile) {
-    return <ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} />
+    return (<><ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} /><AssistantWidget audience={profile.applicant_type === 'foreign' ? 'expat' : 'egyptian'} /></>)
   }
 
-  if (session && staff) return <StaffConsole staff={staff} onSignOut={signOut} />
+  if (session && staff) return (<><StaffConsole staff={staff} onSignOut={signOut} /><AssistantWidget audience="staff" /></>)
 
   if (session && inactiveStaff) {
     return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="brand-mark">م</span><span className="eyebrow">حساب موظف</span><h1>الحساب غير مفعّل</h1><p>حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.</p><button className="primary-button" onClick={signOut}>تسجيل الخروج</button></div></main>
