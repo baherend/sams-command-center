@@ -17,7 +17,7 @@ FILES = {"onnx/model_quantized.onnx": "model_quantized.onnx", "tokenizer.json": 
 # Set MURSHID_MODEL_REVISION to a commit hash to pin the download. The printed snapshot folder name
 # is the commit actually downloaded. Either way, scripts/export_web.py --check verifies the files'
 # SHA-256 against the values the portal ships with, so a changed upload is caught in CI.
-REVISION = os.environ.get("MURSHID_MODEL_REVISION", "main")
+REVISION = os.environ.get("MURSHID_MODEL_REVISION", "761b726dd34fb83930e26aab4e9ac3899aa1fa78")  # confirmed by CI on 2026-11-25
 
 if __name__ == "__main__":
     config.MODEL_DIR.mkdir(parents=True, exist_ok=True)
