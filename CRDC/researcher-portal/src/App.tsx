@@ -343,6 +343,7 @@ export default function App() {
             <a href="#requirements">{t('المتطلبات', 'Requirements')}</a>
             <a href="#fees">{t('الرسوم', 'Fees')}</a>
             <a href="#steps">{t('الخطوات', 'Steps')}</a>
+            <a href="#murshid">{t('مُرشِد', 'Murshid')}</a>
             <a href="#journals">{t('المجلات', 'Journals')}</a>
             <a href="#contact">{t('تواصل', 'Contact')}</a>
           </nav>
@@ -396,6 +397,7 @@ export default function App() {
         </section>
         <PublicHome />
         {footer}
+        <AssistantWidget audience="all" />
       </main>
     )
   }

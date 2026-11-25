@@ -16,13 +16,22 @@ export async function loadIndex(): Promise<MurshidIndex> {
 }
 
 /** Fees from crdc.fee_schedule; null when they cannot be read (the calculator then says so). */
+// Fees come from crdc_public.get_catalog(), which signed-out visitors and signed-in users can
+// both call. The direct table read is kept as a fallback for a database without that function.
 export async function loadFees(client: SupabaseClient | null): Promise<Fees | null> {
   if (!client) return null
-  const { data, error } = await client.schema('crdc').from('fee_schedule')
-    .select('option_code, applicant_type, base_fee, included_pages, extra_page_fee, certificate_fee')
-  if (error || !data) return null
+  let rows: FeeRow[] | null = null
+  const catalog = await client.schema('crdc_public').rpc('get_catalog')
+  if (!catalog.error && catalog.data && Array.isArray((catalog.data as { fees?: unknown }).fees)) {
+    rows = (catalog.data as { fees: FeeRow[] }).fees
+  } else {
+    const { data, error } = await client.schema('crdc').from('fee_schedule')
+      .select('option_code, applicant_type, base_fee, included_pages, extra_page_fee, certificate_fee')
+    if (!error && data) rows = data as FeeRow[]
+  }
+  if (!rows) return null
   try {
-    return fromSchedule(data as FeeRow[])
+    return fromSchedule(rows)
   } catch {
     return null
   }

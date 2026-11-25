@@ -268,6 +268,31 @@ export default function PublicHome() {
         </ol>
       </section>
 
+      <section className="public-section murshid-intro" id="murshid" aria-labelledby="murshid-title">
+        <div className="murshid-copy">
+          <h2 id="murshid-title">{t('مُرشِد، مساعد الباحث', 'Murshid, the researcher’s assistant')}</h2>
+          <p>{t('يجيب مُرشِد عن أسئلتك من الدليل الإجرائي للمركز فقط، ويذكر مصدر كل إجابة. وإذا لم تكن المعلومة في الدليل أخبرك بذلك بدلًا من التخمين.', 'Murshid answers your questions from the center’s procedural guide only and shows the source of every answer. If the guide does not cover something, it says so instead of guessing.')}</p>
+          <ul className="murshid-abilities">
+            <li>{t('يحسب رسوم النشر والتدقيق بعدد الصفحات، من التعريفة المعتمدة.', 'Calculates publishing and proofreading fees by page count, from the approved tariff.')}</li>
+            <li>{t('يقترح المجلة المناسبة لتخصص بحثك.', 'Suggests the journal that fits your field.')}</li>
+            <li>{t('يعمل داخل متصفحك، فلا تُرسل أسئلتك إلى أي خدمة خارجية.', 'Runs inside your browser, so your questions are not sent to any outside service.')}</li>
+          </ul>
+        </div>
+        <div className="murshid-try">
+          <span className="murshid-try-label">{t('جرّب سؤالًا', 'Try a question')}</span>
+          {[
+            [t('احسب رسوم نشر بحث 30 صفحة', 'Calculate publication fees for 30 pages')],
+            [t('أنشر بحثي في أي مجلة؟', 'Which journal fits my paper?')],
+            [t('ما نسبة الاقتباس المقبولة؟', 'What similarity percentage is accepted?')],
+          ].map(([question]) => (
+            <button key={question} type="button" className="murshid-question" onClick={() => window.dispatchEvent(new CustomEvent('murshid:ask', { detail: question }))}>
+              {question}
+            </button>
+          ))}
+          <p className="form-footnote">{t('عند أول استخدام يُحمَّل محرك البحث على جهازك مرة واحدة (نحو 135 ميجابايت). حساب الرسوم واقتراح المجلة يعملان فورًا.', 'On first use, the search engine downloads to your device once (about 135 MB). Fee calculation and journal suggestions work right away.')}</p>
+        </div>
+      </section>
+
       <section className="public-section" id="journals" aria-labelledby="journals-title">
         <div className="public-section-head">
           <h2 id="journals-title">{t('مجلات النشر', 'Publication journals')}</h2>

@@ -263,7 +263,7 @@ export function calculate(fees: Fees, req: CalcRequest, outLang: Lang): string {
   }
   const note: string[] = []
   if (req.service === 'pub') note.push(ar ? 'رسوم التحكيم والنشر تُدفع معًا مرة واحدة تسهيلًا على الباحثين.' : 'Refereeing and publishing fees are paid together at once as a facilitation for researchers.')
-  if (req.audiences.length === 2) note.push(ar ? 'الرسوم مختلفة للباحث المصري والوافد، فعرضت الحالتين. قل لي «مصري» أو «وافد» لو تحب حالة واحدة.'
+  if (req.audiences.length === 2) note.push(ar ? 'تختلف الرسوم بين الباحث المصري والوافد، لذا عرضت الحالتين. اكتب «مصري» أو «وافد» إذا أردت حالة واحدة.'
     : 'Fees differ for Egyptian and international researchers, so both are shown.')
   return [...blocks, ...note].join('\n\n')
 }

@@ -244,6 +244,6 @@ def calculate(fees: dict, service: str, pages: int, audiences: list[str], langs,
         note.append("رسوم التحكيم والنشر تُدفع معًا مرة واحدة تسهيلًا على الباحثين." if ar
                     else "Refereeing and publishing fees are paid together at once as a facilitation for researchers.")
     if len(audiences) == 2:
-        note.append("الرسوم مختلفة للباحث المصري والوافد، فعرضت الحالتين. قل لي «مصري» أو «وافد» لو تحب حالة واحدة."
+        note.append("تختلف الرسوم بين الباحث المصري والوافد، لذا عرضت الحالتين. اكتب «مصري» أو «وافد» إذا أردت حالة واحدة."
                     if ar else "Fees differ for Egyptian and international researchers, so both are shown.")
     return "\n\n".join(blocks + note)

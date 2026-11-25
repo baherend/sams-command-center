@@ -165,6 +165,20 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     }
   }
 
+  // The public home's Murshid section opens the panel and asks a sample question.
+  const askRef = useRef(askQuestion)
+  askRef.current = askQuestion
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      const question = (event as CustomEvent<string>).detail
+      setShowGreeting(false)
+      setOpen(true)
+      if (typeof question === 'string' && question.trim()) void askRef.current(question)
+    }
+    window.addEventListener('murshid:ask', onAsk)
+    return () => window.removeEventListener('murshid:ask', onAsk)
+  }, [])
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     void askQuestion(query)
