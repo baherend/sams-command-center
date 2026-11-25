@@ -261,3 +261,51 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 left: '42px',
                 width: '10px',
                 height: '10px',
+                background: '#0F172A',
+                borderRight: '1.5px solid #D4AF37',
+                borderBottom: '1.5px solid #D4AF37',
+                transform: 'rotate(45deg)',
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        type="button"
+        onClick={toggleOpen}
+        whileHover={{ scale: 1.07, y: -4 }}
+        whileTap={{ scale: 0.95 }}
+        aria-expanded={open}
+        aria-label="فتح مرشد"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.2rem',
+          fontFamily: 'inherit',
+        }}
+      >
+        <motion.div animate={{ y: open ? 0 : [0, -5, 0] }} transition={{ duration: 3, repeat: open ? 0 : Infinity, ease: 'easeInOut' }}>
+          <MorshedAvatar size={96} isOpen={open} />
+        </motion.div>
+        <span
+          className="kb-assistant-fab"
+          style={{
+            padding: '0.42rem 1.05rem',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            border: '1.5px solid #D4AF37',
+            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
+          }}
+        >
+          {open ? 'إغلاق مرشد' : 'اسأل مرشد'}
+        </span>
+      </motion.button>
+    </div>
+  )
+}
