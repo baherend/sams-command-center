@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from './supabase'
 import { friendlyError } from './errors'
+import { runAssistantLocalTools } from './assistantTools'
+import type { QuickOption } from './assistantTools'
 
 type KbResult = {
   chunk_id: number
@@ -18,13 +20,15 @@ type ChatMessage = {
   role: 'user' | 'assistant'
   text: string
   results?: KbResult[]
+  options?: QuickOption[]
+  links?: { label: string; url: string }[]
 }
 
 const SUGGESTIONS = [
-  'الفرق بين الرسالة العلمية والبحث المختصر',
+  'احسب رسوم نشر بحث 30 صفحة',
+  'أنشر بحثي في أي مجلة؟',
   'المستندات المطلوبة للتقديم',
   'خطوات سداد الرسوم',
-  'شروط المراجعة اللغوية والإحصائية',
 ]
 
 export default function AssistantWidget({ audience }: { audience: 'egyptian' | 'expat' | 'staff' | 'all' }) {
@@ -35,17 +39,36 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'أهلاً بك في المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، المستندات المطلوبة، أو الرسوم وسأجيبك من الدليل الإجرائي.',
+      text: 'أهلاً بك في المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.',
     },
   ])
 
   async function askQuestion(rawText: string) {
     const clean = rawText.trim()
-    if (!clean || busy || !supabase) return
+    if (!clean || busy) return
 
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text: clean }
     setMessages((prev) => [...prev, userMsg])
     setQuery('')
+
+    // 1. فحص حاسبة الرسوم وتوجيه المجلات محلياً بدقة 100%
+    const localReply = runAssistantLocalTools(clean, audience)
+    if (localReply) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: localReply.text,
+          options: localReply.options,
+          links: localReply.links,
+        },
+      ])
+      return
+    }
+
+    // 2. البحث في قاعدة البيانات للدليل الإجرائي
+    if (!supabase) return
     setBusy(true)
 
     try {
@@ -70,7 +93,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         : {
             id: `a-${Date.now()}`,
             role: 'assistant',
-            text: 'لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك بكلمات أوضح مثل: (الرسوم، التقديم، المستندات، المراجعة).',
+            text: 'لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك أو اسألني مثلاً: (رسوم نشر 30 صفحة، أو أنشر بحثي فين؟).',
           }
 
       setMessages((prev) => [...prev, botMsg])
@@ -104,7 +127,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             <header className="kb-assistant-header">
               <div>
                 <strong>المساعد الذكي للمركز</strong>
-                <small>الدليل الإجرائي المعتمد</small>
+                <small>الدليل الإجرائي • الحاسبة • المجلات</small>
               </div>
               <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق المساعد">
                 ×
@@ -120,7 +143,40 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <p>{m.text}</p>
+                  <p style={{ whiteSpace: 'pre-line' }}>{m.text}</p>
+
+                  {m.options && m.options.length > 0 && (
+                    <div className="kb-suggestions" style={{ padding: '8px 0 2px', borderTop: 'none' }}>
+                      {m.options.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void askQuestion(opt.value)}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {m.links && m.links.length > 0 && (
+                    <div className="kb-suggestions" style={{ padding: '8px 0 2px', borderTop: 'none' }}>
+                      {m.links.map((lnk) => (
+                        <a
+                          key={lnk.url}
+                          href={lnk.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="kb-source-badge"
+                          style={{ textDecoration: 'none', padding: '6px 10px', display: 'inline-block' }}
+                        >
+                          {lnk.label} ↗
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
                   {m.results && m.results.length > 0 && (
                     <div className="kb-results">
                       {m.results.map((r) => (
@@ -159,7 +215,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="اكتب سؤالك هنا..."
+                placeholder="اكتب سؤالك أو عدد الصفحات هنا..."
                 aria-label="سؤالك للمساعد الذكي"
                 disabled={busy}
               />
