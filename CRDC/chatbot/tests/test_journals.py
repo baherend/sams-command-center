@@ -38,7 +38,7 @@ def test_two_fields_in_one_question_asks_instead_of_guessing():
 
 
 def test_other_shows_both_and_proposed_note():
-    text = R.result(R.match("تخصصي: غير ذلك / مش متأكد"), "ar", config.CENTER_EMAIL)
+    text = R.result(R.match("تخصصي: غير ذلك / لست متأكدًا"), "ar", config.CENTER_EMAIL)
     assert "jso" in text and "sjsaf" in text
     assert "مقترح" in text   # routing_status is still "proposed"
 

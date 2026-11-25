@@ -292,17 +292,17 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const paidAt = String(formData.get('paid_at') ?? '')
     const channel = String(formData.get('channel') ?? '')
     const file = formData.get('receipt_file')
-    if (!(file instanceof File) || file.size === 0) throw new UiError('اختار ملف الإيصال الأول.', 'Please select the receipt file first.')
-    if (file.size > 5 * 1024 * 1024) throw new UiError('حجم الإيصال لازم يكون ٥ ميجابايت أو أقل.', 'Receipt file size must be 5 MB or less.')
+    if (!(file instanceof File) || file.size === 0) throw new UiError('اختر ملف الإيصال أولًا.', 'Please select the receipt file first.')
+    if (file.size > 5 * 1024 * 1024) throw new UiError('يجب ألا يزيد حجم الإيصال على ٥ ميجابايت.', 'Receipt file size must be 5 MB or less.')
     const extensions: Record<string, string> = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }
     const extension = extensions[file.type]
     if (!extension) throw new UiError('ارفع الإيصال بصيغة PDF أو JPG أو PNG.', 'Upload the receipt in PDF, JPG, or PNG format.')
-    if (!receiptNo || receiptNo.length > 100) throw new UiError('اكتب رقم الإيصال في حدود ١٠٠ حرف.', 'Enter a receipt number within 100 characters.')
-    if (!paidAt || paidAt > new Date().toISOString().slice(0, 10)) throw new UiError('اختار تاريخ سداد صحيحًا.', 'Please select a valid payment date.')
+    if (!receiptNo || receiptNo.length > 100) throw new UiError('أدخل رقم الإيصال في حدود ١٠٠ حرف.', 'Enter a receipt number within 100 characters.')
+    if (!paidAt || paidAt > new Date().toISOString().slice(0, 10)) throw new UiError('اختر تاريخ سداد صحيحًا.', 'Please select a valid payment date.')
 
     const { data: userData, error: userError } = await supabase.auth.getUser()
     if (userError) throw userError
-    if (!userData.user) throw new UiError('سجّل دخولك الأول وجرب تاني.', 'Please sign in first and try again.')
+    if (!userData.user) throw new UiError('سجّل الدخول أولًا ثم حاول مرة أخرى.', 'Please sign in first and try again.')
     const path = `${userData.user.id}/${detail.request.request_id}/${payment.payment_id}/${crypto.randomUUID()}.${extension}`
     const { error: uploadError } = await supabase.storage.from('payment-receipts').upload(path, file, {
       contentType: file.type,
@@ -318,7 +318,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     })
     if (rpcError) throw rpcError
     await loadRequestDetail(String(detail.request.request_id))
-    setNotice({ ar: 'وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
+    setNotice({ ar: 'وصل إيصال السداد إلى الخزينة، وستظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
   }
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
@@ -341,10 +341,10 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const title = String(form.get('work_title') ?? '').trim()
     const rawPageCount = String(form.get('page_count') ?? '').trim()
     const pageCount = rawPageCount === '' ? null : Number(rawPageCount)
-    if (selectedFeeIds.length === 0) { setError({ ar: 'اختار خدمة واحدة على الأقل.', en: 'Please select at least one service.' }); return }
-    if (!title) { setError({ ar: 'اكتب عنوان الرسالة أو البحث.', en: 'Please enter the thesis or paper title.' }); return }
-    if (pageCountRequired && pageCount === null) { setError({ ar: 'اكتب عدد الصفحات علشان نكمل الطلب.', en: 'Please enter the page count to complete the request.' }); return }
-    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError({ ar: 'عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.', en: 'Page count must be between 1 and 2000.' }); return }
+    if (selectedFeeIds.length === 0) { setError({ ar: 'اختر خدمة واحدة على الأقل.', en: 'Please select at least one service.' }); return }
+    if (!title) { setError({ ar: 'أدخل عنوان الرسالة أو البحث.', en: 'Please enter the thesis or paper title.' }); return }
+    if (pageCountRequired && pageCount === null) { setError({ ar: 'أدخل عدد الصفحات لاستكمال الطلب.', en: 'Please enter the page count to complete the request.' }); return }
+    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError({ ar: 'يجب أن يكون عدد الصفحات من ١ إلى ٢٠٠٠.', en: 'Page count must be between 1 and 2000.' }); return }
     setSubmitting(true)
     setError(null)
     setNotice(null)
@@ -356,7 +356,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         p_fee_ids: selectedFeeIds,
       })
       if (rpcError) throw rpcError
-      setNotice({ ar: 'اتسجل طلبك بنجاح. تقدر تتابع حالته من صفحة طلباتي.', en: 'Request submitted. Track it under My Requests.' })
+      setNotice({ ar: 'تم تسجيل طلبك بنجاح، ويمكنك متابعة حالته من صفحة «طلباتي».', en: 'Request submitted. Track it under My Requests.' })
       setSelectedFeeIds([])
       formElement.reset()
       await loadRequests()
@@ -389,7 +389,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         <a className="brand" href="#home" aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
           <span className="brand-mark">{isEn ? 'C' : 'م'}</span><span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · SAMS' : 'والبحوث والتطوير · أكاديمية السادات'}</small></span>
         </a>
-        <div className="researcher-top-actions"><span className="welcome-name">{isEn ? 'Welcome,' : 'أهلاً،'} {profile.full_name}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
+        <div className="researcher-top-actions"><span className="welcome-name">{isEn ? 'Welcome,' : 'أهلًا،'} {profile.full_name}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
       <nav className="researcher-nav" aria-label={t('التنقل في حساب الباحث', 'Researcher portal navigation')}>
@@ -398,16 +398,16 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
 
       {notice && <p className="message success portal-message" role="status">{notice[lang]}</p>}
       {error && <p className="message error portal-message" role="alert">{error[lang]}</p>}
-      {loading ? <div className="loading portal-loading"><span className="spinner" /> {t('بنحمّل بيانات حسابك...', 'Loading your account data...')}</div> : (
+      {loading ? <div className="loading portal-loading"><span className="spinner" /> {t('جارٍ تحميل بيانات حسابك...', 'Loading your account data...')}</div> : (
         <section className="portal-content" aria-live="polite">
           {view === 'home' && <ResearcherGuideHome applicantType={profile.applicant_type} onStartRequest={() => chooseView('catalog')} />}
           {view === 'catalog' && <>
-            <div className="portal-card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}><div><span className="eyebrow">{isEn ? 'CRDC Procedural Guide' : 'الدليل الإجرائي للمركز'}</span><p style={{ margin: '0.25rem 0 0' }}>{isEn ? 'New to the center? Explore the 5 services, degree requirements, payment steps, and accredited journals.' : 'تعرّف على خدمات المركز الخمس، متطلبات درجتك العلمية، خطوات السداد، والمجلات المعتمدة.'}</p></div><button type="button" className="quiet-button" onClick={() => chooseView('home')}>{isEn ? '📖 Open Services Guide' : '📖 استعراض الدليل الإجرائي'}</button></div><div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>{isEn ? 'Each thesis or paper has a separate request. You can select multiple services for the same work.' : 'كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.'}</p></div>
+            <div className="portal-card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}><div><span className="eyebrow">{isEn ? 'CRDC Procedural Guide' : 'الدليل الإجرائي للمركز'}</span><p style={{ margin: '0.25rem 0 0' }}>{isEn ? 'New to the center? Explore the 5 services, degree requirements, payment steps, and accredited journals.' : 'تعرّف على خدمات المركز الخمس، ومتطلبات درجتك العلمية، وخطوات السداد، والمجلات المعتمدة.'}</p></div><button type="button" className="quiet-button" onClick={() => chooseView('home')}>{isEn ? '📖 Open Services Guide' : '📖 استعراض الدليل الإجرائي'}</button></div><div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'تقديم طلب جديد'}</h1><p>{isEn ? 'Each thesis or paper has a separate request. You can select multiple services for the same work.' : 'لكل رسالة أو بحث طلب مستقل، ويمكنك اختيار أكثر من خدمة للعمل نفسه.'}</p></div>
             <div className="catalog-layout">
               <form className="portal-card form-stack" onSubmit={submitRequest}>
                 <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">{isEn ? 'Work Details' : 'بيانات العمل'}</span><h2>{isEn ? 'Select Request Type & Services' : 'حدد نوع الطلب والخدمات'}</h2></div></div>
                 <label>{isEn ? 'Work Type' : 'نوع العمل'}<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper for Publication' : 'بحث للنشر'}</option></select></label>
-                <label>{isEn ? 'Thesis or Paper Title' : 'عنوان الرسالة أو البحث'}<input name="work_title" required minLength={3} maxLength={300} placeholder={isEn ? 'Enter the title of your work' : 'اكتب عنوان العمل'} /></label>
+                <label>{isEn ? 'Thesis or Paper Title' : 'عنوان الرسالة أو البحث'}<input name="work_title" required minLength={3} maxLength={300} placeholder={isEn ? 'Enter the title of your work' : 'أدخل عنوان العمل'} /></label>
                 <label>{isEn ? 'Page Count' : 'عدد الصفحات'}{!pageCountRequired && <small>{isEn ? 'Optional depending on selected services' : 'اختياري حسب الخدمات المختارة'}</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder={isEn ? 'e.g., 25' : 'مثال: 25'} /></label>
                 <div className="service-groups">
                   {services.map((service) => {
@@ -421,21 +421,21 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                       </label>)}
                     </fieldset>
                   })}
-                  {!fees.length && <p className="empty-state">{t('مفيش خدمات متاحة حاليًا لنوع حسابك.', 'No services are currently available for your applicant type.')}</p>}
+                  {!fees.length && <p className="empty-state">{t('لا توجد خدمات متاحة حاليًا لنوع حسابك.', 'No services are currently available for your applicant type.')}</p>}
                 </div>
-                <p className="form-footnote">{isEn ? 'The final amount is calculated according to the approved tariff. The listed price is the base fee only, excluding extra pages.' : 'المبلغ النهائي بيتحسب ويتسجل في قاعدة البيانات حسب التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ومش شامل حساب الصفحات الإضافية.'}</p>
-                <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'بنسجل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
+                <p className="form-footnote">{isEn ? 'The final amount is calculated according to the approved tariff. The listed price is the base fee only, excluding extra pages.' : 'يُحسب المبلغ النهائي ويُسجَّل في قاعدة البيانات وفق التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ولا يشمل الصفحات الإضافية.'}</p>
+                <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'جارٍ تسجيل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
               </form>
-              <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.'}</p>
-                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{pickName(requirement, lang)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">{t('مفيش متطلبات مسجلة للدرجة العلمية دي.', 'No specific requirements are registered for this degree.')}</p>}
+<aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'هذه المتطلبات المسجلة لدرجتك في النظام، لمراجعتها قبل تقديم الطلب.'}</p>
+                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{pickName(requirement, lang)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">{t('لا توجد متطلبات مسجلة لهذه الدرجة العلمية.', 'No specific requirements are registered for this degree.')}</p>}
               </aside>
             </div>
           </>}
 
           {view === 'requests' && <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Request Tracking' : 'متابعة الطلبات'}</span><h1>{detail ? t('تفاصيل الطلب', 'Request Details') : t('طلباتي', 'My Requests')}</h1><p>{t('كل طلب خاص بعمل واحد، وتفاصيل حالة كل خدمة بتظهر لوحدها.', 'Each request belongs to a single work, and each service item shows its own status.')}</p></div>
-            {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> {t('بنحمّل تفاصيل الطلب...', 'Loading request details...')}</div> : detail ? <>
-              <button className="back-button" onClick={() => setDetail(null)}>{isEn ? '← Back to My Requests' : '→ رجوع لطلباتي'}</button>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Request Tracking' : 'متابعة الطلبات'}</span><h1>{detail ? t('تفاصيل الطلب', 'Request Details') : t('طلباتي', 'My Requests')}</h1><p>{t('كل طلب خاص بعمل واحد، وتظهر حالة كل خدمة على حدة.', 'Each request belongs to a single work, and each service item shows its own status.')}</p></div>
+            {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> {t('جارٍ تحميل تفاصيل الطلب...', 'Loading request details...')}</div> : detail ? <>
+              <button className="back-button" onClick={() => setDetail(null)}>{isEn ? '← Back to My Requests' : '→ العودة إلى طلباتي'}</button>
               <article className="portal-card request-detail-card">
                 <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at)}</span></div>
                 <p className="detail-pages">{t('عدد الصفحات:', 'Page count:')} {detail.request.page_count ?? '—'}</p>
@@ -472,11 +472,11 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                     {canSubmitReceipt && <PaymentReceiptForm payment={payment} items={paymentItems} services={detail.services} onSubmit={submitPaymentReceipt} onError={(message) => setError(message)} />}
                   </section>
                 })}
-                {!detail.items.length && <p className="empty-state">{t('مفيش خدمات مرتبطة بالطلب ده.', 'No service items linked to this request.')}</p>}
+                {!detail.items.length && <p className="empty-state">{t('لا توجد خدمات مرتبطة بهذا الطلب.', 'No service items linked to this request.')}</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
-              <span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, lang)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
-            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لسه مفيش طلبات'}</h2><p>{t('لما تقدم طلب جديد هتقدر تتابع تفاصيله وحالته من هنا.', 'Once you submit a new request, you can track its details and status here.')}</p><button className="primary-button" onClick={() => chooseView('catalog')}>{t('استعراض الخدمات ', 'Browse Services ')}<span>{isEn ? '→' : '←'}</span></button></div>}
+<span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, lang)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
+            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لا توجد طلبات بعد'}</h2><p>{t('عند تقديم طلب جديد، يمكنك متابعة تفاصيله وحالته من هنا.', 'Once you submit a new request, you can track its details and status here.')}</p><button className="primary-button" onClick={() => chooseView('catalog')}>{t('استعراض الخدمات ', 'Browse Services ')}<span>{isEn ? '→' : '←'}</span></button></div>}
           </>}
 
           {view === 'profile' && <>
@@ -491,7 +491,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
                 <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{pickName(degree, lang)}</option>)}</select></label>
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
-                <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'بنحفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
+                <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'جارٍ حفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
               <dl className="profile-details"><dt>{t('تاريخ إنشاء الملف', 'Profile Created On')}</dt><dd>{formatDate(profile.created_at)}</dd></dl>
             </article>
@@ -499,7 +499,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         </section>
       )}
 
-      <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
+      <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي، وبياناتك محمية', 'Prototype · Your data is secure')}</span></footer>
     </main>
   )
 }
@@ -511,7 +511,7 @@ function overallStatus(requestId: number | string, statuses: StatusRow[], status
   return names.length === 1 ? names[0] : names.length > 1 ? (lang === 'en' ? 'Services in multiple stages' : 'الخدمات في مراحل مختلفة') : (fallback ? pickName(fallback, lang) : (lang === 'en' ? 'Submitted' : 'تم التقديم'))
 }
 
-const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
+export const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
   PUB_ARBITRATION: { ar: 'تحكيم البحث', en: 'Research Arbitration' },
   PUB_PUBLISH: { ar: 'نشر البحث', en: 'Research Publication' },
   LANG_AR: { ar: 'تدقيق لغوي عربي', en: 'Arabic Proofreading' },
@@ -584,7 +584,7 @@ function PaymentReceiptForm({
     <label>{t('رقم الإيصال', 'Receipt Number')}<input name="receipt_no" required maxLength={100} autoComplete="off" /></label>
     <label>{t('تاريخ السداد', 'Payment Date')}<input name="paid_at" type="date" required max={new Date().toISOString().slice(0, 10)} /></label>
     <label>صورة أو ملف الإيصال<input name="receipt_file" type="file" required accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" /><small>PDF أو JPG أو PNG، بحد أقصى ٥ ميجابايت.</small></label>
-    <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'بنرفع الإيصال...' : 'إرسال الإيصال للمراجعة'}</button>
+    <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'جارٍ رفع الإيصال...' : 'إرسال الإيصال للمراجعة'}</button>
   </form>
 }
 

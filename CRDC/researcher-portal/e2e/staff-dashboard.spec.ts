@@ -104,7 +104,7 @@ test('active viewer lands on the analytics dashboard, keeps the overview tab, an
   })
   if (staffError) throw staffError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   const firstResponse = page.waitForResponse(isAnalyticsCall)
@@ -136,7 +136,7 @@ test('admin opens the analytics tab from the overview and sees the same aggregat
   })
   if (staffError) throw staffError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -167,7 +167,7 @@ test('admin paginates synthetic requests and assignments persist across pages', 
   ])
   if (staffInsertError) throw staffInsertError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(adminEmail)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -198,7 +198,7 @@ test('admin paginates synthetic requests and assignments persist across pages', 
   await expect(requestRow).toBeVisible()
   const requestId = await requestRow.getAttribute('data-request-id')
   await requestRow.getByLabel('تعيين المراجع أو الإحصائي').selectOption({ label: 'مراجع اختبار · مراجع' })
-  await expect(page.getByRole('status')).toContainText('اتعيّن')
+  await expect(page.getByRole('status')).toContainText('تم تعيين')
   await expect(requestRow.locator('.assigned-staff-names')).toContainText('مراجع اختبار')
 
   await page.reload()
@@ -222,14 +222,14 @@ test('publication issue options follow the journal selected in the editor', asyn
     .select('issue_id, journal_id').order('issue_id')
   if (issuesError) throw issuesError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
   const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
   await expect(nav).toBeVisible()
   await nav.getByRole('button', { name: 'إدارة الطلبات والتعيينات' }).click()
-  await page.getByLabel('فلترة بنوع العمل').selectOption('paper')
+  await page.getByLabel('التصفية حسب نوع العمل').selectOption('paper')
   await nav.getByRole('button', { name: 'كل الطلبات والبنود' }).click()
 
   const editor = page.locator('.publication-editor').first()
@@ -273,7 +273,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
     if (fixtureError) throw fixtureError
   }
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(reviewerEmail)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -282,7 +282,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
   const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[0].item_id}"]`)
   await expect(assigned).toBeVisible()
-  await expect(assigned.getByText('الملاحظة هتظهر للباحث')).toBeVisible()
+  await expect(assigned.getByText('ستظهر الملاحظة للباحث')).toBeVisible()
   await expect(page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[1].item_id}"]`)).toHaveCount(0)
   await assigned.getByLabel('الحالة التشغيلية').selectOption('IN_PROGRESS')
   await assigned.getByLabel('ملاحظة للسجل').fill('بدأت مراجعة الاختبار')

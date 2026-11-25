@@ -97,6 +97,11 @@ const DB_EN_MAP: Record<string, string> = {
   'مرفوض': 'Rejected',
   'نشر بحث علمي': 'Publish Scientific Paper',
   'تدقيق لغوي': 'Proofreading',
+  'مراجعة لغوية': 'Language Review',
+  'شهادة التحول الرقمي': 'Digital Transformation Certificate',
+  'التحليل والمراجعة الإحصائية': 'Statistical Analysis & Review',
+  'مجلة البحوث الإدارية': 'Administrative Research Journal',
+  'مجلة السادات للبحوث الإدارية والمالية': 'Sadat Journal for Administrative and Financial Research',
   'تحليل إحصائي': 'Statistical Analysis',
   'مراجعة إحصائية': 'Statistical Review',
 }

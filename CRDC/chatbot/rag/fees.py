@@ -147,7 +147,7 @@ _PAGES = re.compile(r"(\d{1,4})\s*(?:صفحه|صفحات|ص\b|pages?\b|pg\b|p\b)
 _ANY_NUM = re.compile(r"\b(\d{1,4})\b")
 _FEE_INTENT = re.compile(r"رسوم|بكام|كام|سعر|تكلف|فلوس|مصاريف|احسب|حساب|هدفع|ادفع|اجمالي|fee|cost|price|how much|calculat|total|pay")
 _PROOF = re.compile(r"تدقيق|لغوي|لغويه|proofread|language review")
-_PUB = re.compile(r"نشر|تحكيم|بحث|ورقه|مقال|publish|referee|paper|article")
+_PUB = re.compile(r"نشر|تحكيم|بحث|ورقه|مقال|publish|publication|referee|paper|article")
 _INTL = re.compile(r"وافد|اجنبي|دولار|international|foreign|usd|dollar")
 _EG = re.compile(r"مصري|جنيه|egyptian|egp|pound")
 _EN_THESIS = re.compile(r"انجليز|english")
@@ -244,6 +244,6 @@ def calculate(fees: dict, service: str, pages: int, audiences: list[str], langs,
         note.append("رسوم التحكيم والنشر تُدفع معًا مرة واحدة تسهيلًا على الباحثين." if ar
                     else "Refereeing and publishing fees are paid together at once as a facilitation for researchers.")
     if len(audiences) == 2:
-        note.append("الرسوم مختلفة للباحث المصري والوافد، فعرضت الحالتين. قل لي «مصري» أو «وافد» لو تحب حالة واحدة."
+        note.append("تختلف الرسوم بين الباحث المصري والوافد، لذا عرضت الحالتين. اكتب «مصري» أو «وافد» إذا أردت حالة واحدة."
                     if ar else "Fees differ for Egyptian and international researchers, so both are shown.")
     return "\n\n".join(blocks + note)

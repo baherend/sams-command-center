@@ -1,5 +1,5 @@
 {
- "_comment": "expect: list of acceptable chunk ids, or 'REFUSE'. calc: expected totals that must appear in the answer. Phrasings deliberately differ from the knowledge-base wording.",
+ "_comment": "expect: list of acceptable chunk ids, or 'REFUSE'. calc: expected totals that must appear in the answer. Phrasings deliberately differ from the knowledge-base wording. 'رسوم الجيم كام؟' added after browser testing found it answered with the publishing fee table.",
  "retrieval": [
   {
    "q": "المركز بيقدم ايه من خدمات؟",
@@ -350,7 +350,8 @@
   "هل في سكن للطلاب الوافدين؟",
   "ازاي اقدم على الماجستير؟",
   "مين المشرف المناسب لرسالتي؟",
-  "احكيلي نكتة"
+  "احكيلي نكتة",
+  "رسوم الجيم كام؟"
  ],
  "calc": [
   {
@@ -401,6 +402,13 @@
    "q": "Publishing fee for a 25 page paper for an Egyptian researcher",
    "must": [
     "EGP 3,500"
+   ]
+  },
+  {
+   "q": "Calculate publication fees for 30 pages",
+   "must": [
+    "EGP 3,900",
+    "USD 700"
    ]
   }
  ]

@@ -19,7 +19,7 @@ _INTENT = re.compile(
     r"which journal|where (should|can|do) i publish|where to publish|choose a journal|right journal|suitable journal"
 )
 _PICK_AR, _PICK_EN = "تخصصي:", "My field:"
-_OTHER_AR, _OTHER_EN = "غير ذلك / مش متأكد", "Other / not sure"
+_OTHER_AR, _OTHER_EN = "غير ذلك / لست متأكدًا", "Other / not sure"
 
 
 def load_journals(knowledge_dir: Path) -> dict:
@@ -65,7 +65,7 @@ class JournalRouter:
     # ---- answers ----------------------------------------------------------
     def chooser(self, lang: str) -> tuple[str, list[dict]]:
         ar = lang == "ar"
-        text = ("المركز بينشر في مجلتين معتمدتين بتقييم 7/7. علشان أقترح عليك الأنسب، اختار تخصص بحثك:"
+        text = ("ينشر المركز في مجلتين معتمدتين بتقييم 7/7. لأقترح عليك الأنسب، اختر تخصص بحثك:"
                 if ar else "The center publishes in two journals rated 7/7. To suggest the right one, choose your research field:")
         opts = [{"label": s["label_ar"] if ar else s["label_en"],
                  "value": f"{_PICK_AR} {s['label_ar']}" if ar else f"{_PICK_EN} {s['label_en']}"} for s in self.specs]
@@ -83,7 +83,7 @@ class JournalRouter:
         ar = lang == "ar"
         if spec == "other":
             keys = list(self.journals)
-            head = ("مفيش تخصص محدد، فدي المجلتين علشان تقارن بينهم:" if ar
+            head = ("لم يُحدَّد تخصص، فهذه المجلتان للمقارنة بينهما:" if ar
                     else "No specific field, so here are both journals to compare:")
         else:
             keys = spec["journals"]
@@ -91,11 +91,11 @@ class JournalRouter:
             if len(keys) == 1:
                 head = f"لتخصص «{label}»، المجلة المقترحة:" if ar else f"For «{label}», the suggested journal is:"
             else:
-                head = (f"تخصص «{label}» يناسب المجلتين، فاختار حسب موضوع بحثك:" if ar
+                head = (f"تخصص «{label}» يناسب المجلتين، فاختر حسب موضوع بحثك:" if ar
                         else f"«{label}» fits both journals; choose by your paper's topic:")
         lines = [head, "", *[self._journal_block(k, lang) for k in keys], ""]
         if self.proposed:
-            lines.append("ملحوظة: ده توجيه مبدئي مقترح، والقرار النهائي لهيئة تحرير المجلة." if ar
+            lines.append("ملحوظة: هذا توجيه مبدئي مقترح، والقرار النهائي لهيئة تحرير المجلة." if ar
                          else "Note: this is a proposed guide; the journal's editorial board makes the final decision.")
         else:
             lines.append("القرار النهائي لهيئة تحرير المجلة." if ar
