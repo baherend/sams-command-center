@@ -15,7 +15,7 @@
 
 The `crdc` schema has 16 tables:
 
-- **Catalog/reference:** `services`, `requirement_types`, `fee_schedule`, `degrees`, `degree_requirements`, `journals`, `journal_issues`, `request_statuses`.
+- **Catalog/reference:** `services`, `requirement_types`, `fee_schedule`, `degrees`, `degree_requirements`, `journals`, `journal_issues`, `request_statuses`. The five named lookup tables (`services`, `requirement_types`, `degrees`, `journals`, `request_statuses`) store both `name_ar` (NOT NULL) and `name_en` (nullable text), exposed alongside Arabic names in aggregate views/RPCs (`staff_dashboard_overview`, `viewer_dashboard_summary`, `get_analytics_dashboard`) and resolved in the frontend via `pickName(row, lang)` with `DB_EN_MAP` as fallback.
 - **People:** `researchers`, `staff_users`.
 - **Operations/publication/audit:** `service_requests`, `request_items`, `payments`, `request_status_history`, `publication_submissions`, `audit_log`.
 
