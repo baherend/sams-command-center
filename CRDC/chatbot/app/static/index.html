@@ -139,7 +139,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       return chain([en ? 'Guidance' : 'التوجيه', en ? 'Center journals' : 'مجلات المركز',
                     proposed ? (en ? 'Proposed, pending approval' : 'مقترح للمراجعة') : (en ? 'Approved' : 'معتمد')], false, src && src.source);
     }
-    if (r.route === 'refusal') return chain([en ? 'Your question' : 'سؤالك', en ? 'No source in the guide' : 'مفيش مصدر في الدليل'], true);
+    if (r.route === 'refusal') return chain([en ? 'Your question' : 'سؤالك', en ? 'No source in the guide' : 'لا يوجد مصدر في الدليل'], true);
     return null;
   }
 
@@ -182,7 +182,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
   form.addEventListener('submit', function (e) { e.preventDefault(); ask(input.value); });
 
   var hello = el('article', 'card');
-  hello.appendChild(el('h3', '', 'أهلًا بيك'));
+  hello.appendChild(el('h3', '', 'أهلًا بك'));
   hello.appendChild(el('div', 'body', 'أنا مُرشِد. اسألني عن الخدمات الخمس، والرسوم وحسابها، والإجراءات، وشروط النشر، وتنسيق البحث، والمطلوب لدرجتك، وأنهي مجلة تناسب بحثك. لو الإجابة مش في الدليل الإجرائي هقولك بصراحة. You can also ask in English.'));
   hello.appendChild(choices(STARTERS));
   log.appendChild(hello);

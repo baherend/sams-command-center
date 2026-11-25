@@ -29,11 +29,11 @@ async function createResearcher(email: string) {
 test('researcher requests password reset and completes PASSWORD_RECOVERY', async ({ page, baseURL }) => {
   const email = `r5-reset-${Date.now()}@example.test`
   await createResearcher(email)
-  await page.goto('/')
+  await page.goto('/#login')
   await page.getByRole('button', { name: 'نسيت كلمة المرور؟' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.getByRole('button', { name: 'إرسال رابط الاستعادة' }).click()
-  await expect(page.getByRole('status')).toContainText('لو البريد ده مرتبط بحساب')
+  await expect(page.getByRole('status')).toContainText('إذا كان هذا البريد مرتبطًا بحساب')
 
   const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: baseURL! } })
   if (error) throw error
@@ -45,6 +45,8 @@ test('researcher requests password reset and completes PASSWORD_RECOVERY', async
   await expect(page.getByRole('navigation', { name: 'التنقل في حساب الباحث' })).toBeVisible()
 
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
+  // Signing out returns to the public home; sign in again from its header link.
+  await page.getByRole('link', { name: 'تسجيل الدخول' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(newPassword)
   await page.locator('.form-card form button.primary-button').click()
@@ -54,7 +56,7 @@ test('researcher requests password reset and completes PASSWORD_RECOVERY', async
 test('researcher can edit allowed profile fields while identity fields stay read-only', async ({ page }) => {
   const email = `r5-profile-${Date.now()}@example.test`
   await createResearcher(email)
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()

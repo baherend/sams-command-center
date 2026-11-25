@@ -32,17 +32,24 @@ REFUSAL_EN = ("Sorry, I can't answer this question because the answer is not in 
               "and I only answer from the guide.\n"
               "You can ask me about: the five services, fees, procedures, publishing requirements, formatting, or degree requirements.\n"
               f"For anything else, contact the center at {config.CENTER_EMAIL}")
-GREETING_AR = ("أهلًا بيك! أنا مُرشِد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. "
+GREETING_AR = ("أهلًا بك! أنا مُرشِد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. "
                "أجيب من الدليل الإجرائي للمركز فقط. اسألني عن الخدمات، الرسوم، الإجراءات، شروط النشر، التنسيق، أو متطلبات درجتك العلمية.")
 GREETING_EN = ("Hello! I'm Murshid, the researcher's assistant at the Consulting, Research and Development Center, Sadat Academy. "
                "I answer only from the center's procedural guide. Ask me about services, fees, procedures, publishing, formatting, or degree requirements.")
-THANKS_AR, THANKS_EN = "العفو! لو عندك أي سؤال تاني عن خدمات المركز أنا موجود.", "You're welcome! Ask me anything else about the center's services."
+THANKS_AR, THANKS_EN = "العفو! يسعدني الإجابة عن أي سؤال آخر عن خدمات المركز.", "You're welcome! Ask me anything else about the center's services."
 
 _GREET = re.compile(r"^(اهلا|مرحبا|السلام عليكم|سلام|هاي|هلو|صباح الخير|مساء الخير|hi|hello|hey|good (morning|evening))\b")
 _THANKS = re.compile(r"(شكرا|متشكر|تسلم|ميرسي|thanks|thank you)")
 # Explicit money words only. "كام" alone is NOT here: "النسبة كام؟" or "كام يوم؟" are not fee questions.
 _WHY = re.compile(r"ليه|لماذا|لم |علشان ايه|why")
 _FEE_Q = re.compile(r"رسوم|بكام|سعر|تكلف|فلوس|مصاريف|ادفع كام|fee|cost|price|how much")
+# A fee answer is only given when the question names something the center offers. Without it,
+# "رسوم الجيم كام؟" (gym fees) matched the publishing fee table on the word "رسوم" alone.
+_SERVICE = re.compile(r"نشر|تحكيم|بحث|ورقه|مقال|تدقيق|لغوي|مراجعه|احصا|تحليل|اقتباس|استلال|تحول|رقمي|دوره|امتحان|اختبار|شهاده|افاده|رساله|صفح|خدم|"
+                      r"publish|refere|paper|article|proofread|language|statist|analys|similar|plagiar|digital|course|exam|certificate|thesis|page|service")
+_WHICH_FEE_AR = ["رسوم التحكيم والنشر", "رسوم التدقيق اللغوي", "رسوم التحليل الإحصائي", "رسوم قياس نسبة الاقتباس", "رسوم شهادة التحول الرقمي"]
+_WHICH_FEE_EN = ["Refereeing and publishing fees", "Proofreading fees", "Statistical analysis fees", "Similarity check fees",
+                 "Digital transformation certificate fees"]
 
 
 @dataclass
@@ -154,6 +161,11 @@ class Engine:
         guard_wins = any(g.startswith("oos_") and gb > bm for g, _, _, gb in ranked[:3])
         if cid.startswith("oos_") or guard_wins or not self.passes_gate(dense, bm):
             return Answer(REFUSAL_AR if lang == "ar" else REFUSAL_EN, "refusal", False, lang, score=dense, top_id=cid)
+
+        if cid.startswith("fees_") and not _SERVICE.search(n):
+            opts = _WHICH_FEE_AR if lang == "ar" else _WHICH_FEE_EN
+            return Answer("رسوم أي خدمة من خدمات المركز تقصد؟" if lang == "ar" else "Fees for which of the center's services?",
+                          "refusal", False, lang, options=[{"label": o, "value": o} for o in opts], score=dense, top_id="fees_which_service")
 
         chunk = self.by_key[(cid, lang)]
         prefix = "المصدر" if lang == "ar" else "Source"

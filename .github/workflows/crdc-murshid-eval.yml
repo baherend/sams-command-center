@@ -1,0 +1,68 @@
+name: CRDC Murshid assistant evaluation
+
+# Murshid runs inside the researcher portal (in the browser). This job checks that:
+#   - knowledge/fees.json still matches the crdc.fee_schedule reference rows
+#   - public/murshid/index.json is up to date with CRDC/chatbot/knowledge
+#   - the TypeScript engine gives the same results as the measured baseline on both question sets
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CRDC/chatbot/**"
+      - "CRDC/researcher-portal/src/murshid/**"
+      - "CRDC/researcher-portal/public/murshid/**"
+      - "CRDC/researcher-portal/scripts/murshid-eval.ts"
+      - "CRDC/researcher-portal/package-lock.json"
+      - "supabase/migrations/**"
+      - ".github/workflows/crdc-murshid-eval.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "CRDC/chatbot/**"
+      - "CRDC/researcher-portal/src/murshid/**"
+      - "CRDC/researcher-portal/public/murshid/**"
+      - "CRDC/researcher-portal/scripts/murshid-eval.ts"
+      - "CRDC/researcher-portal/package-lock.json"
+      - "supabase/migrations/**"
+      - ".github/workflows/crdc-murshid-eval.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      MODEL_DIR: ${{ github.workspace }}/CRDC/chatbot/models/multilingual-e5-small
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+        working-directory: CRDC/chatbot
+      - run: python -m pytest -q tests
+        working-directory: CRDC/chatbot
+      - uses: actions/cache@v4
+        with:
+          path: CRDC/chatbot/models
+          key: murshid-e5-small-quantized-v1
+      - run: test -f "$MODEL_DIR/model_quantized.onnx" || python scripts/download_model.py
+        working-directory: CRDC/chatbot
+      - run: python scripts/export_web.py --check
+        working-directory: CRDC/chatbot
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CRDC/researcher-portal/package-lock.json
+      - run: npm ci
+        working-directory: CRDC/researcher-portal
+      - run: npm run test:murshid -- --check
+        working-directory: CRDC/researcher-portal
+        env:
+          MURSHID_MODEL_DIR: ${{ env.MODEL_DIR }}
+      - run: npm run test:murshid -- --check --holdout
+        working-directory: CRDC/researcher-portal
+        env:
+          MURSHID_MODEL_DIR: ${{ env.MODEL_DIR }}
