@@ -20,7 +20,7 @@ test('researcher uploads a receipt and cashier approval records PAID', async ({ 
   })
   if (staffError) throw staffError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(researcherEmail)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()

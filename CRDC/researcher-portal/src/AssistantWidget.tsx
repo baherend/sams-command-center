@@ -118,8 +118,8 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             aria-label={t('مرشد - المساعد الذكي للدليل الإجرائي', 'Morshed - Smart Procedural Guide Assistant')}
             style={{
               transformOrigin: '48px calc(100% + 42px)',
-              borderTop: '2px solid #D4AF37',
-              boxShadow: '0 22px 48px rgba(15, 23, 42, 0.35), 0 0 24px rgba(212, 175, 55, 0.22)',
+              borderTop: '2px solid #00A3A9',
+              boxShadow: '0 22px 48px rgba(15,23,42,0.35), 0 0 24px rgba(0,163,169,0.22)',
             }}
             initial={{ opacity: 0, scale: 0.12, y: 36 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -237,14 +237,14 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             onClick={toggleOpen}
             style={{
               position: 'relative',
-              background: '#0F172A',
-              color: '#F8FAFC',
-              border: '1.5px solid #D4AF37',
+              background: '#0f172a',
+              color: '#f8fafc',
+              border: '1.5px solid #00A3A9',
               borderRadius: '0.95rem',
               padding: '0.5rem 0.85rem',
               fontSize: '0.82rem',
               fontWeight: 600,
-              boxShadow: '0 10px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(212, 175, 55, 0.25)',
+              boxShadow: '0 10px 24px rgba(0,0,0,0.35), 0 0 14px rgba(0,163,169,0.25)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -257,7 +257,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
               type="button"
               aria-label={t('إغلاق الترحيب', 'Close greeting')}
               onClick={(e) => { e.stopPropagation(); setShowGreeting(false) }}
-              style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '1rem', lineHeight: 1, cursor: 'pointer', padding: '0 0.15rem' }}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1rem', lineHeight: 1, cursor: 'pointer', padding: '0 0.15rem' }}
             >
               ×
             </button>
@@ -269,9 +269,9 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 left: '42px',
                 width: '10px',
                 height: '10px',
-                background: '#0F172A',
-                borderRight: '1.5px solid #D4AF37',
-                borderBottom: '1.5px solid #D4AF37',
+                background: '#0f172a',
+                borderRight: '1.5px solid #00A3A9',
+                borderBottom: '1.5px solid #00A3A9',
                 transform: 'rotate(45deg)',
               }}
             />
@@ -321,8 +321,8 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             padding: '0.45rem 1.15rem',
             fontSize: '0.88rem',
             fontWeight: 700,
-            border: '1.5px solid #D4AF37',
-            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
+            border: '1.5px solid #00A3A9',
+            boxShadow: '0 8px 20px rgba(15,23,42,0.35)',
           }}
         >
           {open ? t('إغلاق مرشد', 'Close Morshed') : t('اسأل مرشد', 'Ask Morshed')}
