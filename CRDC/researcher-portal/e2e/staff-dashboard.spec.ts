@@ -298,3 +298,56 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await expect(displayedTimestamp).toHaveAttribute('datetime', savedHistory.changed_at)
 })
 
+test('reviewer sees all journals and switches publication journal on a single assigned item', async ({ page }) => {
+  const runId = process.env.GITHUB_RUN_ID ?? Date.now().toString()
+  const reviewerEmail = `e2e-pub-reviewer-${runId}@example.test`
+  const { data: reviewerUser, error: reviewerError } = await admin.auth.admin.createUser({ email: reviewerEmail, password, email_confirm: true })
+  if (reviewerError) throw reviewerError
+  const { data: insertedStaff, error: staffError } = await admin.schema('crdc').from('staff_users').insert({ auth_user_id: reviewerUser.user.id, full_name: 'مراجع مجلات النشر', role: 'reviewer', is_active: true }).select('staff_id').single()
+  if (staffError) throw staffError
+
+  const [{ data: allJournals, error: journalsError }, { data: allIssues, error: issuesError }, { data: subRow, error: subError }] = await Promise.all([
+    admin.schema('crdc').from('journals').select('journal_id').order('journal_id'),
+    admin.schema('crdc').from('journal_issues').select('issue_id, journal_id').order('issue_id'),
+    admin.schema('crdc').from('publication_submissions').select('item_id, journal_id').order('item_id').limit(1).single(),
+  ])
+  if (journalsError) throw journalsError
+  if (issuesError) throw issuesError
+  if (subError) throw subError
+  expect(allJournals.length).toBeGreaterThanOrEqual(2)
+
+  const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id }).eq('item_id', subRow.item_id)
+  if (assignError) throw assignError
+
+  const otherJournal = allJournals.find((journal) => journal.journal_id !== subRow.journal_id)!
+  const targetIssue = allIssues.find((issue) => issue.journal_id === otherJournal.journal_id)!
+
+  await page.goto('/#login')
+  await page.locator('input[name="email"]').fill(reviewerEmail)
+  await page.locator('input[name="password"]').fill(password)
+  await page.locator('.form-card form button.primary-button').click()
+  const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
+  await expect(nav).toBeVisible()
+  await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
+
+  const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${subRow.item_id}"]`)
+  await expect(assigned).toBeVisible()
+  const editor = assigned.locator('.publication-editor')
+  const journalSelect = editor.locator('select[name="journal_id"]')
+  const issueSelect = editor.locator('select[name="issue_id"]')
+
+  const visibleJournalIds = await journalSelect.locator('option').evaluateAll((options) => options.map((option) => Number((option as HTMLOptionElement).value)))
+  expect(new Set(visibleJournalIds)).toEqual(new Set(allJournals.map((journal) => journal.journal_id)))
+
+  await journalSelect.selectOption(String(otherJournal.journal_id))
+  await expect(issueSelect).toHaveValue('')
+  await issueSelect.selectOption(String(targetIssue.issue_id))
+  await editor.getByRole('button', { name: 'حفظ قرار النشر' }).click()
+  await expect(page.getByRole('status')).toContainText('تم حفظ قرار النشر')
+
+  await page.reload()
+  await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
+  const reloadedEditor = page.locator(`[data-testid="assigned-case"][data-item-id="${subRow.item_id}"] .publication-editor`)
+  await expect(reloadedEditor.locator('select[name="journal_id"]')).toHaveValue(String(otherJournal.journal_id))
+  await expect(reloadedEditor.locator('select[name="issue_id"]')).toHaveValue(String(targetIssue.issue_id))
+})

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
@@ -81,6 +81,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [publications, setPublications] = useState<PublicationRow[]>([])
   const [journals, setJournals] = useState<Journal[]>([])
   const [issues, setIssues] = useState<JournalIssue[]>([])
+  const catalogLoadedRef = useRef(false)
   const [selectedJournalByItem, setSelectedJournalByItem] = useState<Record<number, number>>({})
   const [selectedIssueByItem, setSelectedIssueByItem] = useState<Record<number, number | ''>>({})
   const [operationLoading, setOperationLoading] = useState(false)
@@ -227,28 +228,24 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
         let historyRows: HistoryRow[] = []
         let publicationRows: PublicationRow[] = []
-        let journalRows: Journal[] = []
-        let issueRows: JournalIssue[] = []
-        if (view === 'assigned' && itemIds.length) {
-          const [historyResult, publicationResult] = await Promise.all([
-            supabase.schema('crdc').from('request_status_history')
-              .select('history_id, item_id, status_id, changed_at, note').in('item_id', itemIds).order('changed_at', { ascending: false }),
-            supabase.schema('crdc').from('publication_submissions')
-              .select('submission_id, item_id, journal_id, issue_id, decision, accepted_at').in('item_id', itemIds),
-          ])
-          if (historyResult.error || publicationResult.error) throw historyResult.error ?? publicationResult.error
-          historyRows = (historyResult.data ?? []) as HistoryRow[]
-          publicationRows = (publicationResult.data ?? []) as PublicationRow[]
-          const journalIds = [...new Set(publicationRows.map((publication) => publication.journal_id))]
-          if (journalIds.length) {
+        let loadedCatalog: { journals: Journal[]; issues: JournalIssue[] } | null = null
+        if (view === 'assigned') {
+          if (!catalogLoadedRef.current) {
             const [journalResult, issueResult] = await Promise.all([
-              supabase.schema('crdc').from('journals').select('journal_id, name_ar, name_en').in('journal_id', journalIds),
-              supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month')
-                .in('journal_id', journalIds).order('issue_year', { ascending: false }),
+              supabase.schema('crdc').from('journals').select('journal_id, name_ar, name_en').order('journal_id'),
+              supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month').order('issue_year', { ascending: false }),
             ])
             if (journalResult.error || issueResult.error) throw journalResult.error ?? issueResult.error
-            journalRows = (journalResult.data ?? []) as Journal[]
-            issueRows = (issueResult.data ?? []) as JournalIssue[]
+            loadedCatalog = { journals: (journalResult.data ?? []) as Journal[], issues: (issueResult.data ?? []) as JournalIssue[] }
+          }
+          if (itemIds.length) {
+            const [historyResult, publicationResult] = await Promise.all([
+              supabase.schema('crdc').from('request_status_history').select('history_id, item_id, status_id, changed_at, note').in('item_id', itemIds).order('changed_at', { ascending: false }),
+              supabase.schema('crdc').from('publication_submissions').select('submission_id, item_id, journal_id, issue_id, decision, accepted_at').in('item_id', itemIds),
+            ])
+            if (historyResult.error || publicationResult.error) throw historyResult.error ?? publicationResult.error
+            historyRows = (historyResult.data ?? []) as HistoryRow[]
+            publicationRows = (publicationResult.data ?? []) as PublicationRow[]
           }
         }
 
@@ -261,8 +258,11 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         setRequesters(new Map(researcherRows.map((researcher) => [researcher.researcher_id, researcher])))
         setHistory(historyRows)
         setPublications(publicationRows)
-        setJournals(journalRows)
-        setIssues(issueRows)
+        if (loadedCatalog) {
+          catalogLoadedRef.current = true
+          setJournals(loadedCatalog.journals)
+          setIssues(loadedCatalog.issues)
+        }
         setSelectedJournalByItem({})
         setSelectedIssueByItem({})
       } catch {
@@ -420,25 +420,23 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     finally { setBusyItem(null) }
   }
 
-  async function loadJournalIssues(journalId: number) {
-    if (!supabase || issues.some((issue) => issue.journal_id === journalId)) return
-    const { data, error: issueError } = await supabase.schema('crdc').from('journal_issues')
-      .select('issue_id, journal_id, issue_year, issue_month').eq('journal_id', journalId).order('issue_year', { ascending: false })
-    if (issueError) { setError(friendlyErrorText(issueError)); return }
-    setIssues((current) => [...current.filter((issue) => issue.journal_id !== journalId), ...((data ?? []) as JournalIssue[])])
-  }
-
   async function updatePublication(itemId: number, form: HTMLFormElement) {
     if (!supabase) return
     setBusyItem(itemId); setError(null); setNotice(null)
     const data = new FormData(form)
+    const journalId = Number(data.get('journal_id'))
+    const issueRaw = data.get('issue_id')
+    const issueId = issueRaw ? Number(issueRaw) : null
     try {
+      if (!Number.isInteger(journalId) || journalId <= 0 || !journals.some((journal) => journal.journal_id === journalId)) {
+        throw new UiError({ ar: 'اختر مجلة صالحة من القائمة.', en: 'Select a valid journal from the list.' })
+      }
+      const decision = String(data.get('decision')) as PublicationRow['decision']
       const { error: rpcError } = await supabase.schema('crdc').rpc('update_publication_submission', {
-        p_item_id: itemId, p_decision: String(data.get('decision')), p_journal_id: Number(data.get('journal_id')), p_issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null,
+        p_item_id: itemId, p_decision: decision, p_journal_id: journalId, p_issue_id: issueId,
       })
       if (rpcError) throw rpcError
-      const decision = String(data.get('decision')) as PublicationRow['decision']
-      setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? (row.accepted_at ?? new Date().toISOString().slice(0, 10)) : null } : row))
+      setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: journalId, issue_id: issueId, accepted_at: decision === 'accepted' ? (row.accepted_at ?? new Date().toISOString().slice(0, 10)) : null } : row))
       setNotice({ ar: 'تم حفظ قرار النشر.', en: 'Publication decision saved.' })
     } catch (operationError) { setError(friendlyErrorText(operationError)) }
     finally { setBusyItem(null) }
@@ -599,7 +597,6 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                       const journalId = Number(event.target.value)
                       setSelectedJournalByItem((current) => ({ ...current, [item.item_id]: journalId }))
                       setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: '' }))
-                      void loadJournalIssues(journalId)
 }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{pickName(journal, lang)}</option>)}</select></label>
                     <label>{t('العدد', 'Issue')}<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">{t('دون عدد', 'No issue assigned')}</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('جارٍ الحفظ...', 'Saving...') : t('حفظ قرار النشر', 'Save Publication Decision')}</button>
