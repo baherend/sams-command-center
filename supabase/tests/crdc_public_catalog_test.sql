@@ -61,7 +61,7 @@ SELECT throws_ok($$SELECT count(*) FROM crdc.payments$$, '42501', NULL, 'anon ca
 SELECT throws_ok($$SELECT count(*) FROM crdc.staff_users$$, '42501', NULL, 'anon cannot read staff users');
 SELECT throws_ok($$SELECT count(*) FROM crdc.audit_log$$, '42501', NULL, 'anon cannot read the audit log');
 SELECT throws_ok($$SELECT count(*) FROM crdc.fee_schedule$$, '42501', NULL, 'anon cannot read crdc tables directly, even fees');
-SELECT throws_ok($$SELECT crdc.search_kb('رسوم', 'all', 3)$$, '42501', NULL, 'anon cannot call crdc functions');
+SELECT throws_ok($$SELECT crdc.get_analytics_dashboard(NULL)$$, '42501', NULL, 'anon cannot call crdc functions');
 SELECT throws_ok($$CREATE FUNCTION crdc_public.x() RETURNS int LANGUAGE sql AS 'select 1'$$, '42501', NULL,
   'anon cannot add functions to crdc_public');
 RESET ROLE;
