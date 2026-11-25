@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
-import { UiError, friendlyError } from './errors'
+import { UiError, friendlyErrorText, type LocalizedText } from './errors'
 import { useI18n, translateDbText } from './i18n'
 
 type Days = number | null
@@ -166,17 +166,17 @@ function TrendChart({ title, rows, pick, kind, format, color }: {
 }
 
 export default function AnalyticsDashboard() {
-  const { isEn } = useI18n()
+  const { lang, isEn } = useI18n()
   const [days, setDays] = useState<Days>(null)
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<LocalizedText | null>(null)
   const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
     setLoading(true)
-    setError('')
+    setError(null)
     void (async () => {
       try {
         if (!supabase) throw new UiError('الخدمة غير متاحة دلوقتي. جرّب تاني بعد شوية.', 'Service is currently unavailable. Please try again shortly.')
@@ -185,7 +185,7 @@ export default function AnalyticsDashboard() {
         const parsed = normalize(raw)
         if (alive) setData(parsed)
       } catch (loadError) {
-        if (alive) { setData(null); setError(friendlyError(loadError)) }
+        if (alive) { setData(null); setError(friendlyErrorText(loadError)) }
       } finally {
         if (alive) setLoading(false)
       }
@@ -217,7 +217,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {error ? (
-        <div className="portal-card analytics-error"><p className="message error" role="alert">{error}</p><button type="button" className="quiet-button" onClick={() => setReload((v) => v + 1)}>{isEn ? 'Retry' : 'إعادة المحاولة'}</button></div>
+        <div className="portal-card analytics-error"><p className="message error" role="alert">{error[lang]}</p><button type="button" className="quiet-button" onClick={() => setReload((v) => v + 1)}>{isEn ? 'Retry' : 'إعادة المحاولة'}</button></div>
       ) : !data ? (
         <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading KPIs...' : 'بنحمّل المؤشرات...'}</div>
       ) : (

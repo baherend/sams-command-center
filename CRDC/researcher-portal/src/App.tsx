@@ -5,7 +5,7 @@ import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
 import StaffConsole from './StaffConsole'
 import AssistantWidget from './AssistantWidget'
-import { friendlyError, useSingleFlight } from './errors'
+import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import { useI18n } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
@@ -35,7 +35,7 @@ type ResearcherProfile = {
 type Mode = 'sign-in' | 'sign-up'
 
 export default function App() {
-  const { t, dir, isEn } = useI18n()
+  const { t, lang, dir, isEn } = useI18n()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<ResearcherProfile | null>(null)
   const [staff, setStaff] = useState<StaffProfile | null>(null)
@@ -44,8 +44,8 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('sign-in')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState('')
-  const [error, setError] = useState('')
+  const [notice, setNotice] = useState<LocalizedText | null>(null)
+  const [error, setError] = useState<LocalizedText | null>(null)
   const [confirmationPending, setConfirmationPending] = useState(false)
   const [recoveryMode, setRecoveryMode] = useState(false)
   const [forgotPassword, setForgotPassword] = useState(false)
@@ -56,7 +56,7 @@ export default function App() {
   const singleFlight = useSingleFlight()
 
   const loadProfile = useCallback(async (nextSession: Session | null) => {
-    setError('')
+    setError(null)
     if (!supabase || !nextSession?.user) {
       setProfile(null)
       setStaff(null)
@@ -116,13 +116,13 @@ export default function App() {
       try {
         await loadProfile(data.session)
       } catch (loadError) {
-        if (alive) setError(friendlyError(loadError))
+        if (alive) setError(friendlyErrorText(loadError))
       } finally {
         if (alive) setLoading(false)
       }
     }).catch((loadError: unknown) => {
       if (alive) {
-        setError(friendlyError(loadError))
+        setError(friendlyErrorText(loadError))
         setLoading(false)
       }
     })
@@ -131,7 +131,7 @@ export default function App() {
       if (!alive) return
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryMode(true)
-        setError('')
+        setError(null)
       }
       const nextUserId = nextSession?.user.id ?? null
       if (nextUserId !== null && nextUserId === activeUserId.current) {
@@ -146,7 +146,7 @@ export default function App() {
       setLoading(Boolean(nextSession))
       window.setTimeout(() => {
         void loadProfile(nextSession)
-          .catch((loadError: unknown) => setError(friendlyError(loadError)))
+          .catch((loadError: unknown) => setError(friendlyErrorText(loadError)))
           .finally(() => setLoading(false))
       }, 0)
     })
@@ -168,14 +168,14 @@ export default function App() {
     if (!supabase) return
     const email = String(new FormData(event.currentTarget).get('email') ?? '').trim().toLowerCase()
     setBusy(true)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
       if (resetError) throw resetError
-      setNotice(t('لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.', 'If this email is linked to an account, you will receive a secure password reset link.'))
+      setNotice({ ar: 'لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.', en: 'If this email is linked to an account, you will receive a secure password reset link.' })
     } catch (resetError) {
-      setError(friendlyError(resetError))
+      setError(friendlyErrorText(resetError))
     } finally {
       setBusy(false)
     }
@@ -186,15 +186,15 @@ export default function App() {
     if (!supabase) return
     const password = String(new FormData(event.currentTarget).get('password') ?? '')
     setBusy(true)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
       setRecoveryMode(false)
-      setNotice(t('تم تعيين كلمة المرور الجديدة بنجاح.', 'Your new password has been set successfully.'))
+      setNotice({ ar: 'تم تعيين كلمة المرور الجديدة بنجاح.', en: 'Your new password has been set successfully.' })
     } catch (updateError) {
-      setError(friendlyError(updateError))
+      setError(friendlyErrorText(updateError))
     } finally {
       setBusy(false)
     }
@@ -203,8 +203,8 @@ export default function App() {
   async function submitAuth(formElement: HTMLFormElement) {
     if (!supabase) return
     setBusy(true)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
 
     const form = new FormData(formElement)
     const email = String(form.get('email') ?? '').trim().toLowerCase()
@@ -220,14 +220,14 @@ export default function App() {
         if (signUpError) throw signUpError
         if (!data.session) {
           setConfirmationPending(true)
-          setNotice(t('الحساب اتعمل. افتح رسالة التأكيد على إيميلك، وبعدها ارجع سجّل دخول علشان تكمل بيانات الباحث.', 'Account created. Check your email for the confirmation link, then sign in to complete your profile.'))
+          setNotice({ ar: 'الحساب اتعمل. افتح رسالة التأكيد على إيميلك، وبعدها ارجع سجّل دخول علشان تكمل بيانات الباحث.', en: 'Account created. Check your email for the confirmation link, then sign in to complete your profile.' })
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
       }
     } catch (authError) {
-      setError(friendlyError(authError))
+      setError(friendlyErrorText(authError))
     } finally {
       setBusy(false)
     }
@@ -242,8 +242,8 @@ export default function App() {
   async function submitProfile(formElement: HTMLFormElement) {
     if (!supabase || !session?.user) return
     setBusy(true)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
 
     const form = new FormData(formElement)
     const applicantType = String(form.get('applicant_type')) as 'egyptian' | 'foreign'
@@ -272,9 +272,9 @@ export default function App() {
         ...data,
         degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null,
       } as ResearcherProfile)
-      setNotice(t('ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.', 'Researcher profile saved. You can now explore the center services.'))
+      setNotice({ ar: 'ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.', en: 'Researcher profile saved. You can now explore the center services.' })
     } catch (profileError) {
-      setError(friendlyError(profileError))
+      setError(friendlyErrorText(profileError))
     } finally {
       setBusy(false)
     }
@@ -282,9 +282,9 @@ export default function App() {
 
   async function signOut() {
     if (!supabase) return
-    setError('')
+    setError(null)
     const { error: signOutError } = await supabase.auth.signOut()
-    if (signOutError) setError(friendlyError(signOutError))
+    if (signOutError) setError(friendlyErrorText(signOutError))
     setProfile(null)
     setStaff(null)
     setInactiveStaff(false)
@@ -294,7 +294,7 @@ export default function App() {
     return <SetupScreen />
   }
 
-  if (recoveryMode) return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تأمين الحساب', 'Account Security')}</span><h1>{t('تعيين كلمة مرور جديدة', 'Set a New Password')}</h1><form className="form-stack" onSubmit={handleNewPassword}><label>{t('كلمة المرور الجديدة', 'New Password')}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : t('حفظ كلمة المرور', 'Save Password')}</button></form></div></main>
+  if (recoveryMode) return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تأمين الحساب', 'Account Security')}</span><h1>{t('تعيين كلمة مرور جديدة', 'Set a New Password')}</h1><form className="form-stack" onSubmit={handleNewPassword}><label>{t('كلمة المرور الجديدة', 'New Password')}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error[lang]}</p>}<button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : t('حفظ كلمة المرور', 'Save Password')}</button></form></div></main>
 
   if (session && profile) {
     return (<><ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} /><AssistantWidget audience={profile.applicant_type === 'foreign' ? 'expat' : 'egyptian'} /></>)
@@ -311,7 +311,7 @@ export default function App() {
   }
 
   if (session && error) {
-    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حصلت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة تاني', 'Sign Out and Try Again')}</button></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حصلت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error[lang]}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة تاني', 'Sign Out and Try Again')}</button></div></main>
   }
 
   return (
@@ -347,23 +347,23 @@ export default function App() {
                 </div>
               </div>
               {!forgotPassword && <div className="mode-switch" role="tablist" aria-label={t('نوع العملية', 'Action Type')}>
-                <button className={mode === 'sign-in' ? 'active' : ''} onClick={() => { setMode('sign-in'); setNotice(''); setError(''); setConfirmationPending(false) }}>{t('تسجيل الدخول', 'Sign In')}</button>
-                <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => { setMode('sign-up'); setNotice(''); setError(''); setConfirmationPending(false) }}>{t('حساب جديد', 'Sign Up')}</button>
+                <button className={mode === 'sign-in' ? 'active' : ''} onClick={() => { setMode('sign-in'); setNotice(null); setError(null); setConfirmationPending(false) }}>{t('تسجيل الدخول', 'Sign In')}</button>
+                <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => { setMode('sign-up'); setNotice(null); setError(null); setConfirmationPending(false) }}>{t('حساب جديد', 'Sign Up')}</button>
               </div>}
               {forgotPassword ? <form className="form-stack" onSubmit={handlePasswordReset}>
                 <label>{t('البريد الإلكتروني', 'Email Address')}<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
-                {notice && <p className="message success" role="status">{notice}</p>}{error && <p className="message error" role="alert">{error}</p>}
+                {notice && <p className="message success" role="status">{notice[lang]}</p>}{error && <p className="message error" role="alert">{error[lang]}</p>}
                 <button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : 'إرسال رابط الاستعادة'}</button>
-                <button type="button" className="quiet-button" onClick={() => { setForgotPassword(false); setNotice(''); setError('') }}>{t('العودة لتسجيل الدخول', 'Back to Sign In')}</button>
+                <button type="button" className="quiet-button" onClick={() => { setForgotPassword(false); setNotice(null); setError(null) }}>{t('العودة لتسجيل الدخول', 'Back to Sign In')}</button>
               </form> : <form className="form-stack" onSubmit={handleAuth}>
                 <label>{t('البريد الإلكتروني', 'Email Address')}<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
                 <label>{t('كلمة المرور', 'Password')}<input name="password" type="password" minLength={8} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} placeholder={t('٨ أحرف على الأقل', 'At least 8 characters')} required /></label>
-                {notice && <p className="message success" role="status">{notice}</p>}
-                {error && <p className="message error" role="alert">{error}</p>}
+                {notice && <p className="message success" role="status">{notice[lang]}</p>}
+                {error && <p className="message error" role="alert">{error[lang]}</p>}
                 <button className="primary-button" disabled={busy || confirmationPending}>
                   {busy ? t('لحظة واحدة...', 'One moment...') : mode === 'sign-up' ? t('إنشاء الحساب', 'Create Account') : t('دخول', 'Sign In')} <span>{isEn ? '→' : '←'}</span>
                 </button>
-                {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(''); setError('') }}>{t('نسيت كلمة المرور؟', 'Forgot password?')}</button>}
+                {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(null); setError(null) }}>{t('نسيت كلمة المرور؟', 'Forgot password?')}</button>}
                 <p className="form-footnote">{t('بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.', 'By creating an account, you can track your requests and profile from your personal dashboard.')}</p>
               </form>}
             </>
@@ -389,9 +389,9 @@ export default function App() {
                 </div>
                 <label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختار الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
                 <label>{t('التخصص', 'Specialty')}<input name="specialty" placeholder={t('مثال: إدارة أعمال', 'e.g., Business Administration')} /></label>
-                {error && <p className="message error" role="alert">{error}</p>}
+                {error && <p className="message error" role="alert">{error[lang]}</p>}
                 <button className="primary-button" disabled={busy}>{busy ? t('بنسجل بياناتك...', 'Saving your profile...') : t('حفظ ملف الباحث', 'Save Researcher Profile')} <span>{isEn ? '→' : '←'}</span></button>
-                <p className="form-footnote">بياناتك بتظهر لك وللموظفين المصرّح لهم فقط. تعديل الملف بعد التسجيل بيتم عن طريق إدارة المركز.</p>
+                <p className="form-footnote">{t('بياناتك بتظهر لك وللموظفين المصرّح لهم فقط. تعديل الملف بعد التسجيل بيتم عن طريق إدارة المركز.', 'Your data is visible only to you and authorized staff. Profile updates after registration are handled by center administration.')}</p>
               </form>
             </>
           )}
