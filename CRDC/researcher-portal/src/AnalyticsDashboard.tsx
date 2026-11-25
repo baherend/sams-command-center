@@ -92,7 +92,7 @@ function MixChart({ egyptian, foreign }: { egyptian: number; foreign: number }) 
   const isEn = document.documentElement.lang === 'en'
   if (!total) return <p className="card-description">{isEn ? 'No requests in the selected period.' : 'لا توجد طلبات في الفترة المختارة.'}</p>
   const ePct = (egyptian / total) * 100
-  const label = `مصريون ${num.format(egyptian)} طلب، ووافدون ${num.format(foreign)} طلب`
+  const label = isEn ? `Egyptian: ${num.format(egyptian)} requests, International: ${num.format(foreign)} requests` : `مصريون ${num.format(egyptian)} طلب، ووافدون ${num.format(foreign)} طلب`
   return (
     <div className="analytics-mix">
       <svg className="analytics-mix-svg" viewBox="0 0 100 14" preserveAspectRatio="none" role="img" aria-label={label}>
@@ -208,7 +208,7 @@ export default function AnalyticsDashboard() {
     <>
       <div className="portal-heading"><span className="eyebrow">{isEn ? 'Staff Dashboard' : 'لوحة الموظفين'}</span><h1>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</h1><p>{isEn ? 'Aggregated figures for requests and revenue, without exposing researcher personal details.' : 'أرقام مجمعة عن الطلبات والإيرادات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.'}</p></div>
       <div className="analytics-toolbar">
-        <div className="analytics-range" role="group" aria-label="الفترة الزمنية">
+        <div className="analytics-range" role="group" aria-label={isEn ? 'Time Period' : 'الفترة الزمنية'}>
           {getRanges(isEn).map((range) => (
             <button key={range.label} type="button" aria-pressed={days === range.value} onClick={() => setDays(range.value)}>{range.label}</button>
           ))}
@@ -232,7 +232,7 @@ export default function AnalyticsDashboard() {
             <section className="portal-card wide" aria-labelledby="an-service">
               <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'By Service' : 'حسب الخدمة'}</span><h2 id="an-service">{isEn ? 'Items & Verified Revenue per Service' : 'البنود والإيراد الموثّق لكل خدمة'}</h2></div></div>
               <BarList
-                label="عدد البنود لكل خدمة"
+                label={isEn ? 'Items count per service' : 'عدد البنود لكل خدمة'}
                 rows={data.by_service.map((s) => ({
                   key: s.service_code, name: translateDbText(s.service_name_ar, isEn), value: s.item_count,
                   extra: <small className="analytics-bar-extra">{isEn ? 'Verified revenue: ' : 'إيراد موثّق: '}<Money value={s.revenue_egp} currency="EGP" /> · <Money value={s.revenue_usd} currency="USD" /></small>,
@@ -242,7 +242,7 @@ export default function AnalyticsDashboard() {
 
             <section className="portal-card" aria-labelledby="an-status">
               <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Workflow Stages' : 'مراحل العمل'}</span><h2 id="an-status">{isEn ? 'Items by Status' : 'البنود حسب الحالة'}</h2></div></div>
-              <BarList label="عدد البنود لكل حالة" rows={data.by_status.map((s) => ({ key: s.status_code, name: translateDbText(s.status_name_ar, isEn), value: s.item_count }))} />
+              <BarList label={isEn ? 'Items count per status' : 'عدد البنود لكل حالة'} rows={data.by_status.map((s) => ({ key: s.status_code, name: translateDbText(s.status_name_ar, isEn), value: s.item_count }))} />
             </section>
 
             <section className="portal-card" aria-labelledby="an-mix">
@@ -252,7 +252,7 @@ export default function AnalyticsDashboard() {
 
             <section className="portal-card wide" aria-labelledby="an-trend">
               <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Last 12 Months' : 'آخر 12 شهرًا'}</span><h2 id="an-trend">{isEn ? 'Monthly Trend' : 'الاتجاه الشهري'}</h2></div></div>
-              <p className="card-description">المدى ثابت على آخر 12 شهرًا بغض النظر عن الفترة المختارة. الأشهر مرتبة زمنيًا من الأقدم (يسار) إلى الأحدث (يمين).</p>
+              <p className="card-description">{isEn ? 'Range is fixed to the last 12 months regardless of the selected filter. Months are ordered chronologically from oldest (left) to newest (right).' : 'المدى ثابت على آخر 12 شهرًا بغض النظر عن الفترة المختارة. الأشهر مرتبة زمنيًا من الأقدم (يسار) إلى الأحدث (يمين).'}</p>
               <div className="analytics-trend-stack">
                 <TrendChart title={isEn ? 'Monthly Requests' : 'عدد الطلبات شهريًا'} rows={data.monthly_trend} pick={(r) => r.request_count} kind="count" format={(v) => num.format(v)} color="#185b48" />
                 <TrendChart title={isEn ? 'Monthly Verified Revenue (EGP)' : 'الإيراد الموثّق شهريًا (جنيه)'} rows={data.monthly_trend} pick={(r) => r.revenue_egp} kind="money" format={(v) => `${num.format(v)} EGP`} color="#d88b55" />

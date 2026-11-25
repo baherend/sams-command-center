@@ -80,7 +80,7 @@ type PaymentRow = {
   rejection_reason: string | null
 }
 
-const statusName = (status: StatusRow | undefined) => status?.name_ar ?? 'غير محدد'
+const statusName = (status: StatusRow | undefined, isEn = false) => status ? translateDbText(status.name_ar, isEn) : (isEn ? 'Unspecified' : 'غير محدد')
 const formatDate = (value: string | null | undefined) =>
   value ? new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
 const money = (amount: number | string, currency: string) =>
@@ -385,19 +385,19 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   return (
     <main className="page-shell researcher-shell" dir={dir}>
       <header className="topbar">
-        <a className="brand" href="#home" aria-label="مركز الاستشارات والبحوث والتطوير">
+        <a className="brand" href="#home" aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
           <span className="brand-mark">{isEn ? 'C' : 'م'}</span><span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · SAMS' : 'والبحوث والتطوير · أكاديمية السادات'}</small></span>
         </a>
         <div className="researcher-top-actions"><span className="welcome-name">{isEn ? 'Welcome,' : 'أهلاً،'} {profile.full_name}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
-      <nav className="researcher-nav" aria-label="التنقل في حساب الباحث">
+      <nav className="researcher-nav" aria-label={t('التنقل في حساب الباحث', 'Researcher portal navigation')}>
         {navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => chooseView(item.id)}>{item.label}</button>)}
       </nav>
 
       {notice && <p className="message success portal-message" role="status">{notice}</p>}
       {error && <p className="message error portal-message" role="alert">{error}</p>}
-      {loading ? <div className="loading portal-loading"><span className="spinner" /> بنحمّل بيانات حسابك...</div> : (
+      {loading ? <div className="loading portal-loading"><span className="spinner" /> {t('بنحمّل بيانات حسابك...', 'Loading your account data...')}</div> : (
         <section className="portal-content" aria-live="polite">
           {view === 'home' && <ResearcherGuideHome applicantType={profile.applicant_type} onStartRequest={() => chooseView('catalog')} />}
           {view === 'catalog' && <>
@@ -416,28 +416,28 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                       <legend>{translateDbText(service.name_ar, isEn)}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
-                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>السعر الأساسي <Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
+                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
                       </label>)}
                     </fieldset>
                   })}
-                  {!fees.length && <p className="empty-state">مفيش خدمات متاحة حاليًا لنوع حسابك.</p>}
+                  {!fees.length && <p className="empty-state">{t('مفيش خدمات متاحة حاليًا لنوع حسابك.', 'No services are currently available for your applicant type.')}</p>}
                 </div>
                 <p className="form-footnote">{isEn ? 'The final amount is calculated according to the approved tariff. The listed price is the base fee only, excluding extra pages.' : 'المبلغ النهائي بيتحسب ويتسجل في قاعدة البيانات حسب التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ومش شامل حساب الصفحات الإضافية.'}</p>
                 <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'بنسجل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
               </form>
               <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.'}</p>
-                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{translateDbText(requirement.name_ar, isEn)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">مفيش متطلبات مسجلة للدرجة العلمية دي.</p>}
+                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{translateDbText(requirement.name_ar, isEn)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">{t('مفيش متطلبات مسجلة للدرجة العلمية دي.', 'No specific requirements are registered for this degree.')}</p>}
               </aside>
             </div>
           </>}
 
           {view === 'requests' && <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Request Tracking' : 'متابعة الطلبات'}</span><h1>{detail ? 'تفاصيل الطلب' : (isEn ? 'My Requests' : 'طلباتي')}</h1><p>كل طلب خاص بعمل واحد، وتفاصيل حالة كل خدمة بتظهر لوحدها.</p></div>
-            {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> بنحمّل تفاصيل الطلب...</div> : detail ? <>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Request Tracking' : 'متابعة الطلبات'}</span><h1>{detail ? t('تفاصيل الطلب', 'Request Details') : t('طلباتي', 'My Requests')}</h1><p>{t('كل طلب خاص بعمل واحد، وتفاصيل حالة كل خدمة بتظهر لوحدها.', 'Each request belongs to a single work, and each service item shows its own status.')}</p></div>
+            {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> {t('بنحمّل تفاصيل الطلب...', 'Loading request details...')}</div> : detail ? <>
               <button className="back-button" onClick={() => setDetail(null)}>{isEn ? '← Back to My Requests' : '→ رجوع لطلباتي'}</button>
               <article className="portal-card request-detail-card">
-                <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at)}</span></div>
-                <p className="detail-pages">عدد الصفحات: {detail.request.page_count ?? '—'}</p>
+                <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at)}</span></div>
+                <p className="detail-pages">{t('عدد الصفحات:', 'Page count:')} {detail.request.page_count ?? '—'}</p>
                 <div className="item-list">{detail.items.map((item) => {
                   const fee = detail.fees.find((row) => row.fee_id === item.fee_id)
                   const service = detail.services.find((row) => row.service_id === item.service_id)
@@ -446,80 +446,99 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                   const journal = publication && detail.journals.find((row) => row.journal_id === publication.journal_id)
                   const issue = publication?.issue_id && detail.issues.find((row) => row.issue_id === publication.issue_id)
                   return <section className="request-item" key={item.item_id}>
-                    <div className="request-item-heading"><div><span className="eyebrow">{service?.name_ar ?? 'خدمة'}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id))}</span></div>
-                    <div className="item-facts"><span>المبلغ المسجل</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>حالة السداد</span><strong>{payment ? (payment.paid_at ? `تم السداد · ${formatDate(payment.paid_at)}` : 'إذن الدفع مسجل') : 'لم يُسجل دفع بعد'}</strong>{payment?.payment_order_no && <><span>رقم إذن الدفع</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>رقم الإيصال</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
-                    {publication && <div className="publication-facts"><strong>بيانات النشر</strong><span>المجلة: {journal?.name_ar ?? '—'}</span><span>اللغة: {publication.paper_language === 'ar' ? 'العربية' : 'الإنجليزية'}</span><span>قرار النشر: {decisionLabel(publication.decision)}</span>{issue && <span>العدد: {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>تاريخ القبول: {formatDate(publication.accepted_at)}</span>}</div>}
-                    <div className="timeline"><h4>سجل الحالة</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id))}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
+                    <div className="request-item-heading"><div><span className="eyebrow">{service ? translateDbText(service.name_ar, isEn) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), isEn)}</span></div>
+                    <div className="item-facts"><span>{t('المبلغ المسجل', 'Recorded Amount')}</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>{t('حالة السداد', 'Payment Status')}</span><strong>{payment ? (payment.paid_at ? ` · ${formatDate(payment.paid_at)}` : t('إذن الدفع مسجل', 'Payment Order Issued')) : t('لم يُسجل دفع بعد', 'Not Paid Yet')}</strong>{payment?.payment_order_no && <><span>{t('رقم إذن الدفع', 'Payment Order No.')}</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>{t('رقم الإيصال', 'Receipt No.')}</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
+                    {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? translateDbText(journal.name_ar, isEn) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at)}</span>}</div>}
+                    <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), isEn)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
                   </section>
                 })}</div>
                 {detail.payments.map((payment) => {
                   const paymentItems = detail.items.filter((item) => String(item.payment_id) === String(payment.payment_id))
                   if (!paymentItems.length) return null
-                  const paymentStatus = payment.receipt_status === 'pending_review' ? 'بانتظار مراجعة الخزينة'
-                    : payment.receipt_status === 'verified' ? 'تم اعتماد السداد'
-                      : payment.receipt_status === 'rejected' ? 'مرفوض — يرجى إعادة الرفع'
-                        : 'ارفع إيصال الدفع'
+                  const paymentStatus = payment.receipt_status === 'pending_review' ? t('بانتظار مراجعة الخزينة', 'Pending Treasury Review')
+                    : payment.receipt_status === 'verified' ? t('تم اعتماد السداد', 'Payment Verified')
+                      : payment.receipt_status === 'rejected' ? t('مرفوض — يرجى إعادة الرفع', 'Rejected — Please Re-upload')
+                        : t('ارفع إيصال الدفع', 'Upload Payment Receipt')
                   const canSubmitReceipt = ['awaiting_receipt','rejected'].includes(payment.receipt_status)
                     && payment.payment_order_no !== null
                     && paymentItems.every((item) => detail.statuses.find((status) => status.status_id === item.status_id)?.code === 'PAYMENT_ORDER')
                   return <section className="portal-card payment-receipt-card" data-testid="payment-receipt-card" key={payment.payment_id}>
-                    <div className="payment-receipt-heading"><div><span className="eyebrow">إيصال السداد</span><h3>إذن الدفع <Ltr>{payment.payment_order_no ?? String(payment.payment_id)}</Ltr></h3></div><span className={`status-pill receipt-status-${payment.receipt_status}`}>{paymentStatus}</span></div>
-                    <p>المبلغ المطلوب <strong><Money amount={payment.amount} currency={payment.currency} /></strong></p>
-                    {payment.receipt_status === 'rejected' && payment.rejection_reason && <p className="message error receipt-rejection-reason">سبب الرفض: {payment.rejection_reason}</p>}
-                    {payment.receipt_status === 'pending_review' && payment.receipt_no && <p>رقم الإيصال: <Ltr>{payment.receipt_no}</Ltr></p>}
-                    {payment.receipt_status === 'verified' && payment.paid_at && <p>تاريخ السداد: {formatDate(payment.paid_at)}</p>}
+                    <div className="payment-receipt-heading"><div><span className="eyebrow">{t('إيصال السداد', 'Payment Receipt')}</span><h3>{t('إذن الدفع ', 'Payment Order ')}<Ltr>{payment.payment_order_no ?? String(payment.payment_id)}</Ltr></h3></div><span className={`status-pill receipt-status-${payment.receipt_status}`}>{paymentStatus}</span></div>
+                    <p>{t('المبلغ المطلوب ', 'Amount due ')}<strong><Money amount={payment.amount} currency={payment.currency} /></strong></p>
+                    {payment.receipt_status === 'rejected' && payment.rejection_reason && <p className="message error receipt-rejection-reason">{t('سبب الرفض:', 'Rejection reason:')} {payment.rejection_reason}</p>}
+                    {payment.receipt_status === 'pending_review' && payment.receipt_no && <p>{t('رقم الإيصال: ', 'Receipt No.: ')}<Ltr>{payment.receipt_no}</Ltr></p>}
+                    {payment.receipt_status === 'verified' && payment.paid_at && <p>{t('تاريخ السداد:', 'Paid on:')} {formatDate(payment.paid_at)}</p>}
                     {canSubmitReceipt && <PaymentReceiptForm payment={payment} items={paymentItems} services={detail.services} onSubmit={submitPaymentReceipt} onError={(message) => setError(message)} />}
                   </section>
                 })}
-                {!detail.items.length && <p className="empty-state">مفيش خدمات مرتبطة بالطلب ده.</p>}
+                {!detail.items.length && <p className="empty-state">{t('مفيش خدمات مرتبطة بالطلب ده.', 'No service items linked to this request.')}</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
-              <span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} صفحة</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
-            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لسه مفيش طلبات'}</h2><p>لما تقدم طلب جديد هتقدر تتابع تفاصيله وحالته من هنا.</p><button className="primary-button" onClick={() => chooseView('catalog')}>استعراض الخدمات <span>{isEn ? '→' : '←'}</span></button></div>}
+              <span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, isEn)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
+            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لسه مفيش طلبات'}</h2><p>{t('لما تقدم طلب جديد هتقدر تتابع تفاصيله وحالته من هنا.', 'Once you submit a new request, you can track its details and status here.')}</p><button className="primary-button" onClick={() => chooseView('catalog')}>{t('استعراض الخدمات ', 'Browse Services ')}<span>{isEn ? '→' : '←'}</span></button></div>}
           </>}
 
           {view === 'profile' && <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Researcher Account' : 'حساب الباحث'}</span><h1>{isEn ? 'My Profile' : 'ملفي الشخصي'}</h1><p>بياناتك الأساسية المسجلة في حساب الباحث.</p></div>
-            <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">حسابك جاهز</span><h2>{profile.full_name}</h2></div></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Researcher Account' : 'حساب الباحث'}</span><h1>{isEn ? 'My Profile' : 'ملفي الشخصي'}</h1><p>{t('بياناتك الأساسية المسجلة في حساب الباحث.', 'Your core details registered on your researcher account.')}</p></div>
+            <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">{t('حسابك جاهز', 'Account Active')}</span><h2>{profile.full_name}</h2></div></div>
               <h3>{isEn ? 'Edit Personal Details' : 'تعديل البيانات الشخصية'}</h3>
               <form className="form-stack" onSubmit={submitProfileEdit}>
                 <label>{isEn ? 'Applicant Type' : 'نوع الباحث'}<input value={profile.applicant_type === 'egyptian' ? (isEn ? 'Egyptian' : 'مصري') : (isEn ? 'International / Foreign' : 'وافد')} readOnly /></label>
                 <label>{isEn ? 'Email Address' : 'البريد الإلكتروني'}<input value={profile.email} dir="ltr" readOnly /></label>
-                <label>{profile.applicant_type === 'egyptian' ? 'الرقم القومي' : 'رقم جواز السفر'}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
-                {profile.applicant_type === 'foreign' && <label>الجنسية<input value={profile.nationality ?? ''} readOnly /></label>}
+                <label>{profile.applicant_type === 'egyptian' ? t('الرقم القومي', 'National ID') : t('رقم جواز السفر', 'Passport Number')}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
+                {profile.applicant_type === 'foreign' && <label>{t('الجنسية', 'Nationality')}<input value={profile.nationality ?? ''} readOnly /></label>}
                 <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
-                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{translateDbText(degree.name_ar, isEn)}</option>)}</select></label>
+                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{translateDbText(degree.name_ar, isEn)}</option>)}</select></label>
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
                 <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'بنحفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
-              <dl className="profile-details"><dt>تاريخ إنشاء الملف</dt><dd>{formatDate(profile.created_at)}</dd></dl>
+              <dl className="profile-details"><dt>{t('تاريخ إنشاء الملف', 'Profile Created On')}</dt><dd>{formatDate(profile.created_at)}</dd></dl>
             </article>
           </>}
         </section>
       )}
 
-      <footer className="page-footer"><span>CRDC</span><span>مركز الاستشارات والبحوث والتطوير</span><span>نموذج أولي · بياناتك في أمان</span></footer>
+      <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
     </main>
   )
 }
 
-function overallStatus(requestId: number | string, statuses: StatusRow[], statusById: Map<number, StatusRow>, requestStatusIds: Map<string, number[]>) {
+function overallStatus(requestId: number | string, statuses: StatusRow[], statusById: Map<number, StatusRow>, requestStatusIds: Map<string, number[]>, isEn = false) {
   const itemStatuses = requestStatusIds.get(String(requestId)) ?? []
-  const names = [...new Set(itemStatuses.map((id) => statusName(statusById.get(id))))]
-  return names.length === 1 ? names[0] : names.length > 1 ? 'الخدمات في مراحل مختلفة' : statuses.find((status) => status.code === 'SUBMITTED')?.name_ar ?? 'تم التقديم'
+  const names = [...new Set(itemStatuses.map((id) => statusName(statusById.get(id), isEn)))]
+  const fallback = statuses.find((status) => status.code === 'SUBMITTED')
+  return names.length === 1 ? names[0] : names.length > 1 ? (isEn ? 'Services in multiple stages' : 'الخدمات في مراحل مختلفة') : (fallback ? translateDbText(fallback.name_ar, isEn) : (isEn ? 'Submitted' : 'تم التقديم'))
+}
+
+const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
+  PUB_ARBITRATION: { ar: 'تحكيم البحث', en: 'Research Arbitration' },
+  PUB_PUBLISH: { ar: 'نشر البحث', en: 'Research Publication' },
+  LANG_AR: { ar: 'تدقيق لغوي عربي', en: 'Arabic Proofreading' },
+  LANG_EN: { ar: 'تدقيق لغوي إنجليزي', en: 'English Proofreading' },
+  STAT_REVIEW: { ar: 'مراجعة إحصائية', en: 'Statistical Review' },
+  STAT_ANALYSIS: { ar: 'تحليل إحصائي', en: 'Statistical Analysis' },
+  DT_COURSE_EXAM: { ar: 'دورة واختبار التحول الرقمي', en: 'Digital Transformation Course & Exam' },
+  DT_EXAM_ONLY: { ar: 'اختبار التحول الرقمي فقط', en: 'Digital Transformation Exam Only' },
+  DT_RETAKE: { ar: 'إعادة اختبار التحول الرقمي', en: 'Digital Transformation Exam Retake' },
+  PLAG: { ar: 'قياس نسبة الاقتباس', en: 'Plagiarism Check' },
 }
 
 function optionLabel(code: string) {
-  const labels: Record<string, string> = {
-    PUB_ARBITRATION: 'تحكيم البحث', PUB_PUBLISH: 'نشر البحث', LANG_AR: 'تدقيق لغوي عربي', LANG_EN: 'تدقيق لغوي إنجليزي',
-    STAT_REVIEW: 'مراجعة إحصائية', STAT_ANALYSIS: 'تحليل إحصائي', DT_COURSE_EXAM: 'دورة واختبار التحول الرقمي',
-    DT_EXAM_ONLY: 'اختبار التحول الرقمي فقط', DT_RETAKE: 'إعادة اختبار التحول الرقمي', PLAG: 'قياس نسبة الاقتباس',
-  }
-  return labels[code] ?? code
+  const isEn = typeof document !== 'undefined' && document.documentElement.lang === 'en'
+  const entry = OPTION_LABELS[code]
+  return entry ? (isEn ? entry.en : entry.ar) : code
 }
 
-function decisionLabel(decision: PublicationRow['decision']) {
-  return ({ pending: 'قيد التحكيم', revisions: 'تعديلات مطلوبة', accepted: 'مقبول', rejected: 'مرفوض' })[decision]
+const DECISION_LABELS: Record<PublicationRow['decision'], { ar: string; en: string }> = {
+  pending: { ar: 'قيد التحكيم', en: 'Under Review' },
+  revisions: { ar: 'تعديلات مطلوبة', en: 'Revisions Required' },
+  accepted: { ar: 'مقبول', en: 'Accepted' },
+  rejected: { ar: 'مرفوض', en: 'Rejected' },
+}
+
+function decisionLabel(decision: PublicationRow['decision'], isEn = false) {
+  const entry = DECISION_LABELS[decision]
+  return isEn ? entry.en : entry.ar
 }
 
 function PaymentReceiptForm({
@@ -535,6 +554,7 @@ function PaymentReceiptForm({
   onSubmit: (payment: PaymentRow, formData: FormData) => Promise<void>
   onError: (message: string) => void
 }) {
+  const { t, isEn } = useI18n()
   const [submitting, setSubmitting] = useState(false)
   const singleFlight = useSingleFlight()
 
@@ -553,15 +573,15 @@ function PaymentReceiptForm({
   }
 
   return <form className="payment-receipt-form" onSubmit={handleSubmit}>
-    <div className="receipt-covered-items"><strong>الخدمات المشمولة بالإيصال</strong><ul>{items.map((item) => <li key={item.item_id}>
-      <span>{services.find((service) => service.service_id === item.service_id)?.name_ar ?? 'خدمة'}</span>
+    <div className="receipt-covered-items"><strong>{t('الخدمات المشمولة بالإيصال', 'Services Covered by Receipt')}</strong><ul>{items.map((item) => <li key={item.item_id}>
+      <span>{(() => { const s = services.find((service) => service.service_id === item.service_id); return s ? translateDbText(s.name_ar, isEn) : t('خدمة', 'Service') })()}</span>
       <Money amount={item.amount_due} currency={item.currency} />
     </li>)}</ul></div>
-    <label>قناة السداد<select name="channel" defaultValue={payment.channel} required>
-      <option value="treasury">الخزينة</option><option value="bank">البنك</option>
+    <label>{t('قناة السداد', 'Payment Channel')}<select name="channel" defaultValue={payment.channel} required>
+      <option value="treasury">{t('الخزينة', 'Treasury')}</option><option value="bank">{t('البنك', 'Bank')}</option>
     </select></label>
-    <label>رقم الإيصال<input name="receipt_no" required maxLength={100} autoComplete="off" /></label>
-    <label>تاريخ السداد<input name="paid_at" type="date" required max={new Date().toISOString().slice(0, 10)} /></label>
+    <label>{t('رقم الإيصال', 'Receipt Number')}<input name="receipt_no" required maxLength={100} autoComplete="off" /></label>
+    <label>{t('تاريخ السداد', 'Payment Date')}<input name="paid_at" type="date" required max={new Date().toISOString().slice(0, 10)} /></label>
     <label>صورة أو ملف الإيصال<input name="receipt_file" type="file" required accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" /><small>PDF أو JPG أو PNG، بحد أقصى ٥ ميجابايت.</small></label>
     <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'بنرفع الإيصال...' : 'إرسال الإيصال للمراجعة'}</button>
   </form>

@@ -45,6 +45,7 @@ type CashierItemDisplay = CashierItem & { service_name: string; option_code: str
 type CashierCursor = { submitted_by_researcher_at: string; payment_id: number }
 type CashierQueueRow = { payment: CashierPayment; contact: CashierContact | undefined; items: CashierItemDisplay[] }
 
+const roleNamesEn: Record<StaffRole, string> = { admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }
 const roleNames: Record<StaffRole, string> = {
   admin: 'مدير النظام', reviewer: 'مراجع', statistician: 'إحصائي', cashier: 'أمين خزينة', viewer: 'مشاهد',
 }
@@ -139,7 +140,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         const contacts = new Map(((contactResult.data ?? []) as CashierContact[]).map((row) => [row.request_id, row]))
         const itemsByPayment = new Map<number, CashierItemDisplay[]>()
         for (const item of itemRows) {
-          const display = { ...item, service_name: serviceNames.get(item.service_id) ?? 'خدمة', option_code: feeCodes.get(item.fee_id) ?? '' }
+          const display = { ...item, service_name: serviceNames.get(item.service_id) ?? 'SERVICE_FALLBACK', option_code: feeCodes.get(item.fee_id) ?? '' }
           itemsByPayment.set(item.payment_id, [...(itemsByPayment.get(item.payment_id) ?? []), display])
         }
         setCashierRows(pagePayments.map((payment) => ({
@@ -287,9 +288,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
   const getRequestStatus = (request: QueueRequest) => ({
     code: request.queue_status_code,
-    label: request.queue_status_code === 'MIXED' ? 'مراحل مختلفة'
-      : request.queue_status_code === 'NO_ITEMS' ? 'بدون بنود'
-        : statusByCode.get(request.queue_status_code)?.name_ar ?? 'غير محدد',
+    label: request.queue_status_code === 'MIXED' ? t('مراحل مختلفة', 'Mixed Stages')
+      : request.queue_status_code === 'NO_ITEMS' ? t('بدون بنود', 'No Items')
+        : (() => { const s = statusByCode.get(request.queue_status_code); return s ? translateDbText(s.name_ar, isEn) : t('غير محدد', 'Unspecified') })(),
   })
 
   function resetPagination() {
@@ -445,14 +446,14 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   return (
     <main className="page-shell researcher-shell staff-shell" dir={dir}>
       <header className="topbar">
-        <a className="brand" href="#staff-home" aria-label="مركز الاستشارات والبحوث والتطوير">
+        <a className="brand" href="#staff-home" aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
           <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
           <span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · Staff Console' : 'والبحوث والتطوير · لوحة الموظفين'}</small></span>
         </a>
         <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{isEn ? ({ admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }[staff.role]) : roleNames[staff.role]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
-      <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
+      <nav className="researcher-nav" aria-label={t('التنقل في لوحة الموظف', 'Staff console navigation')}>
         {staff.role === 'viewer' && analyticsButton}
         {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</button>}
         {isAdmin && analyticsButton}
@@ -463,13 +464,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
       <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
-          <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {isEn ? ({ admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }[staff.role]) : roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
+          <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.`, `Signed in as ${roleNamesEn[staff.role]}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
           <AnalyticsDashboard />
         ) : view === 'overview' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
-            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>أهلًا يا {staff.full_name}</h2><p>تابع إدارة الطلبات من التبويب المخصص.</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'بنحمّل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error}</p> : (
+            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'بنحمّل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error}</p> : (
               <>
                 <div className="staff-stat-grid">
                   <article className="portal-card staff-stat-card"><span>{isEn ? 'Total Requests' : 'إجمالي الطلبات'}</span><strong>{total.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'All registered requests' : 'كل الطلبات المسجلة'}</small></article>
@@ -478,7 +479,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 </div>
                 <section className="portal-card staff-status-card" aria-labelledby="status-heading">
                   <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Request Distribution' : 'توزيع الطلبات'}</span><h2 id="status-heading">{isEn ? 'By Status' : 'حسب الحالة'}</h2></div><span className="role-badge">{isEn ? 'Aggregated View' : 'عرض مجمّع'}</span></div>
-                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{translateDbText(row.label, isEn)}</span><strong>{Number(row.request_count).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong></li>)}</ul> : <p className="empty-state">مفيش حالات طلبات للعرض حاليًا.</p>}
+                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{translateDbText(row.label, isEn)}</span><strong>{Number(row.request_count).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong></li>)}</ul> : <p className="empty-state">{t('مفيش حالات طلبات للعرض حاليًا.', 'No request statuses to display right now.')}</p>}
                 </section>
               </>
             )}
@@ -488,37 +489,37 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
-            {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الإيصالات...</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
+            {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> {t('بنحمّل الإيصالات...', 'Loading receipts...')}</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
               {cashierRows.map(({ payment, contact, items: coveredItems }) => <article className="portal-card cashier-receipt-card" data-testid="cashier-receipt" data-payment-id={payment.payment_id} key={payment.payment_id}>
-                <div className="cashier-receipt-heading"><div><span className="eyebrow">إيصال بانتظار المراجعة</span><h2>{contact?.work_title ?? `طلب رقم ${payment.request_id}`}</h2></div><span className="status-pill">بانتظار مراجعة الخزينة</span></div>
+                <div className="cashier-receipt-heading"><div><span className="eyebrow">{t('إيصال بانتظار المراجعة', 'Receipt Pending Review')}</span><h2>{contact?.work_title ?? t(`طلب رقم ${payment.request_id}`, `Request #${payment.request_id}`)}</h2></div><span className="status-pill">{t('بانتظار مراجعة الخزينة', 'Pending Treasury Review')}</span></div>
                 <dl className="cashier-receipt-facts">
-                  <dt>رقم الطلب</dt><dd><span dir="ltr">#{payment.request_id}</span></dd>
-                  <dt>الباحث</dt><dd>{contact?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{contact?.email ?? ''}</small></dd>
-                  <dt>نوع الباحث</dt><dd>{contact?.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
-                  <dt>رقم الإيصال</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
-                  <dt>تاريخ السداد</dt><dd>{formatDate(payment.paid_at)}</dd>
-                  <dt>قناة السداد</dt><dd>{payment.channel === 'treasury' ? 'الخزينة' : 'البنك'}</dd>
-                  <dt>إجمالي المبلغ</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
-                  <dt>وصل للمراجعة</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
+                  <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{payment.request_id}</span></dd>
+                  <dt>{t('الباحث', 'Researcher')}</dt><dd>{contact?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{contact?.email ?? ''}</small></dd>
+                  <dt>{t('نوع الباحث', 'Applicant Type')}</dt><dd>{contact?.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
+                  <dt>{t('رقم الإيصال', 'Receipt No.')}</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
+                  <dt>{t('تاريخ السداد', 'Payment Date')}</dt><dd>{formatDate(payment.paid_at)}</dd>
+                  <dt>{t('قناة السداد', 'Payment Channel')}</dt><dd>{payment.channel === 'treasury' ? t('الخزينة', 'Treasury') : t('البنك', 'Bank')}</dd>
+                  <dt>{t('إجمالي المبلغ', 'Total Amount')}</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
+                  <dt>{t('وصل للمراجعة', 'Submitted At')}</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
                 </dl>
-                <section className="cashier-covered-items"><h3>الخدمات المشمولة</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
-                  <span>{item.service_name}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{statusById.get(item.status_id)?.name_ar ?? 'غير محدد'} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
-                </li>)}</ul> : <p className="empty-state">مفيش بنود مرتبطة بإذن الدفع.</p>}</section>
+                <section className="cashier-covered-items"><h3>{t('الخدمات المشمولة', 'Covered Services')}</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
+                  <span>{item.service_name === 'SERVICE_FALLBACK' ? t('خدمة', 'Service') : translateDbText(item.service_name, isEn)}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{(() => { const s = statusById.get(item.status_id); return s ? translateDbText(s.name_ar, isEn) : t('غير محدد', 'Unspecified') })()} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
+                </li>)}</ul> : <p className="empty-state">{t('مفيش بنود مرتبطة بإذن الدفع.', 'No items linked to this payment order.')}</p>}</section>
                 <div className="cashier-receipt-actions">
-                  <button className="quiet-button" disabled={cashierBusyPayment !== null} onClick={() => void singleFlight(() => previewReceipt(payment))}>إنشاء رابط معاينة آمن</button>
-                  {cashierSignedUrls[payment.payment_id] && <a className="quiet-button" href={cashierSignedUrls[payment.payment_id]} target="_blank" rel="noreferrer">معاينة الإيصال</a>}
-                  <button className="primary-button" disabled={cashierBusyPayment !== null || !coveredItems.length} onClick={() => void singleFlight(() => approveReceipt(payment))}>{cashierBusyPayment === payment.payment_id ? 'بنحفظ...' : 'اعتماد السداد'}</button>
+                  <button className="quiet-button" disabled={cashierBusyPayment !== null} onClick={() => void singleFlight(() => previewReceipt(payment))}>{t('إنشاء رابط معاينة آمن', 'Generate Secure Preview Link')}</button>
+                  {cashierSignedUrls[payment.payment_id] && <a className="quiet-button" href={cashierSignedUrls[payment.payment_id]} target="_blank" rel="noreferrer">{t('معاينة الإيصال', 'Preview Receipt')}</a>}
+                  <button className="primary-button" disabled={cashierBusyPayment !== null || !coveredItems.length} onClick={() => void singleFlight(() => approveReceipt(payment))}>{cashierBusyPayment === payment.payment_id ? t('بنحفظ...', 'Saving...') : t('اعتماد السداد', 'Approve Payment')}</button>
                 </div>
                 <form className="cashier-rejection-form" onSubmit={(event) => { event.preventDefault(); const reason = cashierReasons[payment.payment_id] ?? ''; void singleFlight(() => rejectReceipt(payment, reason)) }}>
-                  <label>سبب الرفض<textarea required minLength={3} maxLength={500} value={cashierReasons[payment.payment_id] ?? ''} onChange={(event) => setCashierReasons((current) => ({ ...current, [payment.payment_id]: event.target.value }))} placeholder="اكتب سببًا واضحًا للباحث" /></label>
+                  <label>{t('سبب الرفض', 'Rejection Reason')}<textarea required minLength={3} maxLength={500} value={cashierReasons[payment.payment_id] ?? ''} onChange={(event) => setCashierReasons((current) => ({ ...current, [payment.payment_id]: event.target.value }))} placeholder={t('اكتب سببًا واضحًا للباحث', 'Write a clear reason for the researcher')} /></label>
                   <button className="quiet-button" type="submit" disabled={cashierBusyPayment !== null}>{isEn ? 'Reject Receipt & Notify Researcher' : 'رفض الإيصال وإبلاغ الباحث'}</button>
                 </form>
               </article>)}
-            </div> : <div className="portal-card empty-requests"><h2>مفيش إيصالات بانتظار المراجعة</h2><p>أي إيصال جديد هتلاقيه هنا مع تفاصيل المبلغ والخدمات.</p></div>}
-            {!cashierLoading && cashierRows.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين إيصالات السداد">
-              <button className="quiet-button" disabled={cashierPageIndex === 0} onClick={previousCashierPage}>السابق</button>
-              <span>صفحة {(cashierPageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
-              <button className="quiet-button" disabled={!cashierHasMore} onClick={nextCashierPage}>التالي</button>
+            </div> : <div className="portal-card empty-requests"><h2>{t('مفيش إيصالات بانتظار المراجعة', 'No Receipts Pending Review')}</h2><p>{t('أي إيصال جديد هتلاقيه هنا مع تفاصيل المبلغ والخدمات.', 'Any newly uploaded receipts will appear here with amount and service details.')}</p></div>}
+            {!cashierLoading && cashierRows.length > 0 && <nav className="queue-pagination" aria-label={t('التنقل بين إيصالات السداد', 'Payment receipts pagination')}>
+              <button className="quiet-button" disabled={cashierPageIndex === 0} onClick={previousCashierPage}>{t('السابق', 'Previous')}</button>
+              <span>{t('صفحة ', 'Page ')}{(cashierPageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
+              <button className="quiet-button" disabled={!cashierHasMore} onClick={nextCashierPage}>{t('التالي', 'Next')}</button>
             </nav>}
           </>
         ) : view === 'requests' ? (
@@ -527,53 +528,53 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             <div className="queue-filters portal-card">
-              <label>{isEn ? 'Status' : 'الحالة'}<select aria-label="فلترة بالحالة" value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
-              <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label="فلترة بنوع العمل" value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
+              <label>{isEn ? 'Status' : 'الحالة'}<select aria-label={t('فلترة بالحالة', 'Filter by status')} value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
+              <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label={t('فلترة بنوع العمل', 'Filter by work type')} value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
               <span className="queue-result-count">{isEn ? 'Page requests: ' : 'طلبات الصفحة: '}{requests.length.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
             </div>
-            {queueLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : error && !requests.length ? null : requests.length ? (
+            {queueLoading ? <div className="portal-card loading"><span className="spinner" /> {t('بنحمّل الطلبات...', 'Loading requests...')}</div> : error && !requests.length ? null : requests.length ? (
               <div className="request-list admin-request-list">
                 {requests.map((request) => {
                   const requestItems = items.filter((item) => item.request_id === request.request_id)
                   const assignedIds = [...new Set(requestItems.map((item) => item.assigned_staff_id).filter(Boolean))] as string[]
                   const selectedStaffId = assignedIds.length === 1 && requestItems.every((item) => item.assigned_staff_id === assignedIds[0]) ? assignedIds[0] : ''
-                  const assignedNames = assignedIds.map((id) => staffMembers.find((member) => member.staff_id === id)?.full_name ?? 'موظف غير متاح')
+                  const assignedNames = assignedIds.map((id) => staffMembers.find((member) => member.staff_id === id)?.full_name ?? t('موظف غير متاح', 'Unavailable staff'))
                   const requester = requesters.get(request.researcher_id)
                   const overall = getRequestStatus(request)
                   return (
                     <article className="portal-card admin-request-card" data-testid="admin-request-row" data-request-id={request.request_id} key={request.request_id}>
-                      <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
+                      <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
                       <dl className="admin-request-facts">
-                        <dt>رقم الطلب</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
-                        <dt>الباحث</dt><dd>{requester?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{requester?.email ?? ''}</small></dd>
-                        <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
-                        <dt>تاريخ التقديم</dt><dd>{formatDate(request.created_at)}</dd>
-                        <dt>عدد البنود</dt><dd>{request.item_count.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</dd>
-                        <dt>المعيّنون حاليًا</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : 'لسه مفيش تعيين'}</dd>
+                        <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
+                        <dt>الباحث</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
+                        <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
+                        <dt>{t('تاريخ التقديم', 'Submitted On')}</dt><dd>{formatDate(request.created_at)}</dd>
+                        <dt>{t('عدد البنود', 'Service Items')}</dt><dd>{request.item_count.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</dd>
+                        <dt>{t('المعيّنون حاليًا', 'Currently Assigned')}</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : t('لسه مفيش تعيين', 'Not assigned yet')}</dd>
                       </dl>
                       <div className="admin-request-assignment">
-                        <label>تعيين المراجع أو الإحصائي<select aria-label="تعيين المراجع أو الإحصائي" value={selectedStaffId} disabled={busyRequest !== null || !requestItems.length} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignRequest(request, staffId)) }}>
-                          <option value="">اختار موظف نشط</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {roleNames[member.role]}</option>)}
+                        <label>{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={selectedStaffId} disabled={busyRequest !== null || !requestItems.length} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignRequest(request, staffId)) }}>
+                          <option value="">{t('اختار موظف نشط', 'Select an active staff member')}</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {isEn ? roleNamesEn[member.role] : roleNames[member.role]}</option>)}
                         </select></label>
-                        {busyRequest === request.request_id && <span className="assignment-saving">بنحفظ التعيين...</span>}
+                        {busyRequest === request.request_id && <span className="assignment-saving">{t('بنحفظ التعيين...', 'Saving assignment...')}</span>}
                       </div>
                     </article>
                   )
                 })}
               </div>
-            ) : <div className="portal-card empty-requests"><h2>مفيش طلبات مطابقة</h2><p>غيّر الفلاتر علشان تعرض طلبات تانية.</p></div>}
-            {!queueLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات">
-              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
-              <span>صفحة {(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
-              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
+            ) : <div className="portal-card empty-requests"><h2>{t('مفيش طلبات مطابقة', 'No Matching Requests')}</h2><p>{t('غيّر الفلاتر علشان تعرض طلبات تانية.', 'Adjust filters to view other requests.')}</p></div>}
+            {!queueLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label={t('التنقل بين صفحات الطلبات', 'Requests pagination')}>
+              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>{t('السابق', 'Previous')}</button>
+              <span>{t('صفحة ', 'Page ')}{(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
+              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>{t('التالي', 'Next')}</button>
             </nav>}
           </>
         ) : (
           <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Workspace' : 'مساحة العمل'}</span><h1>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</h1><p>{isAdmin ? 'بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.' : 'حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.'}</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Workspace' : 'مساحة العمل'}</span><h1>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</h1><p>{isAdmin ? t('بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.', 'As System Admin, all request items appear here so you can track statuses and publication decisions.') : t('حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.', 'Update items assigned to you and log notes in the request timeline.')}</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
-            {operationLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : items.length ? <div className="request-list operational-list">
+            {operationLoading ? <div className="portal-card loading"><span className="spinner" /> {t('بنحمّل الطلبات...', 'Loading requests...')}</div> : items.length ? <div className="request-list operational-list">
               {items.map((item) => {
                 const request = requests.find((row) => row.request_id === item.request_id)
                 const current = statusById.get(item.status_id)
@@ -581,32 +582,32 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 const itemHistory = history.filter((row) => row.item_id === item.item_id)
                 if (!request) return null
                 return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
-                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current?.name_ar ?? 'غير محدد'}</span></div>
-                  <p className="operational-meta">رقم الطلب <span dir="ltr">#{request.request_id}</span> · البند <span dir="ltr">#{item.item_id}</span></p>
+                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? translateDbText(current.name_ar, isEn) : t('غير محدد', 'Unspecified')}</span></div>
+                  <p className="operational-meta">{t('رقم الطلب', 'Request')} <span dir="ltr">#{request.request_id}</span> · {t('البند', 'Item')} <span dir="ltr">#{item.item_id}</span></p>
                   <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
-                    <label>الحالة التشغيلية<select name="status" aria-label="الحالة التشغيلية" defaultValue=""><option value="" disabled>اختار الحالة</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{status.name_ar}</option>)}</select></label>
-                    <label>ملاحظة للسجل<input name="note" placeholder="اكتب ملاحظة مختصرة (اختياري)" /><small>الملاحظة هتظهر للباحث</small></label>
-                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ الحالة'}</button>
+                    <label>{t('الحالة التشغيلية', 'Operational Status')}<select name="status" aria-label={t('الحالة التشغيلية', 'Operational Status')} defaultValue=""><option value="" disabled>{t('اختار الحالة', 'Select status')}</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}</select></label>
+                    <label>{t('ملاحظة للسجل', 'History Note')}<input name="note" placeholder={t('اكتب ملاحظة مختصرة (اختياري)', 'Write a brief note (optional)')} /><small>{t('الملاحظة هتظهر للباحث', 'This note will be visible to the researcher')}</small></label>
+                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('بنحفظ...', 'Saving...') : t('حفظ الحالة', 'Save Status')}</button>
                   </form>
-                  <section className="timeline"><h4>سجل الحالة</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{statusById.get(entry.status_id)?.name_ar ?? 'تحديث'}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">لسه مفيش تحديثات ظاهرة.</p>}</section>
+                  <section className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{(() => { const s = statusById.get(entry.status_id); return s ? translateDbText(s.name_ar, isEn) : t('تحديث', 'Update') })()}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">{t('لسه مفيش تحديثات ظاهرة.', 'No visible updates yet.')}</p>}</section>
                   {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; void singleFlight(() => updatePublication(item.item_id, formElement)) }}>
-                    <h4>قرار النشر</h4><label>القرار<select name="decision" defaultValue={publication.decision}><option value="pending">قيد المراجعة</option><option value="revisions">تعديلات</option><option value="accepted">مقبول</option><option value="rejected">مرفوض</option></select></label>
-                    <label>المجلة<select name="journal_id" value={selectedJournalByItem[item.item_id] ?? publication.journal_id} onChange={(event) => {
+                    <h4>{t('قرار النشر', 'Publication Decision')}</h4><label>{t('القرار', 'Decision')}<select name="decision" defaultValue={publication.decision}><option value="pending">{t('قيد المراجعة', 'Under Review')}</option><option value="revisions">{t('تعديلات', 'Revisions')}</option><option value="accepted">{t('مقبول', 'Accepted')}</option><option value="rejected">{t('مرفوض', 'Rejected')}</option></select></label>
+                    <label>{t('المجلة', 'Journal')}<select name="journal_id" value={selectedJournalByItem[item.item_id] ?? publication.journal_id} onChange={(event) => {
                       const journalId = Number(event.target.value)
                       setSelectedJournalByItem((current) => ({ ...current, [item.item_id]: journalId }))
                       setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: '' }))
                       void loadJournalIssues(journalId)
-                    }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{journal.name_ar}</option>)}</select></label>
-                    <label>العدد<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">من غير عدد</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
-                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? 'بنحفظ...' : 'حفظ قرار النشر'}</button>
+                    }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{translateDbText(journal.name_ar, isEn)}</option>)}</select></label>
+                    <label>{t('العدد', 'Issue')}<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">{t('من غير عدد', 'No issue assigned')}</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
+                    <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('بنحفظ...', 'Saving...') : t('حفظ قرار النشر', 'Save Publication Decision')}</button>
                   </form>}
                 </article>
               })}
-            </div> : <div className="portal-card empty-requests"><h2>{isAdmin ? 'مفيش بنود للعرض' : 'مفيش طلبات مسندة ليك'}</h2><p>{isAdmin ? 'لا توجد بنود ضمن الصفحة الحالية.' : 'هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.'}</p></div>}
-            {!operationLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات المسندة">
-              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
-              <span>صفحة {(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
-              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
+            </div> : <div className="portal-card empty-requests"><h2>{isAdmin ? t('مفيش بنود للعرض', 'No Items to Display') : t('مفيش طلبات مسندة ليك', 'No Assigned Requests')}</h2><p>{isAdmin ? t('لا توجد بنود ضمن الصفحة الحالية.', 'There are no items on the current page.') : t('هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.', 'Items assigned to your account by the admin will appear here.')}</p></div>}
+            {!operationLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label={t('التنقل بين صفحات الطلبات المسندة', 'Assigned requests pagination')}>
+              <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>{t('السابق', 'Previous')}</button>
+              <span>{t('صفحة ', 'Page ')}{(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
+              <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>{t('التالي', 'Next')}</button>
             </nav>}
           </>
         )}
