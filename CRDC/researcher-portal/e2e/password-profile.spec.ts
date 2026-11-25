@@ -45,6 +45,8 @@ test('researcher requests password reset and completes PASSWORD_RECOVERY', async
   await expect(page.getByRole('navigation', { name: 'التنقل في حساب الباحث' })).toBeVisible()
 
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
+  // Signing out returns to the public home; sign in again from its header link.
+  await page.getByRole('link', { name: 'تسجيل الدخول' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(newPassword)
   await page.locator('.form-card form button.primary-button').click()
