@@ -51,6 +51,8 @@ Roles:
 
 The safe aggregate views are `crdc.viewer_dashboard_summary` and `crdc.staff_dashboard_overview`. They contain grouped counts only, with no personal identifiers or case details.
 
+Public (signed-out) access goes only through schema `crdc_public` (migration `20261125120000_crdc_public_catalog.sql`): one `SECURITY DEFINER` function, `crdc_public.get_catalog()`, returns active services, their fees, degrees, degree requirements and journals as JSONB. `anon` has no `USAGE` on `crdc` or `private`; do not grant it, because every `crdc` function not explicitly revoked from `PUBLIC` would become callable from the internet. Add new public data as fields of this function, never as `anon` table grants. A hosted project must list `crdc_public` under Exposed schemas. pgTAP coverage: `supabase/tests/crdc_public_catalog_test.sql`. `CRDC/researcher-portal/vercel.json` sets the Content-Security-Policy and security headers (allowing only Supabase and the Hugging Face model download as remote origins); a new remote origin must be added there.
+
 ## 4. Synthetic seed data
 
 `supabase/seed.sql` is local-only and refuses to run unless `crdc.allow_seed=on` is passed in `PGOPTIONS`; it also aborts when any existing researcher row does not match the seed's synthetic identity pattern. `supabase/config.toml` disables automatic seeding. Use `bash supabase/scripts/seed_local.sh`, which verifies the active DB URL is the local loopback database before invoking `psql`. It generates 400 fictitious researchers and historical requests from 2018–2026, using `@example.test` emails and TEST-prefixed identifiers.
