@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
-import { UiError, friendlyError, useSingleFlight } from './errors'
+import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import AnalyticsDashboard from './AnalyticsDashboard'
 import { useI18n, translateDbText } from './i18n'
 
@@ -45,9 +45,12 @@ type CashierItemDisplay = CashierItem & { service_name: string; option_code: str
 type CashierCursor = { submitted_by_researcher_at: string; payment_id: number }
 type CashierQueueRow = { payment: CashierPayment; contact: CashierContact | undefined; items: CashierItemDisplay[] }
 
-const roleNamesEn: Record<StaffRole, string> = { admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }
-const roleNames: Record<StaffRole, string> = {
-  admin: 'مدير النظام', reviewer: 'مراجع', statistician: 'إحصائي', cashier: 'أمين خزينة', viewer: 'مشاهد',
+const ROLE_NAMES: Record<StaffRole, LocalizedText> = {
+  admin: { ar: 'مدير النظام', en: 'System Admin' },
+  reviewer: { ar: 'مراجع', en: 'Reviewer' },
+  statistician: { ar: 'إحصائي', en: 'Statistician' },
+  cashier: { ar: 'أمين خزينة', en: 'Cashier' },
+  viewer: { ar: 'مشاهد', en: 'Viewer' },
 }
 type PageCursor = { created_at: string; request_id: number }
 const receiptPageSize = 20
@@ -56,7 +59,7 @@ const pageSize = 20
 const formatDate = (value: string) => new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value))
 
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
-  const { t, dir, isEn } = useI18n()
+  const { t, lang, dir, isEn } = useI18n()
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
   const [view, setView] = useState<'overview' | 'analytics' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : staff.role === 'viewer' ? 'analytics' : 'overview')
@@ -72,8 +75,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [cursorStack, setCursorStack] = useState<(PageCursor | null)[]>([null])
   const [pageHasMore, setPageHasMore] = useState(false)
   const [busyRequest, setBusyRequest] = useState<number | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useState<LocalizedText | null>(null)
+  const [notice, setNotice] = useState<LocalizedText | null>(null)
   const [history, setHistory] = useState<HistoryRow[]>([])
   const [publications, setPublications] = useState<PublicationRow[]>([])
   const [journals, setJournals] = useState<Journal[]>([])
@@ -103,7 +106,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     if (view !== 'cashier' || (!isAdmin && !isCashier) || !supabase) return
     let alive = true
     setCashierLoading(true)
-    setError('')
+    setError(null)
     void (async () => {
       try {
         const { data: pageData, error: pageError } = await supabase.schema('crdc').rpc('cashier_payment_receipt_page', {
@@ -151,7 +154,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         setCashierHasMore(Boolean(fetchedPayments[0]?.has_more))
         setStatuses((statusResult.data ?? []) as RequestStatus[])
       } catch (queueError) {
-        if (alive) setError(friendlyError(queueError))
+        if (alive) setError(friendlyErrorText(queueError))
       } finally {
         if (alive) setCashierLoading(false)
       }
@@ -167,10 +170,10 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         const { data, error: queryError } = await supabase.schema('crdc').from('staff_dashboard_overview')
           .select('metric, category, label, request_count')
         if (!alive) return
-        if (queryError) setError(t('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', 'Unable to load statistics right now. Please try again shortly.'))
+        if (queryError) setError({ ar: 'مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', en: 'Unable to load statistics right now. Please try again shortly.' })
         else setRows((data ?? []) as SummaryRow[])
       } catch {
-        if (alive) setError(t('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', 'Unable to load statistics right now. Please try again shortly.'))
+        if (alive) setError({ ar: 'مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', en: 'Unable to load statistics right now. Please try again shortly.' })
       } finally {
         if (alive) setLoadingOverview(false)
       }
@@ -184,7 +187,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     let alive = true
     if (view === 'requests') setQueueLoading(true)
     else setOperationLoading(true)
-    setError('')
+    setError(null)
 
     void (async () => {
       try {
@@ -264,8 +267,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         setSelectedIssueByItem({})
       } catch {
         if (alive) setError(view === 'requests'
-          ? t('حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.', 'Failed to load requests. Check your connection or permissions and try again.')
-          : t('مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.', 'Unable to load assigned requests right now. Please try again shortly.'))
+          ? { ar: 'حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.', en: 'Failed to load requests. Check your connection or permissions and try again.' }
+          : { ar: 'مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.', en: 'Unable to load assigned requests right now. Please try again shortly.' })
       } finally {
         if (alive) {
           setQueueLoading(false)
@@ -328,24 +331,24 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
   async function previewReceipt(payment: CashierPayment) {
     if (!supabase) return
-    setError('')
+    setError(null)
     const { data, error: signedError } = await supabase.storage.from('payment-receipts')
       .createSignedUrl(payment.receipt_storage_path, 300, { download: true })
-    if (signedError) { setError(friendlyError(signedError)); return }
+    if (signedError) { setError(friendlyErrorText(signedError)); return }
     setCashierSignedUrls((current) => ({ ...current, [payment.payment_id]: data.signedUrl }))
   }
 
   async function approveReceipt(payment: CashierPayment) {
     if (!supabase) return
-    setCashierBusyPayment(payment.payment_id); setError(''); setNotice('')
+    setCashierBusyPayment(payment.payment_id); setError(null); setNotice(null)
     try {
       const { error: approveError } = await supabase.schema('crdc').rpc('approve_payment_receipt', { p_payment_id: payment.payment_id })
       if (approveError) throw approveError
-      setNotice(t('تم اعتماد السداد وتحديث حالات الخدمات.', 'Payment approved and service item statuses updated.'))
+      setNotice({ ar: 'تم اعتماد السداد وتحديث حالات الخدمات.', en: 'Payment approved and service item statuses updated.' })
       setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
       setCashierRefreshToken((value) => value + 1)
     } catch (approveError) {
-      setError(friendlyError(approveError))
+      setError(friendlyErrorText(approveError))
     } finally {
       setCashierBusyPayment(null)
     }
@@ -353,19 +356,19 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
   async function rejectReceipt(payment: CashierPayment, reason: string) {
     if (!supabase) return
-    setCashierBusyPayment(payment.payment_id); setError(''); setNotice('')
+    setCashierBusyPayment(payment.payment_id); setError(null); setNotice(null)
     try {
       const { error: rejectError } = await supabase.schema('crdc').rpc('reject_payment_receipt', {
         p_payment_id: payment.payment_id,
         p_reason: reason.trim(),
       })
       if (rejectError) throw rejectError
-      setNotice(t('تم رفض الإيصال وإرسال السبب للباحث.', 'Receipt rejected and reason sent to the researcher.'))
+      setNotice({ ar: 'تم رفض الإيصال وإرسال السبب للباحث.', en: 'Receipt rejected and reason sent to the researcher.' })
       setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
       setCashierReasons((current) => ({ ...current, [payment.payment_id]: '' }))
       setCashierRefreshToken((value) => value + 1)
     } catch (rejectError) {
-      setError(friendlyError(rejectError))
+      setError(friendlyErrorText(rejectError))
     } finally {
       setCashierBusyPayment(null)
     }
@@ -374,8 +377,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   async function assignRequest(request: QueueRequest, staffId: string) {
     if (!supabase || !staffId) return
     setBusyRequest(request.request_id)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
     try {
       const requestItems = items.filter((item) => item.request_id === request.request_id)
       if (!requestItems.length) throw new UiError('الطلب ده مفيهوش بنود ينفع تتعيّن.', 'This request has no assignable service items.')
@@ -388,9 +391,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       if (updateError) throw updateError
       if ((data ?? []).length !== requestItems.length) throw new UiError('ماقدرناش نأكد تعيين كل بنود الطلب. حدّث القائمة وراجع الطلب.', 'Could not confirm assignment for all request items. Refresh and review.')
       setItems((current) => current.map((item) => item.request_id === request.request_id ? { ...item, assigned_staff_id: staffId } : item))
-      setNotice(t(`اتعيّن ${roleNames[selectedStaff.role]} ${selectedStaff.full_name} على كل بنود الطلب رقم ${request.request_id}.`, `Assigned ${selectedStaff.role} ${selectedStaff.full_name} to all items of request #${request.request_id}.`))
+      setNotice({ ar: `اتعيّن ${ROLE_NAMES[selectedStaff.role].ar} ${selectedStaff.full_name} على كل بنود الطلب رقم ${request.request_id}.`, en: `Assigned ${ROLE_NAMES[selectedStaff.role].en} ${selectedStaff.full_name} to all items of request #${request.request_id}.` })
     } catch (assignmentError) {
-      setError(friendlyError(assignmentError, { '42501': t('التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.', 'Assignment denied. Ensure you are an admin and the staff member is an active reviewer or statistician.') }))
+      setError(friendlyErrorText(assignmentError, { '42501': { ar: 'التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.', en: 'Assignment denied. Ensure you are an admin and the staff member is an active reviewer or statistician.' } }))
     } finally {
       setBusyRequest(null)
     }
@@ -398,7 +401,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
   async function updateStatus(item: RequestItem, statusCode: string, note: string) {
     if (!supabase || !statusCode) return
-    setBusyItem(item.item_id); setError(''); setNotice('')
+    setBusyItem(item.item_id); setError(null); setNotice(null)
     try {
       const { error: rpcError } = await supabase.schema('crdc').rpc('set_request_item_status', { p_item_id: item.item_id, p_status_code: statusCode, p_note: note.trim() || null })
       if (rpcError) throw rpcError
@@ -412,8 +415,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         ...current.filter((row) => row.item_id !== item.item_id),
         ...((savedHistory ?? []) as HistoryRow[]),
       ])
-      setNotice(t('تم تحديث حالة البند وتسجيلها في السجل.', 'Item status updated and logged in history.'))
-    } catch (operationError) { setError(friendlyError(operationError)) }
+      setNotice({ ar: 'تم تحديث حالة البند وتسجيلها في السجل.', en: 'Item status updated and logged in history.' })
+    } catch (operationError) { setError(friendlyErrorText(operationError)) }
     finally { setBusyItem(null) }
   }
 
@@ -421,13 +424,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     if (!supabase || issues.some((issue) => issue.journal_id === journalId)) return
     const { data, error: issueError } = await supabase.schema('crdc').from('journal_issues')
       .select('issue_id, journal_id, issue_year, issue_month').eq('journal_id', journalId).order('issue_year', { ascending: false })
-    if (issueError) { setError(friendlyError(issueError)); return }
+    if (issueError) { setError(friendlyErrorText(issueError)); return }
     setIssues((current) => [...current.filter((issue) => issue.journal_id !== journalId), ...((data ?? []) as JournalIssue[])])
   }
 
   async function updatePublication(itemId: number, form: HTMLFormElement) {
     if (!supabase) return
-    setBusyItem(itemId); setError(''); setNotice('')
+    setBusyItem(itemId); setError(null); setNotice(null)
     const data = new FormData(form)
     try {
       const { error: rpcError } = await supabase.schema('crdc').rpc('update_publication_submission', {
@@ -436,12 +439,12 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       if (rpcError) throw rpcError
       const decision = String(data.get('decision')) as PublicationRow['decision']
       setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? (row.accepted_at ?? new Date().toISOString().slice(0, 10)) : null } : row))
-      setNotice(t('تم حفظ قرار النشر.', 'Publication decision saved.'))
-    } catch (operationError) { setError(friendlyError(operationError)) }
+      setNotice({ ar: 'تم حفظ قرار النشر.', en: 'Publication decision saved.' })
+    } catch (operationError) { setError(friendlyErrorText(operationError)) }
     finally { setBusyItem(null) }
   }
 
-  const analyticsButton = canViewOverview ? <button className={view === 'analytics' ? 'active' : ''} aria-current={view === 'analytics' ? 'page' : undefined} onClick={() => { setView('analytics'); setError(''); setNotice('') }}>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</button> : null
+  const analyticsButton = canViewOverview ? <button className={view === 'analytics' ? 'active' : ''} aria-current={view === 'analytics' ? 'page' : undefined} onClick={() => { setView('analytics'); setError(null); setNotice(null) }}>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</button> : null
 
   return (
     <main className="page-shell researcher-shell staff-shell" dir={dir}>
@@ -450,27 +453,27 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
           <span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · Staff Console' : 'والبحوث والتطوير · لوحة الموظفين'}</small></span>
         </a>
-        <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{isEn ? ({ admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }[staff.role]) : roleNames[staff.role]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
+        <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{ROLE_NAMES[staff.role][lang]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
       <nav className="researcher-nav" aria-label={t('التنقل في لوحة الموظف', 'Staff console navigation')}>
         {staff.role === 'viewer' && analyticsButton}
-        {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</button>}
+        {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(null); setNotice(null) }}>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</button>}
         {isAdmin && analyticsButton}
-        {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(''); setNotice('') }}>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</button>}
-        {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</button>}
-        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</button>}
+        {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(null); setNotice(null) }}>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</button>}
+        {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(null); setNotice(null) }}>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</button>}
+        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(null); setNotice(null) }}>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</button>}
       </nav>
 
       <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
-          <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.`, `Signed in as ${roleNamesEn[staff.role]}. Role-specific screens will be added in a future update.`)}</p></div></>
+          <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
           <AnalyticsDashboard />
         ) : view === 'overview' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
-            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'بنحمّل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error}</p> : (
+            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'بنحمّل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error[lang]}</p> : (
               <>
                 <div className="staff-stat-grid">
                   <article className="portal-card staff-stat-card"><span>{isEn ? 'Total Requests' : 'إجمالي الطلبات'}</span><strong>{total.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'All registered requests' : 'كل الطلبات المسجلة'}</small></article>
@@ -487,8 +490,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         ) : view === 'cashier' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
-            {notice && <p className="message success" role="status">{notice}</p>}
-            {error && <p className="message error" role="alert">{error}</p>}
+            {notice && <p className="message success" role="status">{notice[lang]}</p>}
+            {error && <p className="message error" role="alert">{error[lang]}</p>}
             {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> {t('بنحمّل الإيصالات...', 'Loading receipts...')}</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
               {cashierRows.map(({ payment, contact, items: coveredItems }) => <article className="portal-card cashier-receipt-card" data-testid="cashier-receipt" data-payment-id={payment.payment_id} key={payment.payment_id}>
                 <div className="cashier-receipt-heading"><div><span className="eyebrow">{t('إيصال بانتظار المراجعة', 'Receipt Pending Review')}</span><h2>{contact?.work_title ?? t(`طلب رقم ${payment.request_id}`, `Request #${payment.request_id}`)}</h2></div><span className="status-pill">{t('بانتظار مراجعة الخزينة', 'Pending Treasury Review')}</span></div>
@@ -525,8 +528,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         ) : view === 'requests' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Administration' : 'إدارة المركز'}</span><h1>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</h1><p>{isEn ? 'Review requests and items, and assign an active reviewer or statistician to each request.' : 'راجع الطلبات وبنودها وعيّن مراجع أو إحصائي نشط لكل طلب.'}</p></div>
-            {notice && <p className="message success" role="status">{notice}</p>}
-            {error && <p className="message error" role="alert">{error}</p>}
+            {notice && <p className="message success" role="status">{notice[lang]}</p>}
+            {error && <p className="message error" role="alert">{error[lang]}</p>}
             <div className="queue-filters portal-card">
               <label>{isEn ? 'Status' : 'الحالة'}<select aria-label={t('فلترة بالحالة', 'Filter by status')} value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
               <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label={t('فلترة بنوع العمل', 'Filter by work type')} value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
@@ -554,7 +557,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                       </dl>
                       <div className="admin-request-assignment">
                         <label>{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={selectedStaffId} disabled={busyRequest !== null || !requestItems.length} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignRequest(request, staffId)) }}>
-                          <option value="">{t('اختار موظف نشط', 'Select an active staff member')}</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {isEn ? roleNamesEn[member.role] : roleNames[member.role]}</option>)}
+                          <option value="">{t('اختار موظف نشط', 'Select an active staff member')}</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {ROLE_NAMES[member.role][lang]}</option>)}
                         </select></label>
                         {busyRequest === request.request_id && <span className="assignment-saving">{t('بنحفظ التعيين...', 'Saving assignment...')}</span>}
                       </div>
@@ -572,8 +575,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         ) : (
           <>
             <div className="portal-heading"><span className="eyebrow">{isEn ? 'Workspace' : 'مساحة العمل'}</span><h1>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</h1><p>{isAdmin ? t('بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.', 'As System Admin, all request items appear here so you can track statuses and publication decisions.') : t('حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.', 'Update items assigned to you and log notes in the request timeline.')}</p></div>
-            {notice && <p className="message success" role="status">{notice}</p>}
-            {error && <p className="message error" role="alert">{error}</p>}
+            {notice && <p className="message success" role="status">{notice[lang]}</p>}
+            {error && <p className="message error" role="alert">{error[lang]}</p>}
             {operationLoading ? <div className="portal-card loading"><span className="spinner" /> {t('بنحمّل الطلبات...', 'Loading requests...')}</div> : items.length ? <div className="request-list operational-list">
               {items.map((item) => {
                 const request = requests.find((row) => row.request_id === item.request_id)

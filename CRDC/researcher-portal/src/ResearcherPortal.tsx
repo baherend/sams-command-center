@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
-import { friendlyError, UiError, useSingleFlight } from './errors'
+import { friendlyErrorText, UiError, useSingleFlight, type LocalizedText } from './errors'
 import { useI18n, translateDbText } from './i18n'
 import ResearcherGuideHome from './ResearcherGuideHome'
 
@@ -90,7 +90,7 @@ const Money = ({ amount, currency }: { amount: number | string; currency: string
 const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
-  const { t, dir, isEn } = useI18n()
+  const { t, lang, dir, isEn } = useI18n()
   const [view, setView] = useState<View>('catalog')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
@@ -116,8 +116,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const singleFlight = useSingleFlight()
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useState<LocalizedText | null>(null)
+  const [notice, setNotice] = useState<LocalizedText | null>(null)
   const [profileSaving, setProfileSaving] = useState(false)
   const [degrees, setDegrees] = useState<{ degree_id: number; name_ar: string }[]>([])
 
@@ -133,8 +133,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     await singleFlight(async () => {
       if (!supabase) return
       setProfileSaving(true)
-      setError('')
-      setNotice('')
+      setError(null)
+      setNotice(null)
       const form = new FormData(formElement)
       const degreeId = Number(form.get('degree_id'))
       try {
@@ -149,9 +149,9 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
           .single()
         if (updateError) throw updateError
         onProfileUpdated({ ...data, degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null } as ResearcherProfile)
-        setNotice((isEn ? 'Your profile has been updated.' : 'تم تحديث بياناتك الشخصية.'))
+        setNotice({ ar: 'تم تحديث بياناتك الشخصية.', en: 'Your profile has been updated.' })
       } catch (updateError) {
-        setError(friendlyError(updateError))
+        setError(friendlyErrorText(updateError))
       } finally {
         setProfileSaving(false)
       }
@@ -221,7 +221,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     let alive = true
     setLoading(true)
     void Promise.all([loadCatalog(), loadRequests()]).catch((loadError: unknown) => {
-      if (alive) setError(friendlyError(loadError))
+      if (alive) setError(friendlyErrorText(loadError))
     }).finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [loadCatalog, loadRequests])
@@ -230,7 +230,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     if (!supabase) return
     setDetail(null)
     setDetailLoading(true)
-    setError('')
+    setError(null)
     try {
       const { data: request, error: requestError } = await supabase.schema('crdc').from('service_requests')
         .select('request_id, work_type, work_title, page_count, created_at')
@@ -279,7 +279,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       })
       setView('requests')
     } catch (loadError) {
-      setError(friendlyError(loadError))
+      setError(friendlyErrorText(loadError))
     } finally {
       setDetailLoading(false)
     }
@@ -317,7 +317,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     })
     if (rpcError) throw rpcError
     await loadRequestDetail(String(detail.request.request_id))
-    setNotice((isEn ? 'Receipt submitted to treasury; results will appear after review.' : 'وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.'))
+    setNotice({ ar: 'وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
   }
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
@@ -340,13 +340,13 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const title = String(form.get('work_title') ?? '').trim()
     const rawPageCount = String(form.get('page_count') ?? '').trim()
     const pageCount = rawPageCount === '' ? null : Number(rawPageCount)
-    if (selectedFeeIds.length === 0) { setError(t('اختار خدمة واحدة على الأقل.', 'Please select at least one service.')); return }
-    if (!title) { setError(t('اكتب عنوان الرسالة أو البحث.', 'Please enter the thesis or paper title.')); return }
-    if (pageCountRequired && pageCount === null) { setError(t('اكتب عدد الصفحات علشان نكمل الطلب.', 'Please enter the page count to complete the request.')); return }
-    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError(t('عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.', 'Page count must be between 1 and 2000.')); return }
+    if (selectedFeeIds.length === 0) { setError({ ar: 'اختار خدمة واحدة على الأقل.', en: 'Please select at least one service.' }); return }
+    if (!title) { setError({ ar: 'اكتب عنوان الرسالة أو البحث.', en: 'Please enter the thesis or paper title.' }); return }
+    if (pageCountRequired && pageCount === null) { setError({ ar: 'اكتب عدد الصفحات علشان نكمل الطلب.', en: 'Please enter the page count to complete the request.' }); return }
+    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError({ ar: 'عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.', en: 'Page count must be between 1 and 2000.' }); return }
     setSubmitting(true)
-    setError('')
-    setNotice('')
+    setError(null)
+    setNotice(null)
     try {
       const { data: requestId, error: rpcError } = await supabase.schema('crdc').rpc('create_service_request', {
         p_work_type: workType,
@@ -355,14 +355,14 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         p_fee_ids: selectedFeeIds,
       })
       if (rpcError) throw rpcError
-      setNotice((isEn ? 'Request submitted. Track it under My Requests.' : 'اتسجل طلبك بنجاح. تقدر تتابع حالته من صفحة طلباتي.'))
+      setNotice({ ar: 'اتسجل طلبك بنجاح. تقدر تتابع حالته من صفحة طلباتي.', en: 'Request submitted. Track it under My Requests.' })
       setSelectedFeeIds([])
       formElement.reset()
       await loadRequests()
       setView('requests')
       if (requestId !== null && requestId !== undefined) await loadRequestDetail(String(requestId))
     } catch (submitError) {
-      setError(friendlyError(submitError))
+      setError(friendlyErrorText(submitError))
     } finally {
       setSubmitting(false)
     }
@@ -377,9 +377,9 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
 
   function chooseView(next: View) {
     setView(next)
-    setError('')
+    setError(null)
     setDetail(null)
-    if (next === 'requests') void loadRequests().catch((loadError: unknown) => setError(friendlyError(loadError)))
+    if (next === 'requests') void loadRequests().catch((loadError: unknown) => setError(friendlyErrorText(loadError)))
   }
 
   return (
@@ -395,8 +395,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         {navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => chooseView(item.id)}>{item.label}</button>)}
       </nav>
 
-      {notice && <p className="message success portal-message" role="status">{notice}</p>}
-      {error && <p className="message error portal-message" role="alert">{error}</p>}
+      {notice && <p className="message success portal-message" role="status">{notice[lang]}</p>}
+      {error && <p className="message error portal-message" role="alert">{error[lang]}</p>}
       {loading ? <div className="loading portal-loading"><span className="spinner" /> {t('بنحمّل بيانات حسابك...', 'Loading your account data...')}</div> : (
         <section className="portal-content" aria-live="polite">
           {view === 'home' && <ResearcherGuideHome applicantType={profile.applicant_type} onStartRequest={() => chooseView('catalog')} />}
@@ -552,7 +552,7 @@ function PaymentReceiptForm({
   items: ItemRow[]
   services: Service[]
   onSubmit: (payment: PaymentRow, formData: FormData) => Promise<void>
-  onError: (message: string) => void
+  onError: (message: LocalizedText | null) => void
 }) {
   const { t, isEn } = useI18n()
   const [submitting, setSubmitting] = useState(false)
@@ -562,11 +562,11 @@ function PaymentReceiptForm({
     event.preventDefault()
     const form = event.currentTarget
     setSubmitting(true)
-    onError('')
+    onError(null)
     try {
       await singleFlight(() => onSubmit(payment, new FormData(form)))
     } catch (submitError) {
-      onError(friendlyError(submitError))
+      onError(friendlyErrorText(submitError))
     } finally {
       setSubmitting(false)
     }

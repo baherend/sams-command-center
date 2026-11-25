@@ -124,26 +124,32 @@ const NETWORK: LocalizedText = { ar: 'مش قادرين نتصل بالخدمة.
 const currentLang = (lang?: 'ar' | 'en'): 'ar' | 'en' =>
   lang ?? (typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar')
 
-export function friendlyError(error: unknown, codeOverrides: Record<string, string> = {}, lang?: 'ar' | 'en'): string {
-  const activeLang = currentLang(lang)
-  if (error instanceof UiError) return error.localize(activeLang)
+export function friendlyErrorText(error: unknown, codeOverrides: Record<string, LocalizedText | string> = {}): LocalizedText {
+  if (error instanceof UiError) return { ar: error.ar, en: error.en }
   const e = (typeof error === 'object' && error !== null ? error : {}) as ErrorLike
   const message = typeof e.message === 'string' ? e.message : ''
   const code = typeof e.code === 'string' ? e.code : ''
   const diagnostic = [message, String(e.details ?? ''), String(e.hint ?? ''), String(e.constraint ?? '')].join(' ')
 
   const identityConstraint = IDENTITY_CONSTRAINTS.find((constraint) => diagnostic.includes(constraint))
-  if (identityConstraint) return IDENTITY_MESSAGE_MAP.find(([constraint]) => constraint === identityConstraint)![1][activeLang]
+  if (identityConstraint) return IDENTITY_MESSAGE_MAP.find(([constraint]) => constraint === identityConstraint)![1]
 
   const byMessage = MESSAGE_MAP.find(([needle]) => diagnostic.includes(needle))
-  if (byMessage) return byMessage[1][activeLang]
-  if (code === '23505' || code === '23514') return INVALID_DATA[activeLang]
-  if (code && codeOverrides[code]) return codeOverrides[code]
-  if (code && CODE_MAP[code]) return CODE_MAP[code][activeLang]
-  if (/row-level security|permission denied/i.test(message)) return CODE_MAP['42501'][activeLang]
-  if (/failed to fetch|fetch failed|networkerror|AuthRetryableFetchError/i.test(`${message} ${String(e.name ?? '')}`)) return NETWORK[activeLang]
+  if (byMessage) return byMessage[1]
+  if (code === '23505' || code === '23514') return INVALID_DATA
+  if (code && codeOverrides[code]) {
+    const ov = codeOverrides[code]
+    return typeof ov === 'string' ? { ar: ov, en: ov } : ov
+  }
+  if (code && CODE_MAP[code]) return CODE_MAP[code]
+  if (/row-level security|permission denied/i.test(message)) return CODE_MAP['42501']
+  if (/failed to fetch|fetch failed|networkerror|AuthRetryableFetchError/i.test(`${message} ${String(e.name ?? '')}`)) return NETWORK
   console.error('[crdc] unmapped error', error)
-  return GENERIC[activeLang]
+  return GENERIC
+}
+
+export function friendlyError(error: unknown, codeOverrides: Record<string, LocalizedText | string> = {}, lang?: 'ar' | 'en'): string {
+  return friendlyErrorText(error, codeOverrides)[currentLang(lang)]
 }
 
 export function useSingleFlight() {
