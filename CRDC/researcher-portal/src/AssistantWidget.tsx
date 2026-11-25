@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from './supabase'
@@ -34,6 +34,7 @@ const SUGGESTIONS = [
 
 export default function AssistantWidget({ audience }: { audience: 'egyptian' | 'expat' | 'staff' | 'all' }) {
   const [open, setOpen] = useState(false)
+  const [showGreeting, setShowGreeting] = useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -43,6 +44,26 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
       text: 'أهلاً بك! أنا «مرشد»، المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.',
     },
   ])
+
+  useEffect(() => {
+    const showTimer = window.setTimeout(() => {
+      if (!open) setShowGreeting(true)
+    }, 1000)
+
+    const hideTimer = window.setTimeout(() => {
+      setShowGreeting(false)
+    }, 8500)
+
+    return () => {
+      window.clearTimeout(showTimer)
+      window.clearTimeout(hideTimer)
+    }
+  }, [])
+
+  function toggleOpen() {
+    setShowGreeting(false)
+    setOpen((v) => !v)
+  }
 
   async function askQuestion(rawText: string) {
     const clean = rawText.trim()
@@ -241,45 +262,31 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         )}
       </AnimatePresence>
 
-      {/* شخصية مرشد 3D العائمة بالكتاب المفتوح */}
-      <motion.button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.07, y: -4 }}
-        whileTap={{ scale: 0.95 }}
-        aria-expanded={open}
-        aria-label="فتح مرشد"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.2rem',
-          fontFamily: 'inherit',
-        }}
-      >
-        <motion.div
-          animate={{ y: open ? 0 : [0, -5, 0] }}
-          transition={{ duration: 3, repeat: open ? 0 : Infinity, ease: 'easeInOut' }}
-        >
-          <MorshedAvatar size={96} isOpen={open} />
-        </motion.div>
-        <span
-          className="kb-assistant-fab"
-          style={{
-            padding: '0.42rem 1.05rem',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            border: '1.5px solid #D4AF37',
-            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
-          }}
-        >
-          {open ? 'إغلاق مرشد' : 'اسأل مرشد'}
-        </span>
-      </motion.button>
-    </div>
-  )
-}
+      {/* فقاعة ترحيب صغيرة عائمة فوق الكتاب */}
+      <AnimatePresence>
+        {showGreeting && !open && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.85 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+            onClick={toggleOpen}
+            role="status"
+            style={{
+              position: 'relative',
+              background: '#0F172A',
+              color: '#F8FAFC',
+              border: '1.5px solid #D4AF37',
+              borderRadius: '0.95rem',
+              padding: '0.5rem 0.85rem',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              boxShadow: '0 10px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(212, 175, 55, 0.25)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>أهلاً بك! أنا مرشد، اضغط لفتح الكتاب 👋</span>
