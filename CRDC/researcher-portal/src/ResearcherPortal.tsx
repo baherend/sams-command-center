@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
 import { friendlyError, UiError, useSingleFlight } from './errors'
+import { useI18n } from './i18n'
 
 type ApplicantType = 'egyptian' | 'foreign'
 type WorkType = 'thesis' | 'paper'
@@ -80,14 +81,15 @@ type PaymentRow = {
 
 const statusName = (status: StatusRow | undefined) => status?.name_ar ?? 'غير محدد'
 const formatDate = (value: string | null | undefined) =>
-  value ? new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
+  value ? new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
 const money = (amount: number | string, currency: string) =>
-  new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 }).format(Number(amount)) + ` ${currency}`
+  new Intl.NumberFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 }).format(Number(amount)) + ` ${currency}`
 // Amounts mix digits with a Latin currency code; isolate them so they do not get reordered inside RTL text.
 const Money = ({ amount, currency }: { amount: number | string; currency: string }) => <span dir="ltr">{money(amount, currency)}</span>
 const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
+  const { dir, isEn } = useI18n()
   const [view, setView] = useState<View>('catalog')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
@@ -146,7 +148,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
           .single()
         if (updateError) throw updateError
         onProfileUpdated({ ...data, degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null } as ResearcherProfile)
-        setNotice('تم تحديث بياناتك الشخصية.')
+        setNotice((isEn ? 'Your profile has been updated.' : 'تم تحديث بياناتك الشخصية.'))
       } catch (updateError) {
         setError(friendlyError(updateError))
       } finally {
@@ -314,7 +316,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     })
     if (rpcError) throw rpcError
     await loadRequestDetail(String(detail.request.request_id))
-    setNotice('وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.')
+    setNotice((isEn ? 'Receipt submitted to treasury; results will appear after review.' : 'وصل إيصال السداد للخزينة، وهتظهر لك النتيجة بعد المراجعة.'))
   }
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
@@ -352,7 +354,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         p_fee_ids: selectedFeeIds,
       })
       if (rpcError) throw rpcError
-      setNotice('اتسجل طلبك بنجاح. تقدر تتابع حالته من صفحة طلباتي.')
+      setNotice((isEn ? 'Request submitted. Track it under My Requests.' : 'اتسجل طلبك بنجاح. تقدر تتابع حالته من صفحة طلباتي.'))
       setSelectedFeeIds([])
       formElement.reset()
       await loadRequests()
@@ -366,9 +368,9 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   }
 
   const navItems: { id: View; label: string }[] = [
-    { id: 'catalog', label: 'كتالوج الخدمات وتقديم طلب جديد' },
-    { id: 'requests', label: 'طلباتي' },
-    { id: 'profile', label: 'ملفي الشخصي' },
+    { id: 'catalog', label: (isEn ? 'Service Catalog & New Request' : 'كتالوج الخدمات وتقديم طلب جديد') },
+    { id: 'requests', label: (isEn ? 'My Requests' : 'طلباتي') },
+    { id: 'profile', label: (isEn ? 'My Profile' : 'ملفي الشخصي') },
   ]
 
   function chooseView(next: View) {
@@ -379,12 +381,12 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   }
 
   return (
-    <main className="page-shell researcher-shell" dir="rtl">
+    <main className="page-shell researcher-shell" dir={dir}>
       <header className="topbar">
         <a className="brand" href="#home" aria-label="مركز الاستشارات والبحوث والتطوير">
-          <span className="brand-mark">م</span><span><strong>مركز الاستشارات</strong><small>والبحوث والتطوير · أكاديمية السادات</small></span>
+          <span className="brand-mark">{isEn ? 'C' : 'م'}</span><span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · SAMS' : 'والبحوث والتطوير · أكاديمية السادات'}</small></span>
         </a>
-        <div className="researcher-top-actions"><span className="welcome-name">أهلاً، {profile.full_name}</span><button className="quiet-button" onClick={onSignOut}>تسجيل الخروج</button></div>
+        <div className="researcher-top-actions"><span className="welcome-name">{isEn ? 'Welcome,' : 'أهلاً،'} {profile.full_name}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
       <nav className="researcher-nav" aria-label="التنقل في حساب الباحث">
@@ -396,12 +398,12 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       {loading ? <div className="loading portal-loading"><span className="spinner" /> بنحمّل بيانات حسابك...</div> : (
         <section className="portal-content" aria-live="polite">
           {view === 'catalog' && <>
-            <div className="portal-heading"><span className="eyebrow">خدمات المركز</span><h1>قدّم طلب جديد</h1><p>كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.</p></div>
             <div className="catalog-layout">
               <form className="portal-card form-stack" onSubmit={submitRequest}>
-                <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">بيانات العمل</span><h2>حدد نوع الطلب والخدمات</h2></div></div>
-                <label>نوع العمل<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
-                <label>عنوان الرسالة أو البحث<input name="work_title" required minLength={3} maxLength={300} placeholder="اكتب عنوان العمل" /></label>
+                <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">{isEn ? 'Work Details' : 'بيانات العمل'}</span><h2>{isEn ? 'Select Request Type & Services' : 'حدد نوع الطلب والخدمات'}</h2></div></div>
+                <label>{isEn ? 'Work Type' : 'نوع العمل'}<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper for Publication' : 'بحث للنشر'}</option></select></label>
+                <label>{isEn ? 'Thesis or Paper Title' : 'عنوان الرسالة أو البحث'}<input name="work_title" required minLength={3} maxLength={300} placeholder={isEn ? 'Enter the title of your work' : 'اكتب عنوان العمل'} /></label>
                 <label>عدد الصفحات{!pageCountRequired && <small>اختياري حسب الخدمات المختارة</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder="مثال: 25" /></label>
                 <div className="service-groups">
                   {services.map((service) => {
@@ -418,18 +420,18 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                   {!fees.length && <p className="empty-state">مفيش خدمات متاحة حاليًا لنوع حسابك.</p>}
                 </div>
                 <p className="form-footnote">المبلغ النهائي بيتحسب ويتسجل في قاعدة البيانات حسب التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ومش شامل حساب الصفحات الإضافية.</p>
-                <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? 'بنسجل الطلب...' : 'تقديم الطلب'} <span>←</span></button>
+                <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'بنسجل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
               </form>
-              <aside className="portal-card requirement-card"><span className="eyebrow">متطلبات درجتك</span><h2>المتطلبات الأكاديمية</h2><p>دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.</p>
+              <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.</p>
                 {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{requirement.name_ar}</span><strong>{requirement.min_count} مرة</strong></li>)}</ul> : <p className="empty-state">مفيش متطلبات مسجلة للدرجة العلمية دي.</p>}
               </aside>
             </div>
           </>}
 
           {view === 'requests' && <>
-            <div className="portal-heading"><span className="eyebrow">متابعة الطلبات</span><h1>{detail ? 'تفاصيل الطلب' : 'طلباتي'}</h1><p>كل طلب خاص بعمل واحد، وتفاصيل حالة كل خدمة بتظهر لوحدها.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Request Tracking' : 'متابعة الطلبات'}</span><h1>{detail ? 'تفاصيل الطلب' : (isEn ? 'My Requests' : 'طلباتي')}</h1><p>كل طلب خاص بعمل واحد، وتفاصيل حالة كل خدمة بتظهر لوحدها.</p></div>
             {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> بنحمّل تفاصيل الطلب...</div> : detail ? <>
-              <button className="back-button" onClick={() => setDetail(null)}>→ رجوع لطلباتي</button>
+              <button className="back-button" onClick={() => setDetail(null)}>{isEn ? '← Back to My Requests' : '→ رجوع لطلباتي'}</button>
               <article className="portal-card request-detail-card">
                 <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at)}</span></div>
                 <p className="detail-pages">عدد الصفحات: {detail.request.page_count ?? '—'}</p>
@@ -469,23 +471,23 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 {!detail.items.length && <p className="empty-state">مفيش خدمات مرتبطة بالطلب ده.</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
-              <span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} صفحة</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds)}</span><span className="request-arrow">←</span>
-            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>لسه مفيش طلبات</h2><p>لما تقدم طلب جديد هتقدر تتابع تفاصيله وحالته من هنا.</p><button className="primary-button" onClick={() => chooseView('catalog')}>استعراض الخدمات <span>←</span></button></div>}
+              <span className="request-type">{request.work_type === 'thesis' ? 'رسالة علمية' : 'بحث للنشر'}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} صفحة</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
+            </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لسه مفيش طلبات'}</h2><p>لما تقدم طلب جديد هتقدر تتابع تفاصيله وحالته من هنا.</p><button className="primary-button" onClick={() => chooseView('catalog')}>استعراض الخدمات <span>{isEn ? '→' : '←'}</span></button></div>}
           </>}
 
           {view === 'profile' && <>
-            <div className="portal-heading"><span className="eyebrow">حساب الباحث</span><h1>ملفي الشخصي</h1><p>بياناتك الأساسية المسجلة في حساب الباحث.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Researcher Account' : 'حساب الباحث'}</span><h1>{isEn ? 'My Profile' : 'ملفي الشخصي'}</h1><p>بياناتك الأساسية المسجلة في حساب الباحث.</p></div>
             <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">حسابك جاهز</span><h2>{profile.full_name}</h2></div></div>
-              <h3>تعديل البيانات الشخصية</h3>
+              <h3>{isEn ? 'Edit Personal Details' : 'تعديل البيانات الشخصية'}</h3>
               <form className="form-stack" onSubmit={submitProfileEdit}>
-                <label>نوع الباحث<input value={profile.applicant_type === 'egyptian' ? 'مصري' : 'وافد'} readOnly /></label>
-                <label>البريد الإلكتروني<input value={profile.email} dir="ltr" readOnly /></label>
+                <label>{isEn ? 'Applicant Type' : 'نوع الباحث'}<input value={profile.applicant_type === 'egyptian' ? (isEn ? 'Egyptian' : 'مصري') : (isEn ? 'International / Foreign' : 'وافد')} readOnly /></label>
+                <label>{isEn ? 'Email Address' : 'البريد الإلكتروني'}<input value={profile.email} dir="ltr" readOnly /></label>
                 <label>{profile.applicant_type === 'egyptian' ? 'الرقم القومي' : 'رقم جواز السفر'}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
                 {profile.applicant_type === 'foreign' && <label>الجنسية<input value={profile.nationality ?? ''} readOnly /></label>}
-                <label>الاسم بالكامل<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
-                <label>الدرجة العلمية<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
-                <label>التخصص<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
-                <button className="primary-button" disabled={profileSaving}>{profileSaving ? 'بنحفظ التعديلات...' : 'حفظ التعديلات'}</button>
+                <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
+                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+                <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
+                <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'بنحفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
               <dl className="profile-details"><dt>تاريخ إنشاء الملف</dt><dd>{formatDate(profile.created_at)}</dd></dl>
             </article>

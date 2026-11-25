@@ -1,7 +1,9 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
+import { useI18n } from './i18n'
 
 export default function ThemeToggle() {
+  const { t } = useI18n()
   const [dark, setDark] = useState<boolean>(() => {
     try {
       return localStorage.getItem('crdc-theme') === 'dark'
@@ -28,8 +30,8 @@ export default function ThemeToggle() {
       onClick={() => setDark((d) => !d)}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.94 }}
-      aria-label={dark ? 'التبديل إلى الوضع النهاري' : 'التبديل إلى الوضع الليلي'}
-      title={dark ? 'الوضع النهاري' : 'الوضع الليلي'}
+      aria-label={dark ? t('التبديل إلى الوضع النهاري', 'Switch to light mode') : t('التبديل إلى الوضع الليلي', 'Switch to dark mode')}
+      title={dark ? t('الوضع النهاري', 'Light mode') : t('الوضع الليلي', 'Dark mode')}
     >
       <motion.span
         key={dark ? 'sun' : 'moon'}
@@ -37,7 +39,7 @@ export default function ThemeToggle() {
         animate={{ rotate: 0, opacity: 1 }}
         transition={{ duration: 0.25 }}
       >
-        {dark ? '☀️ نهاري' : '🌙 ليلي'}
+        {dark ? t('☀️ نهاري', '☀️ Light') : t('🌙 ليلي', '🌙 Dark')}
       </motion.span>
     </motion.button>
   )

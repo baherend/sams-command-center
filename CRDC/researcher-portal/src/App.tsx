@@ -6,6 +6,7 @@ import ResearcherPortal from './ResearcherPortal'
 import StaffConsole from './StaffConsole'
 import AssistantWidget from './AssistantWidget'
 import { friendlyError, useSingleFlight } from './errors'
+import { useI18n } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -34,6 +35,7 @@ type ResearcherProfile = {
 type Mode = 'sign-in' | 'sign-up'
 
 export default function App() {
+  const { t, dir, isEn } = useI18n()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<ResearcherProfile | null>(null)
   const [staff, setStaff] = useState<StaffProfile | null>(null)
@@ -171,7 +173,7 @@ export default function App() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
       if (resetError) throw resetError
-      setNotice('لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.')
+      setNotice(t('لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.', 'If this email is linked to an account, you will receive a secure password reset link.'))
     } catch (resetError) {
       setError(friendlyError(resetError))
     } finally {
@@ -190,7 +192,7 @@ export default function App() {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
       setRecoveryMode(false)
-      setNotice('تم تعيين كلمة المرور الجديدة بنجاح.')
+      setNotice(t('تم تعيين كلمة المرور الجديدة بنجاح.', 'Your new password has been set successfully.'))
     } catch (updateError) {
       setError(friendlyError(updateError))
     } finally {
@@ -218,7 +220,7 @@ export default function App() {
         if (signUpError) throw signUpError
         if (!data.session) {
           setConfirmationPending(true)
-          setNotice('الحساب اتعمل. افتح رسالة التأكيد على إيميلك، وبعدها ارجع سجّل دخول علشان تكمل بيانات الباحث.')
+          setNotice(t('الحساب اتعمل. افتح رسالة التأكيد على إيميلك، وبعدها ارجع سجّل دخول علشان تكمل بيانات الباحث.', 'Account created. Check your email for the confirmation link, then sign in to complete your profile.'))
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -270,7 +272,7 @@ export default function App() {
         ...data,
         degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null,
       } as ResearcherProfile)
-      setNotice('ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.')
+      setNotice(t('ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.', 'Researcher profile saved. You can now explore the center services.'))
     } catch (profileError) {
       setError(friendlyError(profileError))
     } finally {
@@ -292,7 +294,7 @@ export default function App() {
     return <SetupScreen />
   }
 
-  if (recoveryMode) return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="eyebrow">تأمين الحساب</span><h1>تعيين كلمة مرور جديدة</h1><form className="form-stack" onSubmit={handleNewPassword}><label>كلمة المرور الجديدة<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? 'لحظة واحدة...' : 'حفظ كلمة المرور'}</button></form></div></main>
+  if (recoveryMode) return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تأمين الحساب', 'Account Security')}</span><h1>{t('تعيين كلمة مرور جديدة', 'Set a New Password')}</h1><form className="form-stack" onSubmit={handleNewPassword}><label>{t('كلمة المرور الجديدة', 'New Password')}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error}</p>}<button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : t('حفظ كلمة المرور', 'Save Password')}</button></form></div></main>
 
   if (session && profile) {
     return (<><ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} /><AssistantWidget audience={profile.applicant_type === 'foreign' ? 'expat' : 'egyptian'} /></>)
@@ -301,94 +303,94 @@ export default function App() {
   if (session && staff) return (<><StaffConsole staff={staff} onSignOut={signOut} /><AssistantWidget audience="staff" /></>)
 
   if (session && inactiveStaff) {
-    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="brand-mark">م</span><span className="eyebrow">حساب موظف</span><h1>الحساب غير مفعّل</h1><p>حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.</p><button className="primary-button" onClick={signOut}>تسجيل الخروج</button></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('حساب موظف', 'Staff Account')}</span><h1>{t('الحساب غير مفعّل', 'Account Inactive')}</h1><p>{t('حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.', 'This staff account is currently inactive. Contact center administration to activate it.')}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button></div></main>
   }
 
   if (session && loading) {
-    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="loading"><span className="spinner" /> بنراجع نوع الحساب...</span></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="loading"><span className="spinner" /> {t('بنراجع نوع الحساب...', 'Checking account type...')}</span></div></main>
   }
 
   if (session && error) {
-    return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="eyebrow">تعذر تحميل الحساب</span><h1>حصلت مشكلة</h1><p role="alert">{error}</p><button className="primary-button" onClick={signOut}>تسجيل الخروج والمحاولة تاني</button></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حصلت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة تاني', 'Sign Out and Try Again')}</button></div></main>
   }
 
   return (
-    <main className="page-shell">
+    <main className="page-shell" dir={dir}>
       <header className="topbar">
-        <a className="brand" href="#home" aria-label="مركز الاستشارات والبحوث والتطوير">
-          <span className="brand-mark">م</span>
-          <span><strong>مركز الاستشارات</strong><small>والبحوث والتطوير · أكاديمية السادات</small></span>
+        <a className="brand" href="#home" aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
+          <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
+          <span><strong>{t('مركز الاستشارات', 'Consultation, Research')}</strong><small>{t('والبحوث والتطوير · أكاديمية السادات', '& Development Center · SAMS')}</small></span>
         </a>
-        {session && <button className="quiet-button" onClick={signOut}>تسجيل الخروج</button>}
+        {session && <button className="quiet-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button>}
       </header>
 
       <section className="hero" id="home">
         <div className="hero-copy">
-          <span className="eyebrow"><i /> بوابة الباحثين</span>
-          <h1>خدماتك البحثية<br /><em>في مكان واحد</em></h1>
-          <p>أنشئ حسابك، سجّل بياناتك الأساسية، وتابع طلبات خدمات المركز خطوة بخطوة.</p>
+          <span className="eyebrow"><i /> {t('بوابة الباحثين', 'Researcher Portal')}</span>
+          <h1>{t('خدماتك البحثية', 'Your Research Services')}<br /><em>{t('في مكان واحد', 'In One Place')}</em></h1>
+          <p>{t('أنشئ حسابك، سجّل بياناتك الأساسية، وتابع طلبات خدمات المركز خطوة بخطوة.', 'Create your account, register your basic details, and track your service requests step by step.')}</p>
           <div className="hero-notes">
-            <span><b>01</b> حساب آمن</span>
-            <span><b>02</b> بياناتك خاصة</span>
-            <span><b>03</b> متابعة واضحة</span>
+            <span><b>01</b> {t('حساب آمن', 'Secure Account')}</span>
+            <span><b>02</b> {t('بياناتك خاصة', 'Private Data')}</span>
+            <span><b>03</b> {t('متابعة واضحة', 'Clear Tracking')}</span>
           </div>
         </div>
 
         <div className="form-card">
-          {loading ? <div className="loading"><span className="spinner" /> بنجهّز حسابك...</div> : !session ? (
+          {loading ? <div className="loading"><span className="spinner" /> {t('بنجهّز حسابك...', 'Preparing your account...')}</div> : !session ? (
             <>
               <div className="card-heading">
                 <span className="card-icon">↗</span>
                 <div>
-                  <span className="eyebrow">أهلاً بيك</span>
-                  <h2>{forgotPassword ? 'استعادة كلمة المرور' : mode === 'sign-up' ? 'إنشاء حساب جديد' : 'سجّل دخولك'}</h2>
+                  <span className="eyebrow">{t('أهلاً بيك', 'Welcome')}</span>
+                  <h2>{forgotPassword ? t('استعادة كلمة المرور', 'Reset Password') : mode === 'sign-up' ? t('إنشاء حساب جديد', 'Create New Account') : t('سجّل دخولك', 'Sign In')}</h2>
                 </div>
               </div>
-              {!forgotPassword && <div className="mode-switch" role="tablist" aria-label="نوع العملية">
-                <button className={mode === 'sign-in' ? 'active' : ''} onClick={() => { setMode('sign-in'); setNotice(''); setError(''); setConfirmationPending(false) }}>تسجيل الدخول</button>
-                <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => { setMode('sign-up'); setNotice(''); setError(''); setConfirmationPending(false) }}>حساب جديد</button>
+              {!forgotPassword && <div className="mode-switch" role="tablist" aria-label={t('نوع العملية', 'Action Type')}>
+                <button className={mode === 'sign-in' ? 'active' : ''} onClick={() => { setMode('sign-in'); setNotice(''); setError(''); setConfirmationPending(false) }}>{t('تسجيل الدخول', 'Sign In')}</button>
+                <button className={mode === 'sign-up' ? 'active' : ''} onClick={() => { setMode('sign-up'); setNotice(''); setError(''); setConfirmationPending(false) }}>{t('حساب جديد', 'Sign Up')}</button>
               </div>}
               {forgotPassword ? <form className="form-stack" onSubmit={handlePasswordReset}>
-                <label>البريد الإلكتروني<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
+                <label>{t('البريد الإلكتروني', 'Email Address')}<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
                 {notice && <p className="message success" role="status">{notice}</p>}{error && <p className="message error" role="alert">{error}</p>}
-                <button className="primary-button" disabled={busy}>{busy ? 'لحظة واحدة...' : 'إرسال رابط الاستعادة'}</button>
-                <button type="button" className="quiet-button" onClick={() => { setForgotPassword(false); setNotice(''); setError('') }}>العودة لتسجيل الدخول</button>
+                <button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : 'إرسال رابط الاستعادة'}</button>
+                <button type="button" className="quiet-button" onClick={() => { setForgotPassword(false); setNotice(''); setError('') }}>{t('العودة لتسجيل الدخول', 'Back to Sign In')}</button>
               </form> : <form className="form-stack" onSubmit={handleAuth}>
-                <label>البريد الإلكتروني<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
-                <label>كلمة المرور<input name="password" type="password" minLength={8} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} placeholder="٨ أحرف على الأقل" required /></label>
+                <label>{t('البريد الإلكتروني', 'Email Address')}<input name="email" type="email" autoComplete="email" placeholder="name@example.com" required /></label>
+                <label>{t('كلمة المرور', 'Password')}<input name="password" type="password" minLength={8} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} placeholder={t('٨ أحرف على الأقل', 'At least 8 characters')} required /></label>
                 {notice && <p className="message success" role="status">{notice}</p>}
                 {error && <p className="message error" role="alert">{error}</p>}
                 <button className="primary-button" disabled={busy || confirmationPending}>
-                  {busy ? 'لحظة واحدة...' : mode === 'sign-up' ? 'إنشاء الحساب' : 'دخول'} <span>←</span>
+                  {busy ? t('لحظة واحدة...', 'One moment...') : mode === 'sign-up' ? t('إنشاء الحساب', 'Create Account') : t('دخول', 'Sign In')} <span>{isEn ? '→' : '←'}</span>
                 </button>
-                {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(''); setError('') }}>نسيت كلمة المرور؟</button>}
-                <p className="form-footnote">بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.</p>
+                {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(''); setError('') }}>{t('نسيت كلمة المرور؟', 'Forgot password?')}</button>}
+                <p className="form-footnote">{t('بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.', 'By creating an account, you can track your requests and profile from your personal dashboard.')}</p>
               </form>}
             </>
           ) : (
             <>
               <div className="card-heading">
                 <span className="card-icon">✳</span>
-                <div><span className="eyebrow">خطوة واحدة</span><h2>بيانات الباحث</h2></div>
+                <div><span className="eyebrow">{t('خطوة واحدة', 'One Step')}</span><h2>{t('بيانات الباحث', 'Researcher Profile')}</h2></div>
               </div>
-              <p className="card-description">اكتب بياناتك الأساسية علشان نجهّز ملفك في المركز.</p>
+              <p className="card-description">{t('اكتب بياناتك الأساسية علشان نجهّز ملفك في المركز.', 'Enter your basic details so we can set up your profile at the center.')}</p>
               <form className="form-stack" onSubmit={handleProfile}>
-                <label>الاسم بالكامل<input name="full_name" autoComplete="name" required minLength={3} placeholder="الاسم زي ما تحب يظهر في الطلب" /></label>
-                <label>نوع الباحث<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">مصري</option><option value="foreign">وافد</option></select></label>
+                <label>{t('الاسم بالكامل', 'Full Name')}<input name="full_name" autoComplete="name" required minLength={3} placeholder={t('الاسم زي ما تحب يظهر في الطلب', 'Full name as it should appear on requests')} /></label>
+                <label>{t('نوع الباحث', 'Applicant Type')}<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">{t('مصري', 'Egyptian')}</option><option value="foreign">{t('وافد', 'International / Foreign')}</option></select></label>
                 <div className="two-fields">
                   {profileApplicantType === 'egyptian' ? (
-                    <label>الرقم القومي<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder="١٤ رقم" /></label>
+                    <label>{t('الرقم القومي', 'National ID')}<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder={t('١٤ رقم', '14 digits')} /></label>
                   ) : (
                     <>
-                      <label>رقم جواز السفر<input name="passport_no" minLength={3} required placeholder="رقم الجواز" /></label>
-                      <label>الجنسية<input name="nationality" minLength={2} required placeholder="الجنسية" /></label>
+                      <label>{t('رقم جواز السفر', 'Passport Number')}<input name="passport_no" minLength={3} required placeholder={t('رقم الجواز', 'Passport No.')} /></label>
+                      <label>{t('الجنسية', 'Nationality')}<input name="nationality" minLength={2} required placeholder={t('الجنسية', 'Nationality')} /></label>
                     </>
                   )}
                 </div>
-                <label>الدرجة العلمية<select name="degree_id" defaultValue="" required><option value="" disabled>اختار الدرجة</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
-                <label>التخصص<input name="specialty" placeholder="مثال: إدارة أعمال" /></label>
+                <label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختار الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+                <label>{t('التخصص', 'Specialty')}<input name="specialty" placeholder={t('مثال: إدارة أعمال', 'e.g., Business Administration')} /></label>
                 {error && <p className="message error" role="alert">{error}</p>}
-                <button className="primary-button" disabled={busy}>{busy ? 'بنسجل بياناتك...' : 'حفظ ملف الباحث'} <span>←</span></button>
+                <button className="primary-button" disabled={busy}>{busy ? t('بنسجل بياناتك...', 'Saving your profile...') : t('حفظ ملف الباحث', 'Save Researcher Profile')} <span>{isEn ? '→' : '←'}</span></button>
                 <p className="form-footnote">بياناتك بتظهر لك وللموظفين المصرّح لهم فقط. تعديل الملف بعد التسجيل بيتم عن طريق إدارة المركز.</p>
               </form>
             </>
@@ -396,12 +398,13 @@ export default function App() {
         </div>
       </section>
 
-      <footer className="page-footer"><span>CRDC</span><span>مركز الاستشارات والبحوث والتطوير</span><span>نموذج أولي · بياناتك في أمان</span></footer>
+      <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
     </main>
   )
 }
 
 function SetupScreen() {
-  return <main className="setup-screen" dir="rtl"><div className="setup-card"><span className="brand-mark">م</span><span className="eyebrow">إعداد الاتصال</span><h1>اربط البوابة بـSupabase</h1><p>انسخ ملف <code>.env.example</code> باسم <code>.env.local</code>، وحط عنوان المشروع ومفتاح الـpublishable أو anon key.</p><p className="form-footnote">مفتاح service role مايتحطّش أبدًا في الواجهة الأمامية.</p></div></main>
+  const { t, dir, isEn } = useI18n()
+  return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('إعداد الاتصال', 'Connection Setup')}</span><h1>{t('اربط البوابة بـSupabase', 'Connect the Portal to Supabase')}</h1><p>انسخ ملف <code>.env.example</code> باسم <code>.env.local</code>، وحط عنوان المشروع ومفتاح الـpublishable أو anon key.</p><p className="form-footnote">مفتاح service role مايتحطّش أبدًا في الواجهة الأمامية.</p></div></main>
 }
 

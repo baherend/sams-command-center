@@ -6,6 +6,7 @@ import { friendlyError } from './errors'
 import { runAssistantLocalTools } from './assistantTools'
 import type { QuickOption } from './assistantTools'
 import MorshedAvatar from './MorshedAvatar'
+import { useI18n } from './i18n'
 
 type KbResult = {
   chunk_id: number
@@ -25,14 +26,22 @@ type ChatMessage = {
   links?: { label: string; url: string }[]
 }
 
-const SUGGESTIONS = [
+const SUGGESTIONS_AR = [
   'احسب رسوم نشر بحث 30 صفحة',
   'أنشر بحثي في أي مجلة؟',
   'المستندات المطلوبة للتقديم',
   'خطوات سداد الرسوم',
 ]
 
+const SUGGESTIONS_EN = [
+  'Calculate publication fees for 30 pages',
+  'Which journal fits my paper?',
+  'Required documents for submission',
+  'Fee payment steps',
+]
+
 export default function AssistantWidget({ audience }: { audience: 'egyptian' | 'expat' | 'staff' | 'all' }) {
+  const { t, dir, isEn } = useI18n()
   const [open, setOpen] = useState(false)
   const [showGreeting, setShowGreeting] = useState(false)
   const [query, setQuery] = useState('')
@@ -41,7 +50,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'أهلاً بك! أنا «مرشد»، المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.',
+      text: t('أهلاً بك! أنا «مرشد»، المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.', 'Welcome! I am Morshed, the CRDC smart assistant. Ask me about procedures, calculate publication & proofreading fees by page count, or find the right journal for your specialty.'),
     },
   ])
 
@@ -84,8 +93,8 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
       const rows = (data ?? []) as KbResult[]
 
       const botMsg: ChatMessage = rows.length > 0
-        ? { id: `a-${Date.now()}`, role: 'assistant', text: `وجدت ${rows.length === 1 ? 'معلومة مطابقة' : `${rows.length} معلومات مطابقة`} في الدليل الإجرائي:`, results: rows }
-        : { id: `a-${Date.now()}`, role: 'assistant', text: 'لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك أو اسألني مثلاً: (رسوم نشر 30 صفحة، أو أنشر بحثي فين؟).' }
+        ? { id: `a-${Date.now()}`, role: 'assistant', text: isEn ? `Found ${rows.length} matching ${rows.length === 1 ? 'entry' : 'entries'} in the procedural guide:` : `وجدت ${rows.length === 1 ? 'معلومة مطابقة' : ` معلومات مطابقة`} في الدليل الإجرائي:`, results: rows }
+        : { id: `a-${Date.now()}`, role: 'assistant', text: t('لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك أو اسألني مثلاً: (رسوم نشر 30 صفحة، أو أنشر بحثي فين؟).', 'I could not find an exact match in the procedural guide. Try rephrasing your question or ask: (publication fees for 30 pages, or which journal should I publish in?).') }
 
       setMessages((prev) => [...prev, botMsg])
     } catch (err) {
@@ -101,12 +110,12 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
   }
 
   return (
-    <div className="kb-assistant-root" dir="rtl">
+    <div className="kb-assistant-root" dir={dir}>
       <AnimatePresence>
         {open && (
           <motion.section
             className="kb-assistant-panel"
-            aria-label="مرشد - المساعد الذكي للدليل الإجرائي"
+            aria-label={t('مرشد - المساعد الذكي للدليل الإجرائي', 'Morshed - Smart Procedural Guide Assistant')}
             style={{
               transformOrigin: '48px calc(100% + 42px)',
               borderTop: '2px solid #D4AF37',
@@ -121,11 +130,11 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <MorshedAvatar size={42} compact />
                 <div>
-                  <strong>مرشد</strong>
-                  <small>الدليل الإجرائي • الحاسبة • المجلات</small>
+                  <strong>{t('مرشد', 'Morshed')}</strong>
+                  <small>{t('الدليل الإجرائي • الحاسبة • المجلات', 'Guide • Calculator • Journals')}</small>
                 </div>
               </div>
-              <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق مرشد">
+              <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label={t('إغلاق مرشد', 'Close Morshed')}>
                 ×
               </button>
             </header>
@@ -190,11 +199,11 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                   )}
                 </motion.div>
               ))}
-              {busy && <div className="kb-msg kb-msg-assistant"><p>جاري البحث في الدليل الإجرائي...</p></div>}
+              {busy && <div className="kb-msg kb-msg-assistant"><p>{t('جاري البحث في الدليل الإجرائي...', 'Searching the procedural guide...')}</p></div>}
             </div>
 
             <div className="kb-suggestions">
-              {SUGGESTIONS.map((s) => (
+              {(isEn ? SUGGESTIONS_EN : SUGGESTIONS_AR).map((s) => (
                 <motion.button key={s} type="button" disabled={busy} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }} onClick={() => void askQuestion(s)}>
                   {s}
                 </motion.button>
@@ -206,12 +215,12 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="اسأل مرشد عن الإجراءات أو الرسوم..."
-                aria-label="سؤالك لمرشد"
+                placeholder={t('اسأل مرشد عن الإجراءات أو الرسوم...', 'Ask Morshed about procedures or fees...')}
+                aria-label={t('سؤالك لمرشد', 'Your question for Morshed')}
                 disabled={busy}
               />
               <button type="submit" disabled={busy || !query.trim()}>
-                إرسال
+                {t('إرسال', 'Send')}
               </button>
             </form>
           </motion.section>
@@ -243,10 +252,10 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
               whiteSpace: 'nowrap',
             }}
           >
-            <span>أهلاً بك! أنا مرشد، اضغط لفتح الكتاب 👋</span>
+            <span>{t('أهلاً بك! أنا مرشد، اضغط لفتح الكتاب 👋', 'Welcome! I am Morshed, click to open the book 👋')}</span>
             <button
               type="button"
-              aria-label="إغلاق الترحيب"
+              aria-label={t('إغلاق الترحيب', 'Close greeting')}
               onClick={(e) => { e.stopPropagation(); setShowGreeting(false) }}
               style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '1rem', lineHeight: 1, cursor: 'pointer', padding: '0 0.15rem' }}
             >
@@ -276,7 +285,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         whileHover={{ scale: 1.06, y: -3 }}
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
-        aria-label={open ? 'إغلاق مرشد' : 'فتح مرشد'}
+        aria-label={open ? t('إغلاق مرشد', 'Close Morshed') : t('فتح مرشد', 'Open Morshed')}
         style={{
           background: 'transparent',
           border: 'none',
@@ -316,7 +325,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
           }}
         >
-          {open ? 'إغلاق مرشد' : 'اسأل مرشد'}
+          {open ? t('إغلاق مرشد', 'Close Morshed') : t('اسأل مرشد', 'Ask Morshed')}
         </span>
       </motion.button>
     </div>
