@@ -510,7 +510,7 @@ function overallStatus(requestId: number | string, statuses: StatusRow[], status
   return names.length === 1 ? names[0] : names.length > 1 ? (isEn ? 'Services in multiple stages' : 'الخدمات في مراحل مختلفة') : (fallback ? translateDbText(fallback.name_ar, isEn) : (isEn ? 'Submitted' : 'تم التقديم'))
 }
 
-const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
+export const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
   PUB_ARBITRATION: { ar: 'تحكيم البحث', en: 'Research Arbitration' },
   PUB_PUBLISH: { ar: 'نشر البحث', en: 'Research Publication' },
   LANG_AR: { ar: 'تدقيق لغوي عربي', en: 'Arabic Proofreading' },

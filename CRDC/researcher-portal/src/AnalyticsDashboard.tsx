@@ -254,8 +254,8 @@ export default function AnalyticsDashboard() {
               <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Last 12 Months' : 'آخر 12 شهرًا'}</span><h2 id="an-trend">{isEn ? 'Monthly Trend' : 'الاتجاه الشهري'}</h2></div></div>
               <p className="card-description">{isEn ? 'Range is fixed to the last 12 months regardless of the selected filter. Months are ordered chronologically from oldest (left) to newest (right).' : 'المدى ثابت على آخر 12 شهرًا بغض النظر عن الفترة المختارة. الأشهر مرتبة زمنيًا من الأقدم (يسار) إلى الأحدث (يمين).'}</p>
               <div className="analytics-trend-stack">
-                <TrendChart title={isEn ? 'Monthly Requests' : 'عدد الطلبات شهريًا'} rows={data.monthly_trend} pick={(r) => r.request_count} kind="count" format={(v) => num.format(v)} color="#185b48" />
-                <TrendChart title={isEn ? 'Monthly Verified Revenue (EGP)' : 'الإيراد الموثّق شهريًا (جنيه)'} rows={data.monthly_trend} pick={(r) => r.revenue_egp} kind="money" format={(v) => `${num.format(v)} EGP`} color="#d88b55" />
+                <TrendChart title={isEn ? 'Monthly Requests' : 'عدد الطلبات شهريًا'} rows={data.monthly_trend} pick={(r) => r.request_count} kind="count" format={(v) => num.format(v)} color="#063454" />
+                <TrendChart title={isEn ? 'Monthly Verified Revenue (EGP)' : 'الإيراد الموثّق شهريًا (جنيه)'} rows={data.monthly_trend} pick={(r) => r.revenue_egp} kind="money" format={(v) => `${num.format(v)} EGP`} color="#00a3a9" />
                 <TrendChart title={isEn ? 'Monthly Verified Revenue (USD)' : 'الإيراد الموثّق شهريًا (دولار)'} rows={data.monthly_trend} pick={(r) => r.revenue_usd} kind="money" format={(v) => `${num.format(v)} USD`} color="#4f7f9a" />
               </div>
               <details className="analytics-details">

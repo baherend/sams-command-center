@@ -104,7 +104,7 @@ test('active viewer lands on the analytics dashboard, keeps the overview tab, an
   })
   if (staffError) throw staffError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   const firstResponse = page.waitForResponse(isAnalyticsCall)
@@ -136,7 +136,7 @@ test('admin opens the analytics tab from the overview and sees the same aggregat
   })
   if (staffError) throw staffError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -167,7 +167,7 @@ test('admin paginates synthetic requests and assignments persist across pages', 
   ])
   if (staffInsertError) throw staffInsertError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(adminEmail)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -222,7 +222,7 @@ test('publication issue options follow the journal selected in the editor', asyn
     .select('issue_id, journal_id').order('issue_id')
   if (issuesError) throw issuesError
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
@@ -273,7 +273,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
     if (fixtureError) throw fixtureError
   }
 
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(reviewerEmail)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
