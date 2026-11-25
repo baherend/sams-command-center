@@ -53,7 +53,7 @@ export default function App() {
   const [notice, setNotice] = useState<LocalizedText | null>(null)
   const [error, setError] = useState<LocalizedText | null>(null)
   const [confirmationPending, setConfirmationPending] = useState(false)
-  const [recoveryMode, setRecoveryMode] = useState(false)
+  const [recoveryMode, setRecoveryMode] = useState(() => typeof window !== 'undefined' && (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')))
   const [forgotPassword, setForgotPassword] = useState(false)
   const [profileApplicantType, setProfileApplicantType] = useState<'egyptian' | 'foreign'>('egyptian')
   // The user the portal state currently belongs to. Used to ignore auth events that do not
@@ -402,7 +402,7 @@ export default function App() {
         </section>
         <PublicHome />
         {footer}
-        <AssistantWidget audience="all" />
+        <Suspense fallback={null}><AssistantWidget audience="all" /></Suspense>
       </main>
     )
   }
