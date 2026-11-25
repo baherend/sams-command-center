@@ -109,3 +109,16 @@ export function translateDbText(text: string | null | undefined, isEn: boolean):
   if (!isEn) return text
   return DB_EN_MAP[text.trim()] ?? text
 }
+
+export function pickName(
+  row: { name_ar?: string | null; name_en?: string | null } | null | undefined,
+  lang: Lang,
+): string {
+  if (!row) return ''
+  if (lang === 'en') {
+    const en = row.name_en?.trim()
+    if (en) return en
+    return translateDbText(row.name_ar, true)
+  }
+  return row.name_ar ?? ''
+}

@@ -2,15 +2,15 @@ import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, type LocalizedText } from './errors'
-import { useI18n, translateDbText } from './i18n'
+import { useI18n, pickName } from './i18n'
 
 type Days = number | null
 type Kpis = {
   total_requests: number; total_items: number; active_items: number; completed_items: number
   avg_turnaround_days: number | null; verified_revenue_egp: number; verified_revenue_usd: number
 }
-type ServiceRow = { service_code: string; service_name_ar: string; item_count: number; revenue_egp: number; revenue_usd: number }
-type StatusRow = { status_code: string; status_name_ar: string; item_count: number }
+type ServiceRow = { service_code: string; service_name_ar: string; service_name_en?: string | null; item_count: number; revenue_egp: number; revenue_usd: number }
+type StatusRow = { status_code: string; status_name_ar: string; status_name_en?: string | null; item_count: number }
 type TrendRow = { month: string; request_count: number; revenue_egp: number; revenue_usd: number }
 type Dashboard = {
   kpis: Kpis; by_service: ServiceRow[]; by_status: StatusRow[]; monthly_trend: TrendRow[]
@@ -234,7 +234,7 @@ export default function AnalyticsDashboard() {
               <BarList
                 label={isEn ? 'Items count per service' : 'عدد البنود لكل خدمة'}
                 rows={data.by_service.map((s) => ({
-                  key: s.service_code, name: translateDbText(s.service_name_ar, isEn), value: s.item_count,
+                  key: s.service_code, name: pickName({ name_ar: s.service_name_ar, name_en: s.service_name_en }, lang), value: s.item_count,
                   extra: <small className="analytics-bar-extra">{isEn ? 'Verified revenue: ' : 'إيراد موثّق: '}<Money value={s.revenue_egp} currency="EGP" /> · <Money value={s.revenue_usd} currency="USD" /></small>,
                 }))}
               />
@@ -242,7 +242,7 @@ export default function AnalyticsDashboard() {
 
             <section className="portal-card" aria-labelledby="an-status">
               <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Workflow Stages' : 'مراحل العمل'}</span><h2 id="an-status">{isEn ? 'Items by Status' : 'البنود حسب الحالة'}</h2></div></div>
-              <BarList label={isEn ? 'Items count per status' : 'عدد البنود لكل حالة'} rows={data.by_status.map((s) => ({ key: s.status_code, name: translateDbText(s.status_name_ar, isEn), value: s.item_count }))} />
+              <BarList label={isEn ? 'Items count per status' : 'عدد البنود لكل حالة'} rows={data.by_status.map((s) => ({ key: s.status_code, name: pickName({ name_ar: s.status_name_ar, name_en: s.status_name_en }, lang), value: s.item_count }))} />
             </section>
 
             <section className="portal-card" aria-labelledby="an-mix">

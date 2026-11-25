@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import AnalyticsDashboard from './AnalyticsDashboard'
-import { useI18n, translateDbText } from './i18n'
+import { useI18n, pickName } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
-type SummaryRow = { metric: string; category: string; label: string; request_count: number | string }
+type SummaryRow = { metric: string; category: string; label: string; label_en?: string | null; request_count: number | string }
 type WorkType = 'thesis' | 'paper'
 type QueueRequest = {
   request_id: number
@@ -22,10 +22,10 @@ type QueueRequest = {
 }
 type Requester = { researcher_id: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
 type RequestItem = { item_id: number; request_id: number; service_id: number; status_id: number; assigned_staff_id: string | null }
-type RequestStatus = { status_id: number; code: string; name_ar: string; sort_order: number }
+type RequestStatus = { status_id: number; code: string; name_ar: string; name_en?: string | null; sort_order: number }
 type HistoryRow = { history_id: number; item_id: number; status_id: number; changed_at: string; note: string | null }
 type PublicationRow = { submission_id: number; item_id: number; journal_id: number; issue_id: number | null; decision: 'pending' | 'revisions' | 'accepted' | 'rejected'; accepted_at: string | null }
-type Journal = { journal_id: number; name_ar: string }
+type Journal = { journal_id: number; name_ar: string; name_en?: string | null }
 type JournalIssue = { issue_id: number; journal_id: number; issue_year: number; issue_month: number }
 type CashierPayment = {
   payment_id: number
@@ -41,7 +41,7 @@ type CashierPayment = {
 }
 type CashierContact = { request_id: number; work_type: WorkType; work_title: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
 type CashierItem = { item_id: number; payment_id: number; request_id: number; fee_id: number; service_id: number; currency: string; amount_due: number | string; status_id: number }
-type CashierItemDisplay = CashierItem & { service_name: string; option_code: string }
+type CashierItemDisplay = CashierItem & { service_name: string; service_name_en?: string | null; option_code: string }
 type CashierCursor = { submitted_by_researcher_at: string; payment_id: number }
 type CashierQueueRow = { payment: CashierPayment; contact: CashierContact | undefined; items: CashierItemDisplay[] }
 
@@ -126,24 +126,24 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           requestIds.length
             ? supabase.schema('crdc').from('cashier_request_contacts').select('request_id,work_type,work_title,full_name,email,applicant_type').in('request_id', requestIds)
             : Promise.resolve({ data: [], error: null }),
-          supabase.schema('crdc').from('request_statuses').select('status_id,code,name_ar,sort_order').order('sort_order'),
+          supabase.schema('crdc').from('request_statuses').select('status_id,code,name_ar,name_en,sort_order').order('sort_order'),
         ])
         if (itemResult.error || contactResult.error || statusResult.error) throw itemResult.error ?? contactResult.error ?? statusResult.error
         const itemRows = (itemResult.data ?? []) as CashierItem[]
         const serviceIds = [...new Set(itemRows.map((item) => item.service_id))]
         const feeIds = [...new Set(itemRows.map((item) => item.fee_id))]
         const [serviceResult, feeResult] = await Promise.all([
-          serviceIds.length ? supabase.schema('crdc').from('services').select('service_id,name_ar').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
+          serviceIds.length ? supabase.schema('crdc').from('services').select('service_id,name_ar,name_en').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
           feeIds.length ? supabase.schema('crdc').from('fee_schedule').select('fee_id,option_code').in('fee_id', feeIds) : Promise.resolve({ data: [], error: null }),
         ])
         if (serviceResult.error || feeResult.error) throw serviceResult.error ?? feeResult.error
         if (!alive) return
-        const serviceNames = new Map((serviceResult.data ?? []).map((row) => [row.service_id, row.name_ar]))
+        const serviceRows = new Map((serviceResult.data ?? []).map((row) => [row.service_id, row]))
         const feeCodes = new Map((feeResult.data ?? []).map((row) => [row.fee_id, row.option_code]))
         const contacts = new Map(((contactResult.data ?? []) as CashierContact[]).map((row) => [row.request_id, row]))
         const itemsByPayment = new Map<number, CashierItemDisplay[]>()
         for (const item of itemRows) {
-          const display = { ...item, service_name: serviceNames.get(item.service_id) ?? 'SERVICE_FALLBACK', option_code: feeCodes.get(item.fee_id) ?? '' }
+          const display = { ...item, service_name: serviceRows.get(item.service_id)?.name_ar ?? 'SERVICE_FALLBACK', service_name_en: serviceRows.get(item.service_id)?.name_en ?? null, option_code: feeCodes.get(item.fee_id) ?? '' }
           itemsByPayment.set(item.payment_id, [...(itemsByPayment.get(item.payment_id) ?? []), display])
         }
         setCashierRows(pagePayments.map((payment) => ({
@@ -168,7 +168,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     void (async () => {
       try {
         const { data, error: queryError } = await supabase.schema('crdc').from('staff_dashboard_overview')
-          .select('metric, category, label, request_count')
+          .select('metric, category, label, label_en, request_count')
         if (!alive) return
         if (queryError) setError({ ar: 'مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', en: 'Unable to load statistics right now. Please try again shortly.' })
         else setRows((data ?? []) as SummaryRow[])
@@ -207,7 +207,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           : Promise.resolve({ data: [], error: null })
         const [itemResult, statusResult, staffResult] = await Promise.all([
           itemPromise,
-          supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
+          supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
           isAdmin && view === 'requests'
             ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, role, is_active').order('full_name')
             : Promise.resolve({ data: [], error: null }),
@@ -242,7 +242,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           const journalIds = [...new Set(publicationRows.map((publication) => publication.journal_id))]
           if (journalIds.length) {
             const [journalResult, issueResult] = await Promise.all([
-              supabase.schema('crdc').from('journals').select('journal_id, name_ar').in('journal_id', journalIds),
+              supabase.schema('crdc').from('journals').select('journal_id, name_ar, name_en').in('journal_id', journalIds),
               supabase.schema('crdc').from('journal_issues').select('issue_id, journal_id, issue_year, issue_month')
                 .in('journal_id', journalIds).order('issue_year', { ascending: false }),
             ])
@@ -293,7 +293,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     code: request.queue_status_code,
     label: request.queue_status_code === 'MIXED' ? t('مراحل مختلفة', 'Mixed Stages')
       : request.queue_status_code === 'NO_ITEMS' ? t('بدون بنود', 'No Items')
-        : (() => { const s = statusByCode.get(request.queue_status_code); return s ? translateDbText(s.name_ar, isEn) : t('غير محدد', 'Unspecified') })(),
+        : (() => { const s = statusByCode.get(request.queue_status_code); return s ? pickName(s, lang) : t('غير محدد', 'Unspecified') })(),
   })
 
   function resetPagination() {
@@ -482,7 +482,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 </div>
                 <section className="portal-card staff-status-card" aria-labelledby="status-heading">
                   <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Request Distribution' : 'توزيع الطلبات'}</span><h2 id="status-heading">{isEn ? 'By Status' : 'حسب الحالة'}</h2></div><span className="role-badge">{isEn ? 'Aggregated View' : 'عرض مجمّع'}</span></div>
-                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{translateDbText(row.label, isEn)}</span><strong>{Number(row.request_count).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong></li>)}</ul> : <p className="empty-state">{t('مفيش حالات طلبات للعرض حاليًا.', 'No request statuses to display right now.')}</p>}
+                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{pickName({ name_ar: row.label, name_en: row.label_en }, lang)}</span><strong>{Number(row.request_count).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong></li>)}</ul> : <p className="empty-state">{t('مفيش حالات طلبات للعرض حاليًا.', 'No request statuses to display right now.')}</p>}
                 </section>
               </>
             )}
@@ -506,7 +506,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   <dt>{t('وصل للمراجعة', 'Submitted At')}</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
                 </dl>
                 <section className="cashier-covered-items"><h3>{t('الخدمات المشمولة', 'Covered Services')}</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
-                  <span>{item.service_name === 'SERVICE_FALLBACK' ? t('خدمة', 'Service') : translateDbText(item.service_name, isEn)}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{(() => { const s = statusById.get(item.status_id); return s ? translateDbText(s.name_ar, isEn) : t('غير محدد', 'Unspecified') })()} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
+                  <span>{item.service_name === 'SERVICE_FALLBACK' ? t('خدمة', 'Service') : pickName({ name_ar: item.service_name, name_en: item.service_name_en }, lang)}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{(() => { const s = statusById.get(item.status_id); return s ? pickName(s, lang) : t('غير محدد', 'Unspecified') })()} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
                 </li>)}</ul> : <p className="empty-state">{t('مفيش بنود مرتبطة بإذن الدفع.', 'No items linked to this payment order.')}</p>}</section>
                 <div className="cashier-receipt-actions">
                   <button className="quiet-button" disabled={cashierBusyPayment !== null} onClick={() => void singleFlight(() => previewReceipt(payment))}>{t('إنشاء رابط معاينة آمن', 'Generate Secure Preview Link')}</button>
@@ -531,7 +531,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             {notice && <p className="message success" role="status">{notice[lang]}</p>}
             {error && <p className="message error" role="alert">{error[lang]}</p>}
             <div className="queue-filters portal-card">
-              <label>{isEn ? 'Status' : 'الحالة'}<select aria-label={t('فلترة بالحالة', 'Filter by status')} value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
+              <label>{isEn ? 'Status' : 'الحالة'}<select aria-label={t('فلترة بالحالة', 'Filter by status')} value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{pickName(status, lang)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
               <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label={t('فلترة بنوع العمل', 'Filter by work type')} value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
               <span className="queue-result-count">{isEn ? 'Page requests: ' : 'طلبات الصفحة: '}{requests.length.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
             </div>
@@ -585,14 +585,14 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 const itemHistory = history.filter((row) => row.item_id === item.item_id)
                 if (!request) return null
                 return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
-                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? translateDbText(current.name_ar, isEn) : t('غير محدد', 'Unspecified')}</span></div>
+                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? pickName(current, lang) : t('غير محدد', 'Unspecified')}</span></div>
                   <p className="operational-meta">{t('رقم الطلب', 'Request')} <span dir="ltr">#{request.request_id}</span> · {t('البند', 'Item')} <span dir="ltr">#{item.item_id}</span></p>
                   <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
-                    <label>{t('الحالة التشغيلية', 'Operational Status')}<select name="status" aria-label={t('الحالة التشغيلية', 'Operational Status')} defaultValue=""><option value="" disabled>{t('اختار الحالة', 'Select status')}</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}</select></label>
+                    <label>{t('الحالة التشغيلية', 'Operational Status')}<select name="status" aria-label={t('الحالة التشغيلية', 'Operational Status')} defaultValue=""><option value="" disabled>{t('اختار الحالة', 'Select status')}</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{pickName(status, lang)}</option>)}</select></label>
                     <label>{t('ملاحظة للسجل', 'History Note')}<input name="note" placeholder={t('اكتب ملاحظة مختصرة (اختياري)', 'Write a brief note (optional)')} /><small>{t('الملاحظة هتظهر للباحث', 'This note will be visible to the researcher')}</small></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('بنحفظ...', 'Saving...') : t('حفظ الحالة', 'Save Status')}</button>
                   </form>
-                  <section className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{(() => { const s = statusById.get(entry.status_id); return s ? translateDbText(s.name_ar, isEn) : t('تحديث', 'Update') })()}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">{t('لسه مفيش تحديثات ظاهرة.', 'No visible updates yet.')}</p>}</section>
+                  <section className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{(() => { const s = statusById.get(entry.status_id); return s ? pickName(s, lang) : t('تحديث', 'Update') })()}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">{t('لسه مفيش تحديثات ظاهرة.', 'No visible updates yet.')}</p>}</section>
                   {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; void singleFlight(() => updatePublication(item.item_id, formElement)) }}>
                     <h4>{t('قرار النشر', 'Publication Decision')}</h4><label>{t('القرار', 'Decision')}<select name="decision" defaultValue={publication.decision}><option value="pending">{t('قيد المراجعة', 'Under Review')}</option><option value="revisions">{t('تعديلات', 'Revisions')}</option><option value="accepted">{t('مقبول', 'Accepted')}</option><option value="rejected">{t('مرفوض', 'Rejected')}</option></select></label>
                     <label>{t('المجلة', 'Journal')}<select name="journal_id" value={selectedJournalByItem[item.item_id] ?? publication.journal_id} onChange={(event) => {
@@ -600,7 +600,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                       setSelectedJournalByItem((current) => ({ ...current, [item.item_id]: journalId }))
                       setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: '' }))
                       void loadJournalIssues(journalId)
-                    }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{translateDbText(journal.name_ar, isEn)}</option>)}</select></label>
+                    }}>{journals.map((journal) => <option value={journal.journal_id} key={journal.journal_id}>{pickName(journal, lang)}</option>)}</select></label>
                     <label>{t('العدد', 'Issue')}<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">{t('من غير عدد', 'No issue assigned')}</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('بنحفظ...', 'Saving...') : t('حفظ قرار النشر', 'Save Publication Decision')}</button>
                   </form>}
