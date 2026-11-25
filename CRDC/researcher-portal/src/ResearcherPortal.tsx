@@ -91,7 +91,7 @@ const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
   const { dir, isEn } = useI18n()
-  const [view, setView] = useState<View>('home')
+  const [view, setView] = useState<View>('catalog')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
   const [requirements, setRequirements] = useState<DegreeRequirement[]>([])
@@ -401,7 +401,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         <section className="portal-content" aria-live="polite">
           {view === 'home' && <ResearcherGuideHome applicantType={profile.applicant_type} onStartRequest={() => chooseView('catalog')} />}
           {view === 'catalog' && <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>{isEn ? 'Each thesis or paper has a separate request. You can select multiple services for the same work.' : 'كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.'}</p></div>
+            <div className="portal-card" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}><div><span className="eyebrow">{isEn ? 'CRDC Procedural Guide' : 'الدليل الإجرائي للمركز'}</span><p style={{ margin: '0.25rem 0 0' }}>{isEn ? 'New to the center? Explore the 5 services, degree requirements, payment steps, and accredited journals.' : 'تعرّف على خدمات المركز الخمس، متطلبات درجتك العلمية، خطوات السداد، والمجلات المعتمدة.'}</p></div><button type="button" className="quiet-button" onClick={() => chooseView('home')}>{isEn ? '📖 Open Services Guide' : '📖 استعراض الدليل الإجرائي'}</button></div><div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>{isEn ? 'Each thesis or paper has a separate request. You can select multiple services for the same work.' : 'كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.'}</p></div>
             <div className="catalog-layout">
               <form className="portal-card form-stack" onSubmit={submitRequest}>
                 <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">{isEn ? 'Work Details' : 'بيانات العمل'}</span><h2>{isEn ? 'Select Request Type & Services' : 'حدد نوع الطلب والخدمات'}</h2></div></div>
