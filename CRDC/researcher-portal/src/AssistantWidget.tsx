@@ -46,18 +46,9 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
   ])
 
   useEffect(() => {
-    const showTimer = window.setTimeout(() => {
-      if (!open) setShowGreeting(true)
-    }, 1000)
-
-    const hideTimer = window.setTimeout(() => {
-      setShowGreeting(false)
-    }, 8500)
-
-    return () => {
-      window.clearTimeout(showTimer)
-      window.clearTimeout(hideTimer)
-    }
+    const t1 = window.setTimeout(() => { if (!open) setShowGreeting(true) }, 1000)
+    const t2 = window.setTimeout(() => setShowGreeting(false), 8500)
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2) }
   }, [])
 
   function toggleOpen() {
@@ -69,21 +60,14 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     const clean = rawText.trim()
     if (!clean || busy) return
 
-    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', text: clean }
-    setMessages((prev) => [...prev, userMsg])
+    setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text: clean }])
     setQuery('')
 
     const localReply = runAssistantLocalTools(clean, audience)
     if (localReply) {
       setMessages((prev) => [
         ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          text: localReply.text,
-          options: localReply.options,
-          links: localReply.links,
-        },
+        { id: `a-${Date.now()}`, role: 'assistant', text: localReply.text, options: localReply.options, links: localReply.links },
       ])
       return
     }
@@ -94,34 +78,18 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     try {
       const { data, error } = await supabase
         .schema('crdc')
-        .rpc('search_kb', {
-          p_query: clean,
-          p_audience: audience,
-          p_limit: 3,
-        })
+        .rpc('search_kb', { p_query: clean, p_audience: audience, p_limit: 3 })
 
       if (error) throw error
       const rows = (data ?? []) as KbResult[]
 
       const botMsg: ChatMessage = rows.length > 0
-        ? {
-            id: `a-${Date.now()}`,
-            role: 'assistant',
-            text: `وجدت ${rows.length === 1 ? 'معلومة مطابقة' : `${rows.length} معلومات مطابقة`} في الدليل الإجرائي:`,
-            results: rows,
-          }
-        : {
-            id: `a-${Date.now()}`,
-            role: 'assistant',
-            text: 'لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك أو اسألني مثلاً: (رسوم نشر 30 صفحة، أو أنشر بحثي فين؟).',
-          }
+        ? { id: `a-${Date.now()}`, role: 'assistant', text: `وجدت ${rows.length === 1 ? 'معلومة مطابقة' : `${rows.length} معلومات مطابقة`} في الدليل الإجرائي:`, results: rows }
+        : { id: `a-${Date.now()}`, role: 'assistant', text: 'لم أجد إجابة مطابقة بدقة في الدليل الإجرائي. جرّب إعادة صياغة سؤالك أو اسألني مثلاً: (رسوم نشر 30 صفحة، أو أنشر بحثي فين؟).' }
 
       setMessages((prev) => [...prev, botMsg])
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { id: `e-${Date.now()}`, role: 'assistant', text: friendlyError(err) },
-      ])
+      setMessages((prev) => [...prev, { id: `e-${Date.now()}`, role: 'assistant', text: friendlyError(err) }])
     } finally {
       setBusy(false)
     }
@@ -183,12 +151,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                   {m.options && m.options.length > 0 && (
                     <div className="kb-suggestions" style={{ padding: '8px 0 2px', borderTop: 'none' }}>
                       {m.options.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void askQuestion(opt.value)}
-                        >
+                        <button key={opt.value} type="button" disabled={busy} onClick={() => void askQuestion(opt.value)}>
                           {opt.label}
                         </button>
                       ))}
@@ -232,14 +195,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
 
             <div className="kb-suggestions">
               {SUGGESTIONS.map((s) => (
-                <motion.button
-                  key={s}
-                  type="button"
-                  disabled={busy}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => void askQuestion(s)}
-                >
+                <motion.button key={s} type="button" disabled={busy} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }} onClick={() => void askQuestion(s)}>
                   {s}
                 </motion.button>
               ))}
@@ -262,7 +218,6 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         )}
       </AnimatePresence>
 
-      {/* فقاعة ترحيب صغيرة عائمة فوق الكتاب */}
       <AnimatePresence>
         {showGreeting && !open && (
           <motion.div
@@ -290,3 +245,19 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             }}
           >
             <span>أهلاً بك! أنا مرشد، اضغط لفتح الكتاب 👋</span>
+            <button
+              type="button"
+              aria-label="إغلاق الترحيب"
+              onClick={(e) => { e.stopPropagation(); setShowGreeting(false) }}
+              style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '1rem', lineHeight: 1, cursor: 'pointer', padding: '0 0.15rem' }}
+            >
+              ×
+            </button>
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: '-6px',
+                left: '42px',
+                width: '10px',
+                height: '10px',
