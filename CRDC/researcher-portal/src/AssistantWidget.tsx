@@ -118,17 +118,22 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
           <motion.section
             className="kb-assistant-panel"
             aria-label="مرشد - المساعد الذكي للدليل الإجرائي"
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            style={{
+              transformOrigin: '48px calc(100% + 42px)',
+              borderTop: '2px solid #D4AF37',
+              boxShadow: '0 22px 48px rgba(15, 23, 42, 0.35), 0 0 24px rgba(212, 175, 55, 0.22)',
+            }}
+            initial={{ opacity: 0, scale: 0.12, y: 36 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.12, y: 36 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
           >
             <header className="kb-assistant-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <MorshedAvatar size={42} />
+                <MorshedAvatar size={42} compact />
                 <div>
                   <strong>مرشد</strong>
-                  <small>المساعد الذكي • الدليل والحاسبة والمجلات</small>
+                  <small>الدليل الإجرائي • الحاسبة • المجلات</small>
                 </div>
               </div>
               <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق مرشد">
@@ -147,7 +152,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 >
                   {m.role === 'assistant' ? (
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                      <MorshedAvatar size={28} />
+                      <MorshedAvatar size={28} compact />
                       <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{m.text}</p>
                     </div>
                   ) : (
@@ -236,27 +241,42 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         )}
       </AnimatePresence>
 
+      {/* شخصية مرشد 3D العائمة بالكتاب المفتوح */}
       <motion.button
         type="button"
-        className="kb-assistant-fab"
         onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.06, y: -3 }}
+        whileHover={{ scale: 1.07, y: -4 }}
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
         aria-label="فتح مرشد"
         style={{
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
           display: 'inline-flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.35rem',
-          padding: '0.6rem 0.95rem 0.55rem',
-          borderRadius: '1.35rem',
-          lineHeight: 1.2,
+          gap: '0.2rem',
+          fontFamily: 'inherit',
         }}
       >
-        <MorshedAvatar size={68} />
-        <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+        <motion.div
+          animate={{ y: open ? 0 : [0, -5, 0] }}
+          transition={{ duration: 3, repeat: open ? 0 : Infinity, ease: 'easeInOut' }}
+        >
+          <MorshedAvatar size={96} isOpen={open} />
+        </motion.div>
+        <span
+          className="kb-assistant-fab"
+          style={{
+            padding: '0.42rem 1.05rem',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            border: '1.5px solid #D4AF37',
+            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)',
+          }}
+        >
           {open ? 'إغلاق مرشد' : 'اسأل مرشد'}
         </span>
       </motion.button>
