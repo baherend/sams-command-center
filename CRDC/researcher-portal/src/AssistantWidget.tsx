@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from './supabase'
@@ -226,7 +226,6 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             exit={{ opacity: 0, y: 8, scale: 0.85 }}
             transition={{ type: 'spring', stiffness: 320, damping: 22 }}
             onClick={toggleOpen}
-            role="status"
             style={{
               position: 'relative',
               background: '#0F172A',
