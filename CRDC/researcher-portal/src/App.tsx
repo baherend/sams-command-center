@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
-import StaffConsole from './StaffConsole'
-import AssistantWidget from './AssistantWidget'
+const StaffConsole = lazy(() => import('./StaffConsole'))
+const AssistantWidget = lazy(() => import('./AssistantWidget'))
 import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import { useI18n, pickName } from './i18n'
 
@@ -301,10 +301,10 @@ export default function App() {
   if (recoveryMode) return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تأمين الحساب', 'Account Security')}</span><h1>{t('تعيين كلمة مرور جديدة', 'Set a New Password')}</h1><form className="form-stack" onSubmit={handleNewPassword}><label>{t('كلمة المرور الجديدة', 'New Password')}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>{error && <p role="alert" className="message error">{error[lang]}</p>}<button className="primary-button" disabled={busy}>{busy ? t('لحظة واحدة...', 'One moment...') : t('حفظ كلمة المرور', 'Save Password')}</button></form></div></main>
 
   if (session && profile) {
-    return (<><ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} /><AssistantWidget audience={profile.applicant_type === 'foreign' ? 'expat' : 'egyptian'} /></>)
+    return (<><ResearcherPortal profile={profile} onSignOut={signOut} onProfileUpdated={setProfile} /><Suspense fallback={null}><AssistantWidget audience={profile.applicant_type === 'foreign' ? 'expat' : 'egyptian'} /></Suspense></>)
   }
 
-  if (session && staff) return (<><StaffConsole staff={staff} onSignOut={signOut} /><AssistantWidget audience="staff" /></>)
+  if (session && staff) return (<><Suspense fallback={<div className="loading" aria-busy="true"><span className="spinner" /> {t('بنحمّل لوحة الموظفين...', 'Loading staff console...')}</div>}><StaffConsole staff={staff} onSignOut={signOut} /></Suspense><Suspense fallback={null}><AssistantWidget audience="staff" /></Suspense></>)
 
   if (session && inactiveStaff) {
     return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('حساب موظف', 'Staff Account')}</span><h1>{t('الحساب غير مفعّل', 'Account Inactive')}</h1><p>{t('حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.', 'This staff account is currently inactive. Contact center administration to activate it.')}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button></div></main>

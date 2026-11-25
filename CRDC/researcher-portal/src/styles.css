@@ -266,7 +266,12 @@ body, .form-card, .setup-card, .kb-assistant-panel, .kb-assistant-body, .kb-msg-
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  transition: transform 0.15s ease;
 }
+.theme-toggle-fab:hover { transform: scale(1.05); }
+.theme-toggle-fab:active { transform: scale(0.94); }
+.theme-toggle-icon { display: inline-block; animation: theme-toggle-in 0.25s ease-out; }
+@keyframes theme-toggle-in { from { transform: rotate(-90deg); opacity: 0; } to { transform: rotate(0); opacity: 1; } }
 
 .kb-assistant-fab, .kb-assistant-header, .kb-msg-user, .kb-assistant-form button {
   background: linear-gradient(135deg, var(--green, #185b48), var(--green-dark, #123e33));

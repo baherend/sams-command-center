@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
-import AnalyticsDashboard from './AnalyticsDashboard'
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
 import { useI18n, pickName } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
@@ -469,7 +469,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
           <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا يا', 'Welcome,')} {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
-          <AnalyticsDashboard />
+          <Suspense fallback={<div className="portal-card loading" aria-busy="true"><span className="spinner" /> {t('بنحمّل لوحة التحليلات...', 'Loading analytics...')}</div>}><AnalyticsDashboard /></Suspense>
         ) : view === 'overview' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
