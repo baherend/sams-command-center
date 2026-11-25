@@ -489,3 +489,73 @@ body, .form-card, .setup-card, .kb-assistant-panel, .kb-assistant-body, .kb-msg-
   color: #ffffff !important;
   border-color: #34c397 !important;
 }
+
+/* ---------------------------------------------------------------------
+   Contrast and readable sizes (added after the dark-theme review).
+   Several text colors were hard-coded for the light theme, so values such as
+   fees, payment status and timeline entries were almost invisible in dark mode.
+   Dark-mode colors below are placed in this block so they win by specificity.
+   --------------------------------------------------------------------- */
+
+/* Readable minimum sizes in both themes (previously 10-11px). */
+.item-facts,.profile-details,.payment-receipt-facts,.cashier-receipt-facts,.admin-request-facts{font-size:13px}
+.item-facts span,.profile-details dt,.payment-receipt-facts dt,.cashier-receipt-facts dt,.admin-request-facts dt{font-size:13px}
+.item-facts strong,.profile-details dd,.payment-receipt-facts dd,.cashier-receipt-facts dd,.admin-request-facts dd{font-size:14px}
+.timeline h4{font-size:14px}
+.timeline-row{font-size:13px}
+.timeline-row time{font-size:12px}
+.staff-status-list li{font-size:13px}
+
+/* Dark theme: secondary text. */
+[data-theme="dark"] .item-facts,
+[data-theme="dark"] .item-facts span,
+[data-theme="dark"] .profile-details dt,
+[data-theme="dark"] .payment-receipt-facts dt,
+[data-theme="dark"] .cashier-receipt-facts dt,
+[data-theme="dark"] .admin-request-facts dt,
+[data-theme="dark"] .publication-facts,
+[data-theme="dark"] .requirement-list li,
+[data-theme="dark"] .staff-name,
+[data-theme="dark"] .staff-stat-card > span,
+[data-theme="dark"] .analytics-table thead th,
+[data-theme="dark"] .timeline-row p,
+[data-theme="dark"] .operation-form label,
+[data-theme="dark"] .publication-editor label,
+[data-theme="dark"] .payment-receipt-form label,
+[data-theme="dark"] .cashier-rejection-form label,
+[data-theme="dark"] .queue-filters label,
+[data-theme="dark"] .admin-request-assignment label{color:#b5c7bf}
+
+/* Dark theme: primary values. */
+[data-theme="dark"] .item-facts strong,
+[data-theme="dark"] .profile-details dd,
+[data-theme="dark"] .profile-summary strong,
+[data-theme="dark"] .payment-receipt-facts dd,
+[data-theme="dark"] .cashier-receipt-facts dd,
+[data-theme="dark"] .admin-request-facts dd,
+[data-theme="dark"] .fee-option-copy strong,
+[data-theme="dark"] .timeline-row strong,
+[data-theme="dark"] .analytics-bar-row,
+[data-theme="dark"] .analytics-mix-legend,
+[data-theme="dark"] .analytics-trend-title{color:#e6efe9}
+
+[data-theme="dark"] .timeline-row time{color:#93a79e}
+[data-theme="dark"] .timeline-row:not(:last-child):before{border-right-color:#2a443b}
+[data-theme="dark"] .item-facts{border-top-color:#1f352f;border-bottom-color:#1f352f}
+[data-theme="dark"] .staff-status-list li{background:#14231f;border-color:#1f352f;color:#c9d9d1}
+[data-theme="dark"] .form-stack input::placeholder{color:#7f948b}
+
+/* Dark theme: status colors (tinted background + light text, contrast >= 4.5:1). */
+[data-theme="dark"] .message.success{background:#12261f;color:#7fdcb2}
+[data-theme="dark"] .message.error{background:#2c1815;color:#ffb0a5}
+[data-theme="dark"] .receipt-status-pending_review{background:#2b2512;color:#f0cf7a}
+[data-theme="dark"] .receipt-status-verified{background:#12261f;color:#7fdcb2}
+[data-theme="dark"] .receipt-status-rejected{background:#2c1815;color:#ffb0a5}
+[data-theme="dark"] .receipt-status-awaiting_receipt{background:#1b2723;color:#b5c7bf}
+
+/* Keyboard focus was invisible (no :focus-visible rules existed). */
+:where(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #2ca580;outline-offset:2px}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
