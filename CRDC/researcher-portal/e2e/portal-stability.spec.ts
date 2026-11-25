@@ -70,7 +70,7 @@ test('M9/L6: an open profile form survives a token refresh, and a duplicate nati
   await page.locator('select[name="degree_id"]').selectOption('1')
   await page.locator('.form-card form button.primary-button').click()
   const alert = page.getByRole('alert')
-  await expect(alert).toContainText('مش قادرين نحفظ البيانات')
+  await expect(alert).toContainText('تعذّر حفظ هذه البيانات')
   await expect(alert).not.toContainText(/23505|duplicate|violates|constraint|researchers_/i)
 })
 

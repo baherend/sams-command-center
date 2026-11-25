@@ -198,7 +198,7 @@ test('admin paginates synthetic requests and assignments persist across pages', 
   await expect(requestRow).toBeVisible()
   const requestId = await requestRow.getAttribute('data-request-id')
   await requestRow.getByLabel('تعيين المراجع أو الإحصائي').selectOption({ label: 'مراجع اختبار · مراجع' })
-  await expect(page.getByRole('status')).toContainText('اتعيّن')
+  await expect(page.getByRole('status')).toContainText('تم تعيين')
   await expect(requestRow.locator('.assigned-staff-names')).toContainText('مراجع اختبار')
 
   await page.reload()
@@ -229,7 +229,7 @@ test('publication issue options follow the journal selected in the editor', asyn
   const nav = page.getByRole('navigation', { name: 'التنقل في لوحة الموظف' })
   await expect(nav).toBeVisible()
   await nav.getByRole('button', { name: 'إدارة الطلبات والتعيينات' }).click()
-  await page.getByLabel('فلترة بنوع العمل').selectOption('paper')
+  await page.getByLabel('التصفية حسب نوع العمل').selectOption('paper')
   await nav.getByRole('button', { name: 'كل الطلبات والبنود' }).click()
 
   const editor = page.locator('.publication-editor').first()
@@ -282,7 +282,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
   const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[0].item_id}"]`)
   await expect(assigned).toBeVisible()
-  await expect(assigned.getByText('الملاحظة هتظهر للباحث')).toBeVisible()
+  await expect(assigned.getByText('ستظهر الملاحظة للباحث')).toBeVisible()
   await expect(page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[1].item_id}"]`)).toHaveCount(0)
   await assigned.getByLabel('الحالة التشغيلية').selectOption('IN_PROGRESS')
   await assigned.getByLabel('ملاحظة للسجل').fill('بدأت مراجعة الاختبار')

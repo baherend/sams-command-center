@@ -31,7 +31,7 @@ const n = (value: unknown) => { const x = Number(value); return Number.isFinite(
 const list = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
 
 function normalize(raw: unknown): Dashboard {
-  if (!raw || typeof raw !== 'object') throw new UiError('مش قادرين نقرأ بيانات المؤشرات. جرّب تاني بعد شوية.', 'Unable to parse analytics data. Please try again shortly.')
+  if (!raw || typeof raw !== 'object') throw new UiError('تعذّرت قراءة بيانات المؤشرات. يُرجى المحاولة بعد قليل.', 'Unable to parse analytics data. Please try again shortly.')
   const d = raw as Record<string, unknown>
   const k = (d.kpis ?? {}) as Record<string, unknown>
   const mix = (d.applicant_mix ?? {}) as Record<string, unknown>
@@ -179,7 +179,7 @@ export default function AnalyticsDashboard() {
     setError(null)
     void (async () => {
       try {
-        if (!supabase) throw new UiError('الخدمة غير متاحة دلوقتي. جرّب تاني بعد شوية.', 'Service is currently unavailable. Please try again shortly.')
+        if (!supabase) throw new UiError('الخدمة غير متاحة حاليًا. يُرجى المحاولة بعد قليل.', 'Service is currently unavailable. Please try again shortly.')
         const { data: raw, error: rpcError } = await supabase.schema('crdc').rpc('get_analytics_dashboard', { p_days: days })
         if (rpcError) throw rpcError
         const parsed = normalize(raw)
@@ -206,20 +206,20 @@ export default function AnalyticsDashboard() {
 
   return (
     <>
-      <div className="portal-heading"><span className="eyebrow">{isEn ? 'Staff Dashboard' : 'لوحة الموظفين'}</span><h1>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</h1><p>{isEn ? 'Aggregated figures for requests and revenue, without exposing researcher personal details.' : 'أرقام مجمعة عن الطلبات والإيرادات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.'}</p></div>
+      <div className="portal-heading"><span className="eyebrow">{isEn ? 'Staff Dashboard' : 'لوحة الموظفين'}</span><h1>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</h1><p>{isEn ? 'Aggregated figures for requests and revenue, without exposing researcher personal details.' : 'أرقام مجمّعة عن الطلبات والإيرادات، دون عرض بيانات الباحثين أو تفاصيل طلباتهم.'}</p></div>
       <div className="analytics-toolbar">
         <div className="analytics-range" role="group" aria-label={isEn ? 'Time Period' : 'الفترة الزمنية'}>
           {getRanges(isEn).map((range) => (
             <button key={range.label} type="button" aria-pressed={days === range.value} onClick={() => setDays(range.value)}>{range.label}</button>
           ))}
         </div>
-        {loading && data && <span className="analytics-updating" role="status"><span className="spinner" /> {isEn ? 'Updating figures...' : 'بنحدّث الأرقام...'}</span>}
+        {loading && data && <span className="analytics-updating" role="status"><span className="spinner" /> {isEn ? 'Updating figures...' : 'جارٍ تحديث الأرقام...'}</span>}
       </div>
 
       {error ? (
         <div className="portal-card analytics-error"><p className="message error" role="alert">{error[lang]}</p><button type="button" className="quiet-button" onClick={() => setReload((v) => v + 1)}>{isEn ? 'Retry' : 'إعادة المحاولة'}</button></div>
       ) : !data ? (
-        <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading KPIs...' : 'بنحمّل المؤشرات...'}</div>
+        <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading KPIs...' : 'جارٍ تحميل المؤشرات...'}</div>
       ) : (
         <div className={loading ? 'analytics-body is-loading' : 'analytics-body'} aria-busy={loading}>
           <div className="analytics-kpis">

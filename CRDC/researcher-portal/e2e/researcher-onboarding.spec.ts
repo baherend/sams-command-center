@@ -30,7 +30,7 @@ async function registerAndCreateProfile(
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
-  await expect(page.getByRole('status')).toContainText('الحساب اتعمل')
+  await expect(page.getByRole('status')).toContainText('تم إنشاء الحساب')
 
   // Confirm only inside the isolated local Auth instance so this test can continue to profile creation.
   await confirmLocalSignup(email)

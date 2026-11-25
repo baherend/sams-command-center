@@ -159,12 +159,12 @@ export class MurshidEngine {
     const n = normalize(q)
     if (wordCount(n) <= 4 && GREET.test(n)) {
       return this.answer(lang === 'ar'
-        ? 'أهلًا بيك! أنا مرشد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. أجيب من الدليل الإجرائي للمركز فقط. اسألني عن الخدمات، الرسوم، الإجراءات، شروط النشر، التنسيق، أو متطلبات درجتك العلمية.'
+        ? 'أهلًا بك! أنا مرشد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. أجيب من الدليل الإجرائي للمركز فقط. اسألني عن الخدمات، الرسوم، الإجراءات، شروط النشر، التنسيق، أو متطلبات درجتك العلمية.'
         : "Hello! I'm Morshed, the researcher's assistant at the Consulting, Research and Development Center, Sadat Academy. I answer only from the center's procedural guide. Ask me about services, fees, procedures, publishing, formatting, or degree requirements.",
       'greeting', true, lang)
     }
     if (wordCount(n) <= 5 && THANKS.test(n)) {
-      return this.answer(lang === 'ar' ? 'العفو! لو عندك أي سؤال تاني عن خدمات المركز أنا موجود.' : "You're welcome! Ask me anything else about the center's services.", 'greeting', true, lang)
+      return this.answer(lang === 'ar' ? 'العفو! يسعدني الإجابة عن أي سؤال آخر عن خدمات المركز.' : "You're welcome! Ask me anything else about the center's services.", 'greeting', true, lang)
     }
 
     if (this.router.wantsRouting(q)) {
@@ -200,7 +200,7 @@ export class MurshidEngine {
 
     if (!this.embed) {
       return this.answer(lang === 'ar'
-        ? 'محرك البحث في الدليل لسه ما اتحمّلش على جهازك، فدلوقتي أقدر أحسب الرسوم وأرشّح المجلة بس. جرّب سؤالك تاني بعد شوية.'
+        ? 'لم يكتمل تحميل محرك البحث في الدليل على جهازك بعد، لذا يمكنني حاليًا حساب الرسوم وترشيح المجلة فقط. أعد طرح سؤالك بعد قليل.'
         : "The guide search engine hasn't loaded on your device yet, so for now I can only calculate fees and suggest a journal. Try again shortly.",
       'refusal', false, lang, { topId: 'not_ready' })
     }
@@ -219,7 +219,7 @@ export class MurshidEngine {
       const options = ar
         ? ['رسوم التحكيم والنشر', 'رسوم التدقيق اللغوي', 'رسوم التحليل الإحصائي', 'رسوم قياس نسبة الاقتباس', 'رسوم شهادة التحول الرقمي']
         : ['Refereeing and publishing fees', 'Proofreading fees', 'Statistical analysis fees', 'Similarity check fees', 'Digital transformation certificate fees']
-      return this.answer(ar ? 'تقصد رسوم أنهي خدمة من خدمات المركز؟' : 'Fees for which of the center\'s services?', 'refusal', false, lang,
+      return this.answer(ar ? 'رسوم أي خدمة من خدمات المركز تقصد؟' : 'Fees for which of the center\'s services?', 'refusal', false, lang,
         { options: options.map((o) => ({ label: o, value: o })), score: top.dense, topId: 'fees_which_service' })
     }
     const chunk = this.byKey.get(`${top.id}|${lang}`)!

@@ -27,7 +27,7 @@ type ModelState = { status: 'idle' | 'loading' | 'ready' | 'failed'; progress: n
 const SUGGESTIONS_AR = [
   'احسب رسوم نشر بحث 30 صفحة',
   'أنشر بحثي في أي مجلة؟',
-  'نسبة الاقتباس المقبولة كام؟',
+  'ما نسبة الاقتباس المقبولة؟',
   'الفرق بين الرسالة العلمية والبحث',
 ]
 
@@ -56,7 +56,7 @@ function SourceChain({ answer }: { answer: Answer }) {
   const en = answer.lang === 'en'
   if (!answer.answered) {
     if (answer.route !== 'refusal' || ['not_ready', 'fees_unavailable', 'fees_which_service'].includes(answer.topId ?? '')) return null
-    const label = en ? 'No source in the guide' : 'مفيش مصدر في الدليل'
+    const label = en ? 'No source in the guide' : 'لا يوجد مصدر في الدليل'
     return <div className="kb-chain kb-chain-broken" aria-label={label}><span>{label}</span></div>
   }
   if (!answer.sources.length) return null
@@ -89,7 +89,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     {
       id: 'welcome',
       role: 'assistant',
-      text: t('أهلاً بك! أنا «مرشد»، مساعد الباحث في مركز الاستشارات والبحوث والتطوير. بجاوب من الدليل الإجرائي بس، ومع كل إجابة مصدرها، ولو المعلومة مش في الدليل هقولك كده بدل ما أخمّن. وأقدر أحسب رسوم النشر والتدقيق بعدد الصفحات، وأرشّح لك المجلة المناسبة لتخصصك.',
+      text: t('أهلًا بك! أنا «مرشد»، مساعد الباحث في مركز الاستشارات والبحوث والتطوير. أجيب من الدليل الإجرائي فقط، وأذكر مصدر كل إجابة، وإذا لم تكن المعلومة في الدليل أخبرك بذلك بدلًا من التخمين. ويمكنني حساب رسوم النشر والتدقيق بعدد الصفحات، وترشيح المجلة المناسبة لتخصصك.',
         'Welcome! I am Morshed, the researcher\'s assistant at CRDC. I answer only from the procedural guide and show the source of every answer; if the guide does not cover something, I say so instead of guessing. I can also calculate publication and proofreading fees by page count and suggest the right journal for your field.'),
     },
   ])
@@ -204,13 +204,13 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
 
             {model.status === 'loading' && (
               <div className="kb-model-status" role="status">
-                <span>{t(`بيتجهّز مرشد على جهازك (مرة واحدة، حوالي 135 ميجا) ${pct}%`, `Preparing Morshed on your device (once, about 135 MB) ${pct}%`)}</span>
+                <span>{t(`جارٍ تجهيز مرشد على جهازك (مرة واحدة، نحو 135 ميجابايت) ${pct}%`, `Preparing Morshed on your device (once, about 135 MB) ${pct}%`)}</span>
                 <progress max={100} value={pct} aria-label={t('تحميل محرك البحث', 'Loading the search engine')} />
               </div>
             )}
             {model.status === 'failed' && (
               <div className="kb-model-status kb-model-failed" role="status">
-                {t('محرك البحث ما اتحمّلش، فأقدر دلوقتي أحسب الرسوم وأرشّح المجلة بس.', 'The search engine did not load, so for now I can only calculate fees and suggest a journal.')}
+                {t('تعذّر تحميل محرك البحث، لذا يمكنني حاليًا حساب الرسوم وترشيح المجلة فقط.', 'The search engine did not load, so for now I can only calculate fees and suggest a journal.')}
               </div>
             )}
 
@@ -258,7 +258,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
               {busy && (
                 <div className="kb-msg kb-msg-assistant">
                   <p>{model.status === 'loading'
-                    ? t(`مستني محرك البحث يخلص تحميل (${pct}%)…`, `Waiting for the search engine to finish loading (${pct}%)…`)
+                    ? t(`في انتظار اكتمال تحميل محرك البحث (${pct}%)…`, `Waiting for the search engine to finish loading (${pct}%)…`)
                     : t('جاري البحث في الدليل الإجرائي...', 'Searching the procedural guide...')}</p>
                 </div>
               )}
@@ -315,7 +315,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
               whiteSpace: 'nowrap',
             }}
           >
-            <span>{t('أهلاً بك! أنا مرشد، اضغط لفتح الكتاب 👋', 'Welcome! I am Morshed, click to open the book 👋')}</span>
+            <span>{t('أهلًا بك! أنا مرشد، اضغط لفتح الكتاب 👋', 'Welcome! I am Morshed, click to open the book 👋')}</span>
             <button
               type="button"
               aria-label={t('إغلاق الترحيب', 'Close greeting')}

@@ -8,7 +8,7 @@ const INTENT = new RegExp(
 )
 const PICK_AR = 'تخصصي:'
 const PICK_EN = 'My field:'
-const OTHER_AR = 'غير ذلك / مش متأكد'
+const OTHER_AR = 'غير ذلك / لست متأكدًا'
 const OTHER_EN = 'Other / not sure'
 
 function contains(qt: string[], phrase: string): boolean {
@@ -56,7 +56,7 @@ export class JournalRouter {
 
   chooser(lang: Lang): { text: string; options: Option[] } {
     const ar = lang === 'ar'
-    const text = ar ? 'المركز بينشر في مجلتين معتمدتين بتقييم 7/7. علشان أقترح عليك الأنسب، اختار تخصص بحثك:'
+    const text = ar ? 'ينشر المركز في مجلتين معتمدتين بتقييم 7/7. لأقترح عليك الأنسب، اختر تخصص بحثك:'
       : 'The center publishes in two journals rated 7/7. To suggest the right one, choose your research field:'
     const options = this.data.specializations.map((s) => ({
       label: ar ? s.label_ar : s.label_en,
@@ -79,17 +79,17 @@ export class JournalRouter {
     let head: string
     if (spec === 'other') {
       keys = Object.keys(this.data.journals)
-      head = ar ? 'مفيش تخصص محدد، فدي المجلتين علشان تقارن بينهم:' : 'No specific field, so here are both journals to compare:'
+      head = ar ? 'لم يُحدَّد تخصص، فهذه المجلتان للمقارنة بينهما:' : 'No specific field, so here are both journals to compare:'
     } else {
       keys = spec.journals
       const label = ar ? spec.label_ar : spec.label_en
       head = keys.length === 1
         ? (ar ? `لتخصص «${label}»، المجلة المقترحة:` : `For «${label}», the suggested journal is:`)
-        : (ar ? `تخصص «${label}» يناسب المجلتين، فاختار حسب موضوع بحثك:` : `«${label}» fits both journals; choose by your paper's topic:`)
+        : (ar ? `تخصص «${label}» يناسب المجلتين، فاختر حسب موضوع بحثك:` : `«${label}» fits both journals; choose by your paper's topic:`)
     }
     const lines = [head, '', ...keys.map((k) => this.block(k, lang)), '']
     lines.push(this.proposed
-      ? (ar ? 'ملحوظة: ده توجيه مبدئي مقترح، والقرار النهائي لهيئة تحرير المجلة.' : "Note: this is a proposed guide; the journal's editorial board makes the final decision.")
+      ? (ar ? 'ملحوظة: هذا توجيه مبدئي مقترح، والقرار النهائي لهيئة تحرير المجلة.' : "Note: this is a proposed guide; the journal's editorial board makes the final decision.")
       : (ar ? 'القرار النهائي لهيئة تحرير المجلة.' : "The journal's editorial board makes the final decision."))
     lines.push(ar ? `للاستفسار: ${email}` : `Questions: ${email}`)
     return lines.join('\n')

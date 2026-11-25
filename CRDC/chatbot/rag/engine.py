@@ -32,11 +32,11 @@ REFUSAL_EN = ("Sorry, I can't answer this question because the answer is not in 
               "and I only answer from the guide.\n"
               "You can ask me about: the five services, fees, procedures, publishing requirements, formatting, or degree requirements.\n"
               f"For anything else, contact the center at {config.CENTER_EMAIL}")
-GREETING_AR = ("أهلًا بيك! أنا مُرشِد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. "
+GREETING_AR = ("أهلًا بك! أنا مُرشِد، مساعد الباحث في مركز الاستشارات والبحوث والتطوير بأكاديمية السادات. "
                "أجيب من الدليل الإجرائي للمركز فقط. اسألني عن الخدمات، الرسوم، الإجراءات، شروط النشر، التنسيق، أو متطلبات درجتك العلمية.")
 GREETING_EN = ("Hello! I'm Murshid, the researcher's assistant at the Consulting, Research and Development Center, Sadat Academy. "
                "I answer only from the center's procedural guide. Ask me about services, fees, procedures, publishing, formatting, or degree requirements.")
-THANKS_AR, THANKS_EN = "العفو! لو عندك أي سؤال تاني عن خدمات المركز أنا موجود.", "You're welcome! Ask me anything else about the center's services."
+THANKS_AR, THANKS_EN = "العفو! يسعدني الإجابة عن أي سؤال آخر عن خدمات المركز.", "You're welcome! Ask me anything else about the center's services."
 
 _GREET = re.compile(r"^(اهلا|مرحبا|السلام عليكم|سلام|هاي|هلو|صباح الخير|مساء الخير|hi|hello|hey|good (morning|evening))\b")
 _THANKS = re.compile(r"(شكرا|متشكر|تسلم|ميرسي|thanks|thank you)")
@@ -164,7 +164,7 @@ class Engine:
 
         if cid.startswith("fees_") and not _SERVICE.search(n):
             opts = _WHICH_FEE_AR if lang == "ar" else _WHICH_FEE_EN
-            return Answer("تقصد رسوم أنهي خدمة من خدمات المركز؟" if lang == "ar" else "Fees for which of the center's services?",
+            return Answer("رسوم أي خدمة من خدمات المركز تقصد؟" if lang == "ar" else "Fees for which of the center's services?",
                           "refusal", False, lang, options=[{"label": o, "value": o} for o in opts], score=dense, top_id="fees_which_service")
 
         chunk = self.by_key[(cid, lang)]

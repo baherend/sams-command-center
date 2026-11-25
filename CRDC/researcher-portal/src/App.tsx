@@ -188,7 +188,7 @@ export default function App() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
       if (resetError) throw resetError
-      setNotice({ ar: 'لو البريد ده مرتبط بحساب، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور.', en: 'If this email is linked to an account, you will receive a secure password reset link.' })
+      setNotice({ ar: 'إذا كان هذا البريد مرتبطًا بحساب، فستصلك رسالة تتضمن رابطًا آمنًا لإعادة تعيين كلمة المرور.', en: 'If this email is linked to an account, you will receive a secure password reset link.' })
     } catch (resetError) {
       setError(friendlyErrorText(resetError))
     } finally {
@@ -235,7 +235,7 @@ export default function App() {
         if (signUpError) throw signUpError
         if (!data.session) {
           setConfirmationPending(true)
-          setNotice({ ar: 'الحساب اتعمل. افتح رسالة التأكيد على إيميلك، وبعدها ارجع سجّل دخول علشان تكمل بيانات الباحث.', en: 'Account created. Check your email for the confirmation link, then sign in to complete your profile.' })
+          setNotice({ ar: 'تم إنشاء الحساب. افتح رسالة التأكيد في بريدك الإلكتروني، ثم سجّل الدخول لاستكمال بيانات الباحث.', en: 'Account created. Check your email for the confirmation link, then sign in to complete your profile.' })
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -287,7 +287,7 @@ export default function App() {
         ...data,
         degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null,
       } as ResearcherProfile)
-      setNotice({ ar: 'ملف الباحث اتسجل بنجاح. تقدر تبدأ تراجع خدمات المركز.', en: 'Researcher profile saved. You can now explore the center services.' })
+      setNotice({ ar: 'تم تسجيل ملف الباحث بنجاح، ويمكنك الآن الاطلاع على خدمات المركز.', en: 'Researcher profile saved. You can now explore the center services.' })
     } catch (profileError) {
       setError(friendlyErrorText(profileError))
     } finally {
@@ -318,15 +318,15 @@ export default function App() {
   if (session && staff) return (<><StaffConsole staff={staff} onSignOut={signOut} /><AssistantWidget audience="staff" /></>)
 
   if (session && inactiveStaff) {
-    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('حساب موظف', 'Staff Account')}</span><h1>{t('الحساب غير مفعّل', 'Account Inactive')}</h1><p>{t('حساب الموظف ده موقوف حاليًا. تواصل مع إدارة المركز لتفعيله.', 'This staff account is currently inactive. Contact center administration to activate it.')}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('حساب موظف', 'Staff Account')}</span><h1>{t('الحساب غير مفعّل', 'Account Inactive')}</h1><p>{t('حساب الموظف هذا موقوف حاليًا. يُرجى التواصل مع إدارة المركز لتفعيله.', 'This staff account is currently inactive. Contact center administration to activate it.')}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button></div></main>
   }
 
   if (session && loading) {
-    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="loading"><span className="spinner" /> {t('بنراجع نوع الحساب...', 'Checking account type...')}</span></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="loading"><span className="spinner" /> {t('جارٍ التحقق من نوع الحساب...', 'Checking account type...')}</span></div></main>
   }
 
   if (session && error) {
-    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حصلت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error[lang]}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة تاني', 'Sign Out and Try Again')}</button></div></main>
+    return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حدثت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error[lang]}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة مرة أخرى', 'Sign Out and Try Again')}</button></div></main>
   }
 
   const showHome = !session && hash !== '#login' && hash !== '#signup'
@@ -358,7 +358,7 @@ export default function App() {
       </header>
   )
 
-  const footer = <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
+  const footer = <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي، وبياناتك محمية', 'Prototype · Your data is secure')}</span></footer>
 
   if (showHome) {
     return (
@@ -405,19 +405,19 @@ export default function App() {
       {header}
       <section className="hero" id="home">
         <div className="hero-copy">
-          <h1>{t('من التحكيم والنشر لحد إفادة المناقشة', 'From peer review and publishing to your defense certificate')}</h1>
-          <p>{t('بوابة مركز الاستشارات والبحوث والتطوير لباحثي الماجستير والدكتوراه، المصريين والوافدين: قدّم طلبك، ادفع وارفع الإيصال، وتابع كل خدمة لحد ما تستلم إفادتها.', 'The CRDC portal for master’s and PhD researchers, Egyptian and international: submit your request, pay and upload the receipt, and track each service until you receive its certificate.')}</p>
+          <h1>{t('من التحكيم والنشر حتى إفادة المناقشة', 'From peer review and publishing to your defense certificate')}</h1>
+          <p>{t('بوابة مركز الاستشارات والبحوث والتطوير لباحثي الماجستير والدكتوراه من المصريين والوافدين: قدّم طلبك، وادفع وارفع الإيصال، وتابع كل خدمة حتى تتسلّم إفادتها.', 'The CRDC portal for master’s and PhD researchers, Egyptian and international: submit your request, pay and upload the receipt, and track each service until you receive its certificate.')}</p>
           {!session && <a className="hero-link" href="#">{t('العودة إلى الصفحة الرئيسية', 'Back to the home page')}</a>}
         </div>
 
         <div className="form-card">
-          {loading ? <div className="loading"><span className="spinner" /> {t('بنجهّز حسابك...', 'Preparing your account...')}</div> : !session ? (
+          {loading ? <div className="loading"><span className="spinner" /> {t('جارٍ تجهيز حسابك...', 'Preparing your account...')}</div> : !session ? (
             <>
               <div className="card-heading">
                 <span className="card-icon">↗</span>
                 <div>
-                  <span className="eyebrow">{t('أهلاً بيك', 'Welcome')}</span>
-                  <h2>{forgotPassword ? t('استعادة كلمة المرور', 'Reset Password') : mode === 'sign-up' ? t('إنشاء حساب جديد', 'Create New Account') : t('سجّل دخولك', 'Sign In')}</h2>
+                  <span className="eyebrow">{t('أهلًا بك', 'Welcome')}</span>
+                  <h2>{forgotPassword ? t('استعادة كلمة المرور', 'Reset Password') : mode === 'sign-up' ? t('إنشاء حساب جديد', 'Create New Account') : t('تسجيل الدخول', 'Sign In')}</h2>
                 </div>
               </div>
               {!forgotPassword && <div className="mode-switch" role="tablist" aria-label={t('نوع العملية', 'Action Type')}>
@@ -438,7 +438,7 @@ export default function App() {
                   {busy ? t('لحظة واحدة...', 'One moment...') : mode === 'sign-up' ? t('إنشاء الحساب', 'Create Account') : t('دخول', 'Sign In')} <span>{isEn ? '→' : '←'}</span>
                 </button>
                 {mode === 'sign-in' && <button type="button" className="quiet-button" onClick={() => { setForgotPassword(true); setNotice(null); setError(null) }}>{t('نسيت كلمة المرور؟', 'Forgot password?')}</button>}
-                <p className="form-footnote">{t('بإنشاء حساب، هتقدر تتابع طلباتك وبياناتك من خلال حسابك الشخصي.', 'By creating an account, you can track your requests and profile from your personal dashboard.')}</p>
+                <p className="form-footnote">{t('بإنشاء حساب، يمكنك متابعة طلباتك وبياناتك من خلال حسابك الشخصي.', 'By creating an account, you can track your requests and profile from your personal dashboard.')}</p>
               </form>}
             </>
           ) : (
@@ -447,13 +447,13 @@ export default function App() {
                 <span className="card-icon">✳</span>
                 <div><span className="eyebrow">{t('خطوة واحدة', 'One Step')}</span><h2>{t('بيانات الباحث', 'Researcher Profile')}</h2></div>
               </div>
-              <p className="card-description">{t('اكتب بياناتك الأساسية علشان نجهّز ملفك في المركز.', 'Enter your basic details so we can set up your profile at the center.')}</p>
+              <p className="card-description">{t('أدخل بياناتك الأساسية لتجهيز ملفك في المركز.', 'Enter your basic details so we can set up your profile at the center.')}</p>
               <form className="form-stack" onSubmit={handleProfile}>
-                <label>{t('الاسم بالكامل', 'Full Name')}<input name="full_name" autoComplete="name" required minLength={3} placeholder={t('الاسم زي ما تحب يظهر في الطلب', 'Full name as it should appear on requests')} /></label>
+                <label>{t('الاسم بالكامل', 'Full Name')}<input name="full_name" autoComplete="name" required minLength={3} placeholder={t('الاسم كما تريد أن يظهر في الطلب', 'Full name as it should appear on requests')} /></label>
                 <label>{t('نوع الباحث', 'Applicant Type')}<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">{t('مصري', 'Egyptian')}</option><option value="foreign">{t('وافد', 'International / Foreign')}</option></select></label>
                 <div className="two-fields">
                   {profileApplicantType === 'egyptian' ? (
-                    <label>{t('الرقم القومي', 'National ID')}<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder={t('١٤ رقم', '14 digits')} /></label>
+                    <label>{t('الرقم القومي', 'National ID')}<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder={t('١٤ رقمًا', '14 digits')} /></label>
                   ) : (
                     <>
                       <label>{t('رقم جواز السفر', 'Passport Number')}<input name="passport_no" minLength={3} required placeholder={t('رقم الجواز', 'Passport No.')} /></label>
@@ -461,11 +461,11 @@ export default function App() {
                     </>
                   )}
                 </div>
-                <label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختار الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+                <label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختر الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
                 <label>{t('التخصص', 'Specialty')}<input name="specialty" placeholder={t('مثال: إدارة أعمال', 'e.g., Business Administration')} /></label>
                 {error && <p className="message error" role="alert">{error[lang]}</p>}
-                <button className="primary-button" disabled={busy}>{busy ? t('بنسجل بياناتك...', 'Saving your profile...') : t('حفظ ملف الباحث', 'Save Researcher Profile')} <span>{isEn ? '→' : '←'}</span></button>
-                <p className="form-footnote">{t('بياناتك بتظهر لك وللموظفين المصرّح لهم فقط. تعديل الملف بعد التسجيل بيتم عن طريق إدارة المركز.', 'Your data is visible only to you and authorized staff. Profile updates after registration are handled by center administration.')}</p>
+                <button className="primary-button" disabled={busy}>{busy ? t('جارٍ حفظ بياناتك...', 'Saving your profile...') : t('حفظ ملف الباحث', 'Save Researcher Profile')} <span>{isEn ? '→' : '←'}</span></button>
+                <p className="form-footnote">{t('لا تظهر بياناتك إلا لك وللموظفين المصرّح لهم. ويتم تعديل الملف بعد التسجيل عن طريق إدارة المركز.', 'Your data is visible only to you and authorized staff. Profile updates after registration are handled by center administration.')}</p>
               </form>
             </>
           )}
@@ -479,6 +479,6 @@ export default function App() {
 
 function SetupScreen() {
   const { t, dir, isEn } = useI18n()
-  return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('إعداد الاتصال', 'Connection Setup')}</span><h1>{t('اربط البوابة بـSupabase', 'Connect the Portal to Supabase')}</h1><p>انسخ ملف <code>.env.example</code> باسم <code>.env.local</code>، وحط عنوان المشروع ومفتاح الـpublishable أو anon key.</p><p className="form-footnote">مفتاح service role مايتحطّش أبدًا في الواجهة الأمامية.</p></div></main>
+  return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="brand-mark">{isEn ? 'C' : 'م'}</span><span className="eyebrow">{t('إعداد الاتصال', 'Connection Setup')}</span><h1>{t('اربط البوابة بـSupabase', 'Connect the Portal to Supabase')}</h1><p>انسخ ملف <code>.env.example</code> باسم <code>.env.local</code>، وأضف عنوان المشروع ومفتاح publishable أو anon key.</p><p className="form-footnote">لا يُوضع مفتاح service role في الواجهة الأمامية أبدًا.</p></div></main>
 }
 

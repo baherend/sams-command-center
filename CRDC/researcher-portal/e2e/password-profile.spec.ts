@@ -33,7 +33,7 @@ test('researcher requests password reset and completes PASSWORD_RECOVERY', async
   await page.getByRole('button', { name: 'نسيت كلمة المرور؟' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.getByRole('button', { name: 'إرسال رابط الاستعادة' }).click()
-  await expect(page.getByRole('status')).toContainText('لو البريد ده مرتبط بحساب')
+  await expect(page.getByRole('status')).toContainText('إذا كان هذا البريد مرتبطًا بحساب')
 
   const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: baseURL! } })
   if (error) throw error
