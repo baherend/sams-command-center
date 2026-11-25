@@ -7,7 +7,7 @@ import StaffConsole from './StaffConsole'
 import AssistantWidget from './AssistantWidget'
 import PublicHome from './PublicHome'
 import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
-import { useI18n } from './i18n'
+import { useI18n, pickName } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -15,6 +15,7 @@ type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_a
 type Degree = {
   degree_id: number
   name_ar: string
+  name_en?: string | null
   track: 'academic' | 'professional'
   level: 'masters' | 'phd'
 }
@@ -26,6 +27,7 @@ type ResearcherProfile = {
   email: string
   degree_id: number | null
   degree_name: string | null
+  degree_name_en?: string | null
   specialty: string | null
   nationality: string | null
   national_id: string | null
@@ -104,7 +106,7 @@ export default function App() {
         .select('researcher_id, full_name, applicant_type, email, degree_id, specialty, nationality, national_id, passport_no, created_at')
         .eq('auth_user_id', nextSession.user.id)
         .maybeSingle(),
-      supabase.schema('crdc').from('degrees').select('degree_id, name_ar, track, level').order('degree_id'),
+      supabase.schema('crdc').from('degrees').select('degree_id, name_ar, name_en, track, level').order('degree_id'),
     ])
 
     if (profileError) throw profileError
@@ -112,6 +114,7 @@ export default function App() {
     setProfile(researcher ? {
       ...researcher,
       degree_name: degreeRows?.find((degree) => degree.degree_id === researcher.degree_id)?.name_ar ?? null,
+      degree_name_en: degreeRows?.find((degree) => degree.degree_id === researcher.degree_id)?.name_en ?? null,
     } as ResearcherProfile : null)
     setDegrees((degreeRows ?? []) as Degree[])
   }, [])
@@ -286,6 +289,7 @@ export default function App() {
       setProfile({
         ...data,
         degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null,
+        degree_name_en: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_en ?? null,
       } as ResearcherProfile)
       setNotice({ ar: 'تم تسجيل ملف الباحث بنجاح، ويمكنك الآن الاطلاع على خدمات المركز.', en: 'Researcher profile saved. You can now explore the center services.' })
     } catch (profileError) {
@@ -463,7 +467,7 @@ export default function App() {
                     </>
                   )}
                 </div>
-                <label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختر الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+<label>{t('الدرجة العلمية', 'Academic Degree')}<select name="degree_id" defaultValue="" required><option value="" disabled>{t('اختر الدرجة', 'Select degree')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{pickName(degree, lang)}</option>)}</select></label>
                 <label>{t('التخصص', 'Specialty')}<input name="specialty" placeholder={t('مثال: إدارة أعمال', 'e.g., Business Administration')} /></label>
                 {error && <p className="message error" role="alert">{error[lang]}</p>}
                 <button className="primary-button" disabled={busy}>{busy ? t('جارٍ حفظ بياناتك...', 'Saving your profile...') : t('حفظ ملف الباحث', 'Save Researcher Profile')} <span>{isEn ? '→' : '←'}</span></button>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
 import { friendlyErrorText, UiError, useSingleFlight, type LocalizedText } from './errors'
-import { useI18n, translateDbText } from './i18n'
+import { useI18n, pickName, type Lang } from './i18n'
 import ResearcherGuideHome from './ResearcherGuideHome'
 
 type ApplicantType = 'egyptian' | 'foreign'
@@ -16,6 +16,7 @@ type ResearcherProfile = {
   email: string
   degree_id: number | null
   degree_name: string | null
+  degree_name_en?: string | null
   specialty: string | null
   nationality: string | null
   national_id: string | null
@@ -23,7 +24,7 @@ type ResearcherProfile = {
   created_at: string
 }
 
-type Service = { service_id: number; code: string; name_ar: string; is_active: boolean }
+type Service = { service_id: number; code: string; name_ar: string; name_en?: string | null; is_active: boolean }
 type FeeOption = {
   fee_id: number
   service_id: number
@@ -36,7 +37,7 @@ type FeeOption = {
   certificate_fee: number | string
   requirement_code: string | null
 }
-type DegreeRequirement = { requirement_code: string; min_count: number; name_ar: string }
+type DegreeRequirement = { requirement_code: string; min_count: number; name_ar: string; name_en?: string | null }
 type RequestRow = {
   request_id: number | string
   work_type: WorkType
@@ -44,7 +45,7 @@ type RequestRow = {
   page_count: number | null
   created_at: string
 }
-type StatusRow = { status_id: number; code: string; name_ar: string; sort_order: number }
+type StatusRow = { status_id: number; code: string; name_ar: string; name_en?: string | null; sort_order: number }
 type ItemRow = {
   item_id: number | string
   request_id: number | string
@@ -80,7 +81,7 @@ type PaymentRow = {
   rejection_reason: string | null
 }
 
-const statusName = (status: StatusRow | undefined, isEn = false) => status ? translateDbText(status.name_ar, isEn) : (isEn ? 'Unspecified' : 'غير محدد')
+const statusName = (status: StatusRow | undefined, lang: Lang = 'ar') => status ? pickName(status, lang) : (lang === 'en' ? 'Unspecified' : 'غير محدد')
 const formatDate = (value: string | null | undefined) =>
   value ? new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
 const money = (amount: number | string, currency: string) =>
@@ -106,7 +107,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     history: HistoryRow[]
     statuses: StatusRow[]
     publications: PublicationRow[]
-    journals: { journal_id: number; name_ar: string }[]
+    journals: { journal_id: number; name_ar: string; name_en?: string | null }[]
     issues: { issue_id: number; issue_year: number; issue_month: number }[]
     payments: PaymentRow[]
   } | null>(null)
@@ -119,11 +120,11 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   const [error, setError] = useState<LocalizedText | null>(null)
   const [notice, setNotice] = useState<LocalizedText | null>(null)
   const [profileSaving, setProfileSaving] = useState(false)
-  const [degrees, setDegrees] = useState<{ degree_id: number; name_ar: string }[]>([])
+  const [degrees, setDegrees] = useState<{ degree_id: number; name_ar: string; name_en?: string | null }[]>([])
 
   useEffect(() => {
     if (!supabase) return
-    void supabase.schema('crdc').from('degrees').select('degree_id, name_ar').order('degree_id')
+    void supabase.schema('crdc').from('degrees').select('degree_id, name_ar, name_en').order('degree_id')
       .then(({ data }) => setDegrees(data ?? []))
   }, [])
 
@@ -148,7 +149,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
           .select('researcher_id, full_name, applicant_type, email, degree_id, specialty, nationality, national_id, passport_no, created_at')
           .single()
         if (updateError) throw updateError
-        onProfileUpdated({ ...data, degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null } as ResearcherProfile)
+        onProfileUpdated({ ...data, degree_name: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_ar ?? null, degree_name_en: degrees.find((degree) => degree.degree_id === data.degree_id)?.name_en ?? null } as ResearcherProfile)
         setNotice({ ar: 'تم تحديث بياناتك الشخصية.', en: 'Your profile has been updated.' })
       } catch (updateError) {
         setError(friendlyErrorText(updateError))
@@ -161,8 +162,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   const loadCatalog = useCallback(async () => {
     if (!supabase) return
     const [{ data: serviceRows, error: serviceError }, { data: statusRows, error: statusError }] = await Promise.all([
-      supabase.schema('crdc').from('services').select('service_id, code, name_ar, is_active').eq('is_active', true).order('service_id'),
-      supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
+      supabase.schema('crdc').from('services').select('service_id, code, name_ar, name_en, is_active').eq('is_active', true).order('service_id'),
+      supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
     ])
     if (serviceError) throw serviceError
     if (statusError) throw statusError
@@ -188,7 +189,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       const rows = requirementRows ?? []
       if (rows.length) {
         const { data: typeRows, error: typeError } = await supabase.schema('crdc').from('requirement_types')
-          .select('requirement_code, name_ar').in('requirement_code', rows.map((row) => row.requirement_code))
+          .select('requirement_code, name_ar, name_en').in('requirement_code', rows.map((row) => row.requirement_code))
         if (typeError) throw typeError
         const labels = new Map((typeRows ?? []).map((row) => [row.requirement_code, row.name_ar]))
         setRequirements(rows.map((row) => ({ ...row, name_ar: labels.get(row.requirement_code) ?? row.requirement_code })) as DegreeRequirement[])
@@ -247,11 +248,11 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       const paymentIds = [...new Set(items.flatMap((item) => item.payment_id ? [String(item.payment_id)] : []))]
       const [feesResult, servicesResult, historyResult, publicationResult, paymentsResult, statusResult] = await Promise.all([
         feeIds.length ? supabase.schema('crdc').from('fee_schedule').select('fee_id, service_id, option_code, applicant_type, currency, base_fee, included_pages, extra_page_fee, certificate_fee, requirement_code').in('fee_id', feeIds) : Promise.resolve({ data: [], error: null }),
-        serviceIds.length ? supabase.schema('crdc').from('services').select('service_id, code, name_ar, is_active').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
+        serviceIds.length ? supabase.schema('crdc').from('services').select('service_id, code, name_ar, name_en, is_active').in('service_id', serviceIds) : Promise.resolve({ data: [], error: null }),
         itemIds.length ? supabase.schema('crdc').from('request_status_history').select('history_id, item_id, status_id, changed_at, note').in('item_id', itemIds).order('changed_at') : Promise.resolve({ data: [], error: null }),
         itemIds.length ? supabase.schema('crdc').from('publication_submissions').select('submission_id, item_id, journal_id, issue_id, paper_language, decision, accepted_at').in('item_id', itemIds) : Promise.resolve({ data: [], error: null }),
         paymentIds.length ? supabase.schema('crdc').from('payments').select('payment_id, payment_order_no, receipt_no, amount, currency, channel, paid_at, receipt_status, receipt_storage_path, submitted_by_researcher_at, rejection_reason').in('payment_id', paymentIds) : Promise.resolve({ data: [], error: null }),
-        supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, sort_order').order('sort_order'),
+        supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
       ])
       for (const result of [feesResult, servicesResult, historyResult, publicationResult, paymentsResult, statusResult]) {
         if (result.error) throw result.error
@@ -260,7 +261,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       const journalIds = [...new Set(publications.map((publication) => publication.journal_id))]
       const issueIds = [...new Set(publications.flatMap((publication) => publication.issue_id ? [publication.issue_id] : []))]
       const [journalsResult, issuesResult] = await Promise.all([
-        journalIds.length ? supabase.schema('crdc').from('journals').select('journal_id, name_ar').in('journal_id', journalIds) : Promise.resolve({ data: [], error: null }),
+        journalIds.length ? supabase.schema('crdc').from('journals').select('journal_id, name_ar, name_en').in('journal_id', journalIds) : Promise.resolve({ data: [], error: null }),
         issueIds.length ? supabase.schema('crdc').from('journal_issues').select('issue_id, issue_year, issue_month').in('issue_id', issueIds) : Promise.resolve({ data: [], error: null }),
       ])
       if (journalsResult.error) throw journalsResult.error
@@ -273,7 +274,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         history: (historyResult.data ?? []) as HistoryRow[],
         statuses: (statusResult.data ?? []) as StatusRow[],
         publications,
-        journals: (journalsResult.data ?? []) as { journal_id: number; name_ar: string }[],
+        journals: (journalsResult.data ?? []) as { journal_id: number; name_ar: string; name_en?: string | null }[],
         issues: (issuesResult.data ?? []) as { issue_id: number; issue_year: number; issue_month: number }[],
         payments: (paymentsResult.data ?? []) as PaymentRow[],
       })
@@ -413,7 +414,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                     const options = fees.filter((fee) => fee.service_id === service.service_id)
                     if (!options.length) return null
                     return <fieldset className="service-group" key={service.service_id}>
-                      <legend>{translateDbText(service.name_ar, isEn)}</legend>
+                      <legend>{pickName(service, lang)}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
                         <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
@@ -425,8 +426,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <p className="form-footnote">{isEn ? 'The final amount is calculated according to the approved tariff. The listed price is the base fee only, excluding extra pages.' : 'يُحسب المبلغ النهائي ويُسجَّل في قاعدة البيانات وفق التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ولا يشمل الصفحات الإضافية.'}</p>
                 <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'جارٍ تسجيل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
               </form>
-              <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'هذه المتطلبات المسجلة لدرجتك في النظام، لمراجعتها قبل تقديم الطلب.'}</p>
-                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{translateDbText(requirement.name_ar, isEn)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">{t('لا توجد متطلبات مسجلة لهذه الدرجة العلمية.', 'No specific requirements are registered for this degree.')}</p>}
+<aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'هذه المتطلبات المسجلة لدرجتك في النظام، لمراجعتها قبل تقديم الطلب.'}</p>
+                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{pickName(requirement, lang)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">{t('لا توجد متطلبات مسجلة لهذه الدرجة العلمية.', 'No specific requirements are registered for this degree.')}</p>}
               </aside>
             </div>
           </>}
@@ -446,10 +447,10 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                   const journal = publication && detail.journals.find((row) => row.journal_id === publication.journal_id)
                   const issue = publication?.issue_id && detail.issues.find((row) => row.issue_id === publication.issue_id)
                   return <section className="request-item" key={item.item_id}>
-                    <div className="request-item-heading"><div><span className="eyebrow">{service ? translateDbText(service.name_ar, isEn) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), isEn)}</span></div>
+                    <div className="request-item-heading"><div><span className="eyebrow">{service ? pickName(service, lang) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), lang)}</span></div>
                     <div className="item-facts"><span>{t('المبلغ المسجل', 'Recorded Amount')}</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>{t('حالة السداد', 'Payment Status')}</span><strong>{payment ? (payment.paid_at ? ` · ${formatDate(payment.paid_at)}` : t('إذن الدفع مسجل', 'Payment Order Issued')) : t('لم يُسجل دفع بعد', 'Not Paid Yet')}</strong>{payment?.payment_order_no && <><span>{t('رقم إذن الدفع', 'Payment Order No.')}</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>{t('رقم الإيصال', 'Receipt No.')}</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
-                    {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? translateDbText(journal.name_ar, isEn) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at)}</span>}</div>}
-                    <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), isEn)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
+                    {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? pickName(journal, lang) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at)}</span>}</div>}
+                    <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), lang)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
                   </section>
                 })}</div>
                 {detail.payments.map((payment) => {
@@ -474,7 +475,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 {!detail.items.length && <p className="empty-state">{t('لا توجد خدمات مرتبطة بهذا الطلب.', 'No service items linked to this request.')}</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
-              <span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, isEn)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
+<span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, lang)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
             </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لا توجد طلبات بعد'}</h2><p>{t('عند تقديم طلب جديد، يمكنك متابعة تفاصيله وحالته من هنا.', 'Once you submit a new request, you can track its details and status here.')}</p><button className="primary-button" onClick={() => chooseView('catalog')}>{t('استعراض الخدمات ', 'Browse Services ')}<span>{isEn ? '→' : '←'}</span></button></div>}
           </>}
 
@@ -488,7 +489,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <label>{profile.applicant_type === 'egyptian' ? t('الرقم القومي', 'National ID') : t('رقم جواز السفر', 'Passport Number')}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
                 {profile.applicant_type === 'foreign' && <label>{t('الجنسية', 'Nationality')}<input value={profile.nationality ?? ''} readOnly /></label>}
                 <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
-                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{translateDbText(degree.name_ar, isEn)}</option>)}</select></label>
+                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{pickName(degree, lang)}</option>)}</select></label>
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
                 <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'جارٍ حفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
@@ -503,11 +504,11 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   )
 }
 
-function overallStatus(requestId: number | string, statuses: StatusRow[], statusById: Map<number, StatusRow>, requestStatusIds: Map<string, number[]>, isEn = false) {
+function overallStatus(requestId: number | string, statuses: StatusRow[], statusById: Map<number, StatusRow>, requestStatusIds: Map<string, number[]>, lang: Lang = 'ar') {
   const itemStatuses = requestStatusIds.get(String(requestId)) ?? []
-  const names = [...new Set(itemStatuses.map((id) => statusName(statusById.get(id), isEn)))]
+  const names = [...new Set(itemStatuses.map((id) => statusName(statusById.get(id), lang)))]
   const fallback = statuses.find((status) => status.code === 'SUBMITTED')
-  return names.length === 1 ? names[0] : names.length > 1 ? (isEn ? 'Services in multiple stages' : 'الخدمات في مراحل مختلفة') : (fallback ? translateDbText(fallback.name_ar, isEn) : (isEn ? 'Submitted' : 'تم التقديم'))
+  return names.length === 1 ? names[0] : names.length > 1 ? (lang === 'en' ? 'Services in multiple stages' : 'الخدمات في مراحل مختلفة') : (fallback ? pickName(fallback, lang) : (lang === 'en' ? 'Submitted' : 'تم التقديم'))
 }
 
 export const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
@@ -554,7 +555,7 @@ function PaymentReceiptForm({
   onSubmit: (payment: PaymentRow, formData: FormData) => Promise<void>
   onError: (message: LocalizedText | null) => void
 }) {
-  const { t, isEn } = useI18n()
+  const { t, lang } = useI18n()
   const [submitting, setSubmitting] = useState(false)
   const singleFlight = useSingleFlight()
 
@@ -574,7 +575,7 @@ function PaymentReceiptForm({
 
   return <form className="payment-receipt-form" onSubmit={handleSubmit}>
     <div className="receipt-covered-items"><strong>{t('الخدمات المشمولة بالإيصال', 'Services Covered by Receipt')}</strong><ul>{items.map((item) => <li key={item.item_id}>
-      <span>{(() => { const s = services.find((service) => service.service_id === item.service_id); return s ? translateDbText(s.name_ar, isEn) : t('خدمة', 'Service') })()}</span>
+      <span>{(() => { const s = services.find((service) => service.service_id === item.service_id); return s ? pickName(s, lang) : t('خدمة', 'Service') })()}</span>
       <Money amount={item.amount_due} currency={item.currency} />
     </li>)}</ul></div>
     <label>{t('قناة السداد', 'Payment Channel')}<select name="channel" defaultValue={payment.channel} required>
