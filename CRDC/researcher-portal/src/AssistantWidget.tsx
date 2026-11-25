@@ -5,6 +5,7 @@ import { supabase } from './supabase'
 import { friendlyError } from './errors'
 import { runAssistantLocalTools } from './assistantTools'
 import type { QuickOption } from './assistantTools'
+import MorshedAvatar from './MorshedAvatar'
 
 type KbResult = {
   chunk_id: number
@@ -39,7 +40,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'أهلاً بك في المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.',
+      text: 'أهلاً بك! أنا «مرشد»، المساعد الذكي لمركز الاستشارات والبحوث والتطوير. اسألني عن الإجراءات، احسب رسوم النشر والتدقيق بعدد الصفحات، أو اسألني عن المجلة المناسبة لتخصصك.',
     },
   ])
 
@@ -51,7 +52,6 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
     setMessages((prev) => [...prev, userMsg])
     setQuery('')
 
-    // 1. فحص حاسبة الرسوم وتوجيه المجلات محلياً بدقة 100%
     const localReply = runAssistantLocalTools(clean, audience)
     if (localReply) {
       setMessages((prev) => [
@@ -67,7 +67,6 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
       return
     }
 
-    // 2. البحث في قاعدة البيانات للدليل الإجرائي
     if (!supabase) return
     setBusy(true)
 
@@ -118,18 +117,21 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         {open && (
           <motion.section
             className="kb-assistant-panel"
-            aria-label="المساعد الذكي للدليل الإجرائي"
+            aria-label="مرشد - المساعد الذكي للدليل الإجرائي"
             initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 320, damping: 26 }}
           >
             <header className="kb-assistant-header">
-              <div>
-                <strong>المساعد الذكي للمركز</strong>
-                <small>الدليل الإجرائي • الحاسبة • المجلات</small>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <MorshedAvatar size={42} />
+                <div>
+                  <strong>مرشد</strong>
+                  <small>المساعد الذكي • الدليل والحاسبة والمجلات</small>
+                </div>
               </div>
-              <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق المساعد">
+              <button type="button" className="kb-close-btn" onClick={() => setOpen(false)} aria-label="إغلاق مرشد">
                 ×
               </button>
             </header>
@@ -143,7 +145,14 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <p style={{ whiteSpace: 'pre-line' }}>{m.text}</p>
+                  {m.role === 'assistant' ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <MorshedAvatar size={28} />
+                      <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{m.text}</p>
+                    </div>
+                  ) : (
+                    <p style={{ whiteSpace: 'pre-line', margin: 0 }}>{m.text}</p>
+                  )}
 
                   {m.options && m.options.length > 0 && (
                     <div className="kb-suggestions" style={{ padding: '8px 0 2px', borderTop: 'none' }}>
@@ -215,8 +224,8 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="اكتب سؤالك أو عدد الصفحات هنا..."
-                aria-label="سؤالك للمساعد الذكي"
+                placeholder="اسأل مرشد عن الإجراءات أو الرسوم..."
+                aria-label="سؤالك لمرشد"
                 disabled={busy}
               />
               <button type="submit" disabled={busy || !query.trim()}>
@@ -234,9 +243,11 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
-        aria-label="فتح المساعد الذكي"
+        aria-label="فتح مرشد"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 1.1rem 0.45rem 0.55rem' }}
       >
-        {open ? 'إغلاق المساعد' : '💬 اسأل المساعد الذكي'}
+        <MorshedAvatar size={38} />
+        <span>{open ? 'إغلاق مرشد' : 'اسأل مرشد'}</span>
       </motion.button>
     </div>
   )
