@@ -26,7 +26,7 @@ export default function ThemeToggle() {
   return (
     <motion.button
       type="button"
-      className="theme-toggle-fab"
+      className="theme-toggle-fab" style={{ position: 'static', inset: 'auto', width: 'auto' }}
       onClick={() => setDark((d) => !d)}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.94 }}

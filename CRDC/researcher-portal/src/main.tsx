@@ -8,8 +8,10 @@ import './styles.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <LanguageProvider>
-      <LanguageToggle />
-      <ThemeToggle />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', padding: '0.65rem 1.25rem 0', maxWidth: '1240px', margin: '0 auto' }}>
+        <LanguageToggle />
+        <ThemeToggle />
+      </div>
       <App />
     </LanguageProvider>
   </React.StrictMode>,

@@ -64,7 +64,7 @@ export function LanguageToggle() {
     <motion.button
       type="button"
       className="theme-toggle-fab"
-      style={{ insetInlineEnd: '7.5rem' }}
+      style={{ position: 'static', inset: 'auto', width: 'auto' }}
       onClick={toggleLang}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.94 }}
