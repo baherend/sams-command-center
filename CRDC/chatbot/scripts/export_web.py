@@ -115,7 +115,7 @@ def main() -> None:
     vecs = Embedder(config.MODEL_DIR).embed_passages([c.index_text() for c in chunks]).astype(np.float32)
     data = {
         "version": 1,
-        "model": {"repo": "Xenova/multilingual-e5-small", "revision": "main", "file": "onnx/model_quantized.onnx",
+        "model": {"repo": "Xenova/multilingual-e5-small", "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78", "file": "onnx/model_quantized.onnx",
                   "dim": int(vecs.shape[1]), **{f"{k}_{f}": v[f] for k, v in model_files().items() for f in ("sha256", "size")}},
         "gate": {"min_dense": config.MIN_DENSE, "min_margin": config.MIN_MARGIN, "strong_margin": config.STRONG_MARGIN,
                  "min_bm25": config.MIN_BM25, "strong_bm25": config.STRONG_BM25},
