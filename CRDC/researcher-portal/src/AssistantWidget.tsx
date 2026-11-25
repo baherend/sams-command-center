@@ -240,14 +240,25 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         type="button"
         className="kb-assistant-fab"
         onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.05, y: -2 }}
+        whileHover={{ scale: 1.06, y: -3 }}
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
         aria-label="فتح مرشد"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 1.1rem 0.45rem 0.55rem' }}
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.35rem',
+          padding: '0.6rem 0.95rem 0.55rem',
+          borderRadius: '1.35rem',
+          lineHeight: 1.2,
+        }}
       >
-        <MorshedAvatar size={38} />
-        <span>{open ? 'إغلاق مرشد' : 'اسأل مرشد'}</span>
+        <MorshedAvatar size={68} />
+        <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+          {open ? 'إغلاق مرشد' : 'اسأل مرشد'}
+        </span>
       </motion.button>
     </div>
   )
