@@ -559,3 +559,27 @@ body, .form-card, .setup-card, .kb-assistant-panel, .kb-assistant-body, .kb-msg-
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
 }
+/* Murshid (مُرشِد) answers: source chain, options, model status */
+.kb-answer-text { white-space: pre-line; overflow-wrap: anywhere; }
+.kb-answer-text a { display: inline-block; color: var(--green, #185b48); font-weight: 600; unicode-bidi: isolate; }
+.kb-msg-refusal { border-style: dashed; }
+.kb-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-top: 0.6rem; font-size: 0.75rem; color: #42534b; }
+.kb-chain-step { display: inline-flex; align-items: center; }
+.kb-chain-step i { display: inline-block; width: 16px; height: 2px; background: var(--orange, #d88b55); }
+.kb-chain-node { border: 1px solid var(--green, #185b48); border-radius: 999px; padding: 1px 9px; background: #fff; }
+.kb-chain-broken span { border: 1px dashed #75827c; border-radius: 999px; padding: 1px 9px; color: #5c6a63; }
+.kb-options, .kb-related { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.65rem; align-items: center; }
+.kb-related span { font-size: 0.75rem; color: #5c6a63; }
+.kb-options button, .kb-related button { min-height: 36px; border: 1px solid #c9dccf; background: #f2f8f4; color: var(--green, #185b48); border-radius: 999px; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; }
+.kb-options button:disabled, .kb-related button:disabled { opacity: 0.6; cursor: wait; }
+.kb-model-status { display: grid; gap: 6px; padding: 0.55rem 0.9rem; font-size: 0.78rem; color: #42534b; background: #eef6f0; border-bottom: 1px solid var(--line, #e4e9e3); }
+.kb-model-status progress { width: 100%; height: 6px; accent-color: var(--green, #185b48); }
+.kb-model-failed { background: #fff6ec; color: #7a4a1d; }
+[data-theme="dark"] .kb-chain { color: #cde0d6; }
+[data-theme="dark"] .kb-chain-node { background: #14231f; border-color: #6ee7b7; }
+[data-theme="dark"] .kb-chain-broken span { border-color: #8aa198; color: #cde0d6; }
+[data-theme="dark"] .kb-answer-text a { color: #6ee7b7; }
+[data-theme="dark"] .kb-options button, [data-theme="dark"] .kb-related button { background: #162622; border-color: #28443c; color: #cde0d6; }
+[data-theme="dark"] .kb-related span { color: #a9bdb3; }
+[data-theme="dark"] .kb-model-status { background: #13241f; color: #cde0d6; border-color: #213831; }
+[data-theme="dark"] .kb-model-failed { background: #2a1f12; color: #f3c677; }

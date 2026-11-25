@@ -113,14 +113,34 @@ python -m pytest tests/               # calculator tests
 python scripts/evaluate.py --holdout  # quality report
 ```
 
-## 6. Deploy
+## 6. In the researcher portal (main deployment, no server)
+
+Murshid runs **inside the researcher portal, in the researcher's browser**. This folder stays the
+source of truth and the evaluation harness; the portal runs a TypeScript port of the same engine.
+
+| Piece | Where |
+|---|---|
+| Engine (gate, guards, BM25, RRF, calculator, journal routing) | `CRDC/researcher-portal/src/murshid/` |
+| Chunks + passage vectors | `CRDC/researcher-portal/public/murshid/index.json`, written by `scripts/export_web.py` |
+| Fee numbers | the database table `crdc.fee_schedule` (the same rows the request form uses) |
+| Query embeddings | the same quantized e5 model, run with onnxruntime-web; downloaded once (~135 MB) from the Hugging Face Hub and cached by the browser. The browser refuses any file whose SHA-256 differs from the one recorded in `index.json` (the files the evaluation ran on), and CI fails if the Hub copy changes. `VITE_MURSHID_MODEL_BASE` points it at a self-hosted copy. |
+| Widget | `CRDC/researcher-portal/src/AssistantWidget.tsx` (shown to signed-in researchers and staff) |
+
+The browser port gives **identical** results to this Python engine on both question sets
+(`npm run test:murshid -- --holdout` in the portal; CI: `.github/workflows/crdc-murshid-eval.yml`).
+Until the model has loaded, the widget answers only fees and journal questions; guide questions wait
+for the model, and if it cannot load they are not answered (keywords alone gave wrong answers).
+
+`export_web.py` refuses to export when `knowledge/fees.json` disagrees with the `crdc.fee_schedule`
+reference rows, so the offline evaluation and the live portal cannot drift apart silently.
+
+## 6b. Deploy as a separate server (optional)
 
 The `Dockerfile` downloads the model and builds the index **at build time**, so the running
 container needs no internet. It needs ~1 GB RAM and 1 CPU.
 *(The Dockerfile has not been test-built yet. Every step it runs was verified individually.)*
 
-- **Hugging Face Spaces (free):** create a *Docker* Space, push this folder, and set the variable
-  `PORT=7860`.
+- **Hugging Face Spaces:** Docker Spaces now need a paid plan.
 - **Render / Railway / any VPS:** deploy the Dockerfile; the platform's `PORT` is picked up automatically.
 
 **Embed in the Academy website** (e.g. Joomla custom HTML module):
@@ -142,7 +162,9 @@ link and email clickable), `route`, `answered`, `sources`, `suggestions`. Intera
 1. Edit `knowledge/guide_ar.md` / `guide_en.md` (same ids), or `knowledge/fees.json` for any fee.
 2. `python scripts/build_index.py`
 3. `python scripts/evaluate.py --holdout`. If the numbers drop, don't deploy.
-4. Read `logs/questions.jsonl` every week: refused questions show what the guide is missing. Add them
+4. `python scripts/export_web.py`, then commit `CRDC/researcher-portal/public/murshid/index.json`.
+   A fee change goes into a new migration for `crdc.fee_schedule` **and** `knowledge/fees.json`.
+5. Read `logs/questions.jsonl` every week: refused questions show what the guide is missing. Add them
    to the guide or to `out_of_scope.md`, then add them to `eval/eval_set.json`, **never** to the
    hold-out set.
 
