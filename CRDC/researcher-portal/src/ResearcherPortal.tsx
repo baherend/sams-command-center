@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
 import { friendlyError, UiError, useSingleFlight } from './errors'
-import { useI18n } from './i18n'
+import { useI18n, translateDbText } from './i18n'
+import ResearcherGuideHome from './ResearcherGuideHome'
 
 type ApplicantType = 'egyptian' | 'foreign'
 type WorkType = 'thesis' | 'paper'
-type View = 'catalog' | 'requests' | 'profile'
+type View = 'home' | 'catalog' | 'requests' | 'profile'
 
 type ResearcherProfile = {
   researcher_id: string
@@ -90,7 +91,7 @@ const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
   const { dir, isEn } = useI18n()
-  const [view, setView] = useState<View>('catalog')
+  const [view, setView] = useState<View>('home')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
   const [requirements, setRequirements] = useState<DegreeRequirement[]>([])
@@ -368,6 +369,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
   }
 
   const navItems: { id: View; label: string }[] = [
+    { id: 'home', label: isEn ? 'Home & Services Guide' : 'الرئيسية والدليل الإجرائي' },
     { id: 'catalog', label: (isEn ? 'Service Catalog & New Request' : 'كتالوج الخدمات وتقديم طلب جديد') },
     { id: 'requests', label: (isEn ? 'My Requests' : 'طلباتي') },
     { id: 'profile', label: (isEn ? 'My Profile' : 'ملفي الشخصي') },
@@ -397,33 +399,34 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       {error && <p className="message error portal-message" role="alert">{error}</p>}
       {loading ? <div className="loading portal-loading"><span className="spinner" /> بنحمّل بيانات حسابك...</div> : (
         <section className="portal-content" aria-live="polite">
+          {view === 'home' && <ResearcherGuideHome applicantType={profile.applicant_type} onStartRequest={() => chooseView('catalog')} />}
           {view === 'catalog' && <>
-            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Services' : 'خدمات المركز'}</span><h1>{isEn ? 'Submit a New Request' : 'قدّم طلب جديد'}</h1><p>{isEn ? 'Each thesis or paper has a separate request. You can select multiple services for the same work.' : 'كل رسالة أو بحث له طلب مستقل. تقدر تختار أكتر من خدمة لنفس العمل.'}</p></div>
             <div className="catalog-layout">
               <form className="portal-card form-stack" onSubmit={submitRequest}>
                 <div className="card-heading"><span className="card-icon">✳</span><div><span className="eyebrow">{isEn ? 'Work Details' : 'بيانات العمل'}</span><h2>{isEn ? 'Select Request Type & Services' : 'حدد نوع الطلب والخدمات'}</h2></div></div>
                 <label>{isEn ? 'Work Type' : 'نوع العمل'}<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper for Publication' : 'بحث للنشر'}</option></select></label>
                 <label>{isEn ? 'Thesis or Paper Title' : 'عنوان الرسالة أو البحث'}<input name="work_title" required minLength={3} maxLength={300} placeholder={isEn ? 'Enter the title of your work' : 'اكتب عنوان العمل'} /></label>
-                <label>عدد الصفحات{!pageCountRequired && <small>اختياري حسب الخدمات المختارة</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder="مثال: 25" /></label>
+                <label>{isEn ? 'Page Count' : 'عدد الصفحات'}{!pageCountRequired && <small>{isEn ? 'Optional depending on selected services' : 'اختياري حسب الخدمات المختارة'}</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder={isEn ? 'e.g., 25' : 'مثال: 25'} /></label>
                 <div className="service-groups">
                   {services.map((service) => {
                     const options = fees.filter((fee) => fee.service_id === service.service_id)
                     if (!options.length) return null
                     return <fieldset className="service-group" key={service.service_id}>
-                      <legend>{service.name_ar}</legend>
+                      <legend>{translateDbText(service.name_ar, isEn)}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
-                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>السعر الأساسي <Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? ' · وأي صفحات إضافية حسب التعريفة المسجلة' : ''}</small></span>
+                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>السعر الأساسي <Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
                       </label>)}
                     </fieldset>
                   })}
                   {!fees.length && <p className="empty-state">مفيش خدمات متاحة حاليًا لنوع حسابك.</p>}
                 </div>
-                <p className="form-footnote">المبلغ النهائي بيتحسب ويتسجل في قاعدة البيانات حسب التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ومش شامل حساب الصفحات الإضافية.</p>
+                <p className="form-footnote">{isEn ? 'The final amount is calculated according to the approved tariff. The listed price is the base fee only, excluding extra pages.' : 'المبلغ النهائي بيتحسب ويتسجل في قاعدة البيانات حسب التعريفة المعتمدة. السعر المعروض هنا أساسي فقط، ومش شامل حساب الصفحات الإضافية.'}</p>
                 <button className="primary-button" disabled={submitting || fees.length === 0}>{submitting ? (isEn ? 'Submitting request...' : 'بنسجل الطلب...') : (isEn ? 'Submit Request' : 'تقديم الطلب')} <span>{isEn ? '→' : '←'}</span></button>
               </form>
-              <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.</p>
-                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{requirement.name_ar}</span><strong>{requirement.min_count} مرة</strong></li>)}</ul> : <p className="empty-state">مفيش متطلبات مسجلة للدرجة العلمية دي.</p>}
+              <aside className="portal-card requirement-card"><span className="eyebrow">{isEn ? 'Degree Requirements' : 'متطلبات درجتك'}</span><h2>{isEn ? 'Academic Requirements' : 'المتطلبات الأكاديمية'}</h2><p>{isEn ? 'These are the registered requirements for your degree to review before submitting.' : 'دي المتطلبات المسجلة لدرجتك في النظام، للمراجعة قبل تقديم الطلب.'}</p>
+                {requirements.length ? <ul className="requirement-list">{requirements.map((requirement) => <li key={requirement.requirement_code}><span>{translateDbText(requirement.name_ar, isEn)}</span><strong>{requirement.min_count} {isEn ? 'time(s)' : 'مرة'}</strong></li>)}</ul> : <p className="empty-state">مفيش متطلبات مسجلة للدرجة العلمية دي.</p>}
               </aside>
             </div>
           </>}
@@ -485,7 +488,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <label>{profile.applicant_type === 'egyptian' ? 'الرقم القومي' : 'رقم جواز السفر'}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
                 {profile.applicant_type === 'foreign' && <label>الجنسية<input value={profile.nationality ?? ''} readOnly /></label>}
                 <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
-                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{degree.name_ar}</option>)}</select></label>
+                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">بدون تحديد</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{translateDbText(degree.name_ar, isEn)}</option>)}</select></label>
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
                 <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'بنحفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>

@@ -75,3 +75,37 @@ export function LanguageToggle() {
     </motion.button>
   )
 }
+const DB_EN_MAP: Record<string, string> = {
+  'تحكيم ونشر الأبحاث العلمية': 'Scientific Research Arbitration & Publication',
+  'تحكيم ونشر الأبحاث': 'Research Arbitration & Publication',
+  'التدقيق اللغوي للرسائل العلمية': 'Thesis Proofreading',
+  'التدقيق اللغوي': 'Proofreading',
+  'التحليل الإحصائي والمراجعة الإحصائية': 'Statistical Analysis & Review',
+  'التحليل الإحصائي والمراجعة الإحصائية للرسائل العلمية': 'Thesis Statistical Analysis & Review',
+  'شهادة أساسيات التحول الرقمي': 'Digital Transformation Fundamentals Certificate',
+  'التحول الرقمي': 'Digital Transformation',
+  'قياس نسبة الاقتباس': 'Plagiarism Check',
+  'ماجستير أكاديمي': 'Academic Master’s',
+  'دكتوراه أكاديمي': 'Academic PhD',
+  'ماجستير مهني': 'Professional Master’s',
+  'دكتوراه مهني': 'Professional PhD',
+  'تم التقديم': 'Submitted',
+  'بانتظار مراجعة المستندات': 'Pending Document Review',
+  'بانتظار السداد': 'Awaiting Payment',
+  'مدفوع': 'Paid',
+  'قيد التنفيذ': 'In Progress',
+  'تم الانتهاء': 'Completed',
+  'تم تسليم الإفادة': 'Certificate Delivered',
+  'ملغي': 'Cancelled',
+  'مرفوض': 'Rejected',
+  'نشر بحث علمي': 'Publish Scientific Paper',
+  'تدقيق لغوي': 'Proofreading',
+  'تحليل إحصائي': 'Statistical Analysis',
+  'مراجعة إحصائية': 'Statistical Review',
+}
+
+export function translateDbText(text: string | null | undefined, isEn: boolean): string {
+  if (!text) return ''
+  if (!isEn) return text
+  return DB_EN_MAP[text.trim()] ?? text
+}

@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyError } from './errors'
+import { useI18n, translateDbText } from './i18n'
 
 type Days = number | null
 type Kpis = {
@@ -16,17 +17,16 @@ type Dashboard = {
   applicant_mix: { egyptian_requests: number; foreign_requests: number }
 }
 
-const ranges: { label: string; value: Days }[] = [
-  { label: 'الكل', value: null },
-  { label: 'آخر 30 يوم', value: 30 },
-  { label: 'آخر 90 يوم', value: 90 },
-  { label: 'آخر سنة', value: 365 },
+const getRanges = (isEn: boolean): { label: string; value: Days }[] => [
+  { label: isEn ? 'All' : 'الكل', value: null },
+  { label: isEn ? 'Last 30 Days' : 'آخر 30 يوم', value: 30 },
+  { label: isEn ? 'Last 90 Days' : 'آخر 90 يوم', value: 90 },
+  { label: isEn ? 'Last Year' : 'آخر سنة', value: 365 },
 ]
 
-const num = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 })
-const compact = new Intl.NumberFormat('ar-EG', { notation: 'compact', maximumFractionDigits: 1 })
-const monthName = new Intl.DateTimeFormat('ar-EG', { month: 'short', timeZone: 'UTC' })
-const yearName = new Intl.DateTimeFormat('ar-EG', { year: 'numeric', timeZone: 'UTC' })
+const getLocale = () => (document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG')
+const num = { format: (v: number) => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 }).format(v) }
+const compact = { format: (v: number) => new Intl.NumberFormat(getLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(v) }
 const n = (value: unknown) => { const x = Number(value); return Number.isFinite(x) ? x : 0 }
 const list = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
 
@@ -54,10 +54,10 @@ function monthParts(month: string) {
   const [year, mon] = month.split('-').map(Number)
   const date = new Date(Date.UTC(year, (mon || 1) - 1, 1))
   return {
-    short: monthName.format(date),
-    year: yearName.format(date),
+    short: new Intl.DateTimeFormat(getLocale(), { month: 'short', timeZone: 'UTC' }).format(date),
+    year: new Intl.DateTimeFormat(getLocale(), { year: 'numeric', timeZone: 'UTC' }).format(date),
     isJanuary: (mon || 1) === 1,
-    full: new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date),
+    full: new Intl.DateTimeFormat(getLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date),
   }
 }
 
@@ -89,7 +89,8 @@ function BarList({ rows, label, tone = 'main' }: { rows: BarItem[]; label: strin
 
 function MixChart({ egyptian, foreign }: { egyptian: number; foreign: number }) {
   const total = egyptian + foreign
-  if (!total) return <p className="card-description">لا توجد طلبات في الفترة المختارة.</p>
+  const isEn = document.documentElement.lang === 'en'
+  if (!total) return <p className="card-description">{isEn ? 'No requests in the selected period.' : 'لا توجد طلبات في الفترة المختارة.'}</p>
   const ePct = (egyptian / total) * 100
   const label = `مصريون ${num.format(egyptian)} طلب، ووافدون ${num.format(foreign)} طلب`
   return (
@@ -100,8 +101,8 @@ function MixChart({ egyptian, foreign }: { egyptian: number; foreign: number }) 
         <rect className="fill alt" x="0" y="0" width={100 - ePct} height="14" />
       </svg>
       <ul className="analytics-mix-legend">
-        <li><span className="analytics-swatch" />مصريون <strong dir="ltr">{num.format(egyptian)} ({num.format(Math.round(ePct))}%)</strong></li>
-        <li><span className="analytics-swatch alt" />وافدون <strong dir="ltr">{num.format(foreign)} ({num.format(Math.round(100 - ePct))}%)</strong></li>
+        <li><span className="analytics-swatch" />{isEn ? 'Egyptian ' : 'مصريون '} <strong dir="ltr">{num.format(egyptian)} ({num.format(Math.round(ePct))}%)</strong></li>
+        <li><span className="analytics-swatch alt" />{isEn ? 'International ' : 'وافدون '} <strong dir="ltr">{num.format(foreign)} ({num.format(Math.round(100 - ePct))}%)</strong></li>
       </ul>
     </div>
   )
@@ -165,6 +166,7 @@ function TrendChart({ title, rows, pick, kind, format, color }: {
 }
 
 export default function AnalyticsDashboard() {
+  const { isEn } = useI18n()
   const [days, setDays] = useState<Days>(null)
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -193,31 +195,31 @@ export default function AnalyticsDashboard() {
 
   const k = data?.kpis
   const cards: { label: string; value: ReactNode; note: string }[] = k ? [
-    { label: 'إجمالي الطلبات', value: <span dir="ltr">{num.format(k.total_requests)}</span>, note: 'ضمن الفترة المختارة' },
-    { label: 'إجمالي البنود', value: <span dir="ltr">{num.format(k.total_items)}</span>, note: 'خدمات داخل الطلبات' },
-    { label: 'البنود النشطة', value: <span dir="ltr">{num.format(k.active_items)}</span>, note: 'لم تكتمل بعد' },
-    { label: 'البنود المكتملة', value: <span dir="ltr">{num.format(k.completed_items)}</span>, note: 'مكتملة أو تم تسليمها' },
-    { label: 'متوسط مدة الإنجاز', value: k.avg_turnaround_days == null ? <span>—</span> : <><span dir="ltr">{num.format(k.avg_turnaround_days)}</span><span className="analytics-kpi-unit">يوم</span></>, note: 'من التقديم حتى الاكتمال' },
-    { label: 'الإيراد الموثّق (جنيه)', value: <Money value={k.verified_revenue_egp} currency="EGP" />, note: 'إيصالات اعتمدتها الخزينة' },
-    { label: 'الإيراد الموثّق (دولار)', value: <Money value={k.verified_revenue_usd} currency="USD" />, note: 'إيصالات اعتمدتها الخزينة' },
+    { label: isEn ? 'Total Requests' : 'إجمالي الطلبات', value: <span dir="ltr">{num.format(k.total_requests)}</span>, note: isEn ? 'Within selected period' : 'ضمن الفترة المختارة' },
+    { label: isEn ? 'Total Service Items' : 'إجمالي البنود', value: <span dir="ltr">{num.format(k.total_items)}</span>, note: isEn ? 'Services inside requests' : 'خدمات داخل الطلبات' },
+    { label: isEn ? 'Active Items' : 'البنود النشطة', value: <span dir="ltr">{num.format(k.active_items)}</span>, note: isEn ? 'Not completed yet' : 'لم تكتمل بعد' },
+    { label: isEn ? 'Completed Items' : 'البنود المكتملة', value: <span dir="ltr">{num.format(k.completed_items)}</span>, note: isEn ? 'Completed or delivered' : 'مكتملة أو تم تسليمها' },
+    { label: isEn ? 'Avg. Turnaround' : 'متوسط مدة الإنجاز', value: k.avg_turnaround_days == null ? <span>—</span> : <><span dir="ltr">{num.format(k.avg_turnaround_days)}</span><span className="analytics-kpi-unit">{isEn ? 'days' : 'يوم'}</span></>, note: isEn ? 'From submission to completion' : 'من التقديم حتى الاكتمال' },
+    { label: isEn ? 'Verified Revenue (EGP)' : 'الإيراد الموثّق (جنيه)', value: <Money value={k.verified_revenue_egp} currency="EGP" />, note: isEn ? 'Receipts verified by treasury' : 'إيصالات اعتمدتها الخزينة' },
+    { label: isEn ? 'Verified Revenue (USD)' : 'الإيراد الموثّق (دولار)', value: <Money value={k.verified_revenue_usd} currency="USD" />, note: isEn ? 'Receipts verified by treasury' : 'إيصالات اعتمدتها الخزينة' },
   ] : []
 
   return (
     <>
-      <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>الإحصائيات والمؤشرات</h1><p>أرقام مجمعة عن الطلبات والإيرادات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
+      <div className="portal-heading"><span className="eyebrow">{isEn ? 'Staff Dashboard' : 'لوحة الموظفين'}</span><h1>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</h1><p>{isEn ? 'Aggregated figures for requests and revenue, without exposing researcher personal details.' : 'أرقام مجمعة عن الطلبات والإيرادات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.'}</p></div>
       <div className="analytics-toolbar">
         <div className="analytics-range" role="group" aria-label="الفترة الزمنية">
-          {ranges.map((range) => (
+          {getRanges(isEn).map((range) => (
             <button key={range.label} type="button" aria-pressed={days === range.value} onClick={() => setDays(range.value)}>{range.label}</button>
           ))}
         </div>
-        {loading && data && <span className="analytics-updating" role="status"><span className="spinner" /> بنحدّث الأرقام...</span>}
+        {loading && data && <span className="analytics-updating" role="status"><span className="spinner" /> {isEn ? 'Updating figures...' : 'بنحدّث الأرقام...'}</span>}
       </div>
 
       {error ? (
-        <div className="portal-card analytics-error"><p className="message error" role="alert">{error}</p><button type="button" className="quiet-button" onClick={() => setReload((v) => v + 1)}>إعادة المحاولة</button></div>
+        <div className="portal-card analytics-error"><p className="message error" role="alert">{error}</p><button type="button" className="quiet-button" onClick={() => setReload((v) => v + 1)}>{isEn ? 'Retry' : 'إعادة المحاولة'}</button></div>
       ) : !data ? (
-        <div className="portal-card loading"><span className="spinner" /> بنحمّل المؤشرات...</div>
+        <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading KPIs...' : 'بنحمّل المؤشرات...'}</div>
       ) : (
         <div className={loading ? 'analytics-body is-loading' : 'analytics-body'} aria-busy={loading}>
           <div className="analytics-kpis">
@@ -228,39 +230,39 @@ export default function AnalyticsDashboard() {
 
           <div className="analytics-grid">
             <section className="portal-card wide" aria-labelledby="an-service">
-              <div className="staff-section-heading"><div><span className="eyebrow">حسب الخدمة</span><h2 id="an-service">البنود والإيراد الموثّق لكل خدمة</h2></div></div>
+              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'By Service' : 'حسب الخدمة'}</span><h2 id="an-service">{isEn ? 'Items & Verified Revenue per Service' : 'البنود والإيراد الموثّق لكل خدمة'}</h2></div></div>
               <BarList
                 label="عدد البنود لكل خدمة"
                 rows={data.by_service.map((s) => ({
-                  key: s.service_code, name: s.service_name_ar, value: s.item_count,
-                  extra: <small className="analytics-bar-extra">إيراد موثّق: <Money value={s.revenue_egp} currency="EGP" /> · <Money value={s.revenue_usd} currency="USD" /></small>,
+                  key: s.service_code, name: translateDbText(s.service_name_ar, isEn), value: s.item_count,
+                  extra: <small className="analytics-bar-extra">{isEn ? 'Verified revenue: ' : 'إيراد موثّق: '}<Money value={s.revenue_egp} currency="EGP" /> · <Money value={s.revenue_usd} currency="USD" /></small>,
                 }))}
               />
             </section>
 
             <section className="portal-card" aria-labelledby="an-status">
-              <div className="staff-section-heading"><div><span className="eyebrow">مراحل العمل</span><h2 id="an-status">البنود حسب الحالة</h2></div></div>
-              <BarList label="عدد البنود لكل حالة" rows={data.by_status.map((s) => ({ key: s.status_code, name: s.status_name_ar, value: s.item_count }))} />
+              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Workflow Stages' : 'مراحل العمل'}</span><h2 id="an-status">{isEn ? 'Items by Status' : 'البنود حسب الحالة'}</h2></div></div>
+              <BarList label="عدد البنود لكل حالة" rows={data.by_status.map((s) => ({ key: s.status_code, name: translateDbText(s.status_name_ar, isEn), value: s.item_count }))} />
             </section>
 
             <section className="portal-card" aria-labelledby="an-mix">
-              <div className="staff-section-heading"><div><span className="eyebrow">نوع الباحث</span><h2 id="an-mix">مصريون ووافدون</h2></div></div>
+              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Applicant Type' : 'نوع الباحث'}</span><h2 id="an-mix">{isEn ? 'Egyptian vs. International' : 'مصريون ووافدون'}</h2></div></div>
               <MixChart egyptian={data.applicant_mix.egyptian_requests} foreign={data.applicant_mix.foreign_requests} />
             </section>
 
             <section className="portal-card wide" aria-labelledby="an-trend">
-              <div className="staff-section-heading"><div><span className="eyebrow">آخر 12 شهرًا</span><h2 id="an-trend">الاتجاه الشهري</h2></div></div>
+              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Last 12 Months' : 'آخر 12 شهرًا'}</span><h2 id="an-trend">{isEn ? 'Monthly Trend' : 'الاتجاه الشهري'}</h2></div></div>
               <p className="card-description">المدى ثابت على آخر 12 شهرًا بغض النظر عن الفترة المختارة. الأشهر مرتبة زمنيًا من الأقدم (يسار) إلى الأحدث (يمين).</p>
               <div className="analytics-trend-stack">
-                <TrendChart title="عدد الطلبات شهريًا" rows={data.monthly_trend} pick={(r) => r.request_count} kind="count" format={(v) => num.format(v)} color="#185b48" />
-                <TrendChart title="الإيراد الموثّق شهريًا (جنيه)" rows={data.monthly_trend} pick={(r) => r.revenue_egp} kind="money" format={(v) => `${num.format(v)} EGP`} color="#d88b55" />
-                <TrendChart title="الإيراد الموثّق شهريًا (دولار)" rows={data.monthly_trend} pick={(r) => r.revenue_usd} kind="money" format={(v) => `${num.format(v)} USD`} color="#4f7f9a" />
+                <TrendChart title={isEn ? 'Monthly Requests' : 'عدد الطلبات شهريًا'} rows={data.monthly_trend} pick={(r) => r.request_count} kind="count" format={(v) => num.format(v)} color="#185b48" />
+                <TrendChart title={isEn ? 'Monthly Verified Revenue (EGP)' : 'الإيراد الموثّق شهريًا (جنيه)'} rows={data.monthly_trend} pick={(r) => r.revenue_egp} kind="money" format={(v) => `${num.format(v)} EGP`} color="#d88b55" />
+                <TrendChart title={isEn ? 'Monthly Verified Revenue (USD)' : 'الإيراد الموثّق شهريًا (دولار)'} rows={data.monthly_trend} pick={(r) => r.revenue_usd} kind="money" format={(v) => `${num.format(v)} USD`} color="#4f7f9a" />
               </div>
               <details className="analytics-details">
-                <summary>عرض الأرقام في جدول</summary>
+                <summary>{isEn ? 'View figures in table' : 'عرض الأرقام في جدول'}</summary>
                 <div className="analytics-table-wrap">
                   <table className="analytics-table">
-                    <thead><tr><th scope="col">الشهر</th><th scope="col">الطلبات</th><th scope="col">إيراد (جنيه)</th><th scope="col">إيراد (دولار)</th></tr></thead>
+                    <thead><tr><th scope="col">{isEn ? 'Month' : 'الشهر'}</th><th scope="col">{isEn ? 'Requests' : 'الطلبات'}</th><th scope="col">{isEn ? 'Revenue (EGP)' : 'إيراد (جنيه)'}</th><th scope="col">{isEn ? 'Revenue (USD)' : 'إيراد (دولار)'}</th></tr></thead>
                     <tbody>
                       {data.monthly_trend.map((r) => (
                         <tr key={r.month}><th scope="row">{monthParts(r.month).full}</th><td dir="ltr">{num.format(r.request_count)}</td><td><Money value={r.revenue_egp} currency="EGP" /></td><td><Money value={r.revenue_usd} currency="USD" /></td></tr>

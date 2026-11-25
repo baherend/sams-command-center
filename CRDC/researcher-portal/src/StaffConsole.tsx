@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyError, useSingleFlight } from './errors'
 import AnalyticsDashboard from './AnalyticsDashboard'
+import { useI18n, translateDbText } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -51,9 +52,10 @@ type PageCursor = { created_at: string; request_id: number }
 const receiptPageSize = 20
 const pageSize = 20
 
-const formatDate = (value: string) => new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(new Date(value))
+const formatDate = (value: string) => new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value))
 
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
+  const { dir, isEn } = useI18n()
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
   const [view, setView] = useState<'overview' | 'analytics' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : staff.role === 'viewer' ? 'analytics' : 'overview')
@@ -438,52 +440,52 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     finally { setBusyItem(null) }
   }
 
-  const analyticsButton = canViewOverview ? <button className={view === 'analytics' ? 'active' : ''} aria-current={view === 'analytics' ? 'page' : undefined} onClick={() => { setView('analytics'); setError(''); setNotice('') }}>الإحصائيات والمؤشرات</button> : null
+  const analyticsButton = canViewOverview ? <button className={view === 'analytics' ? 'active' : ''} aria-current={view === 'analytics' ? 'page' : undefined} onClick={() => { setView('analytics'); setError(''); setNotice('') }}>{isEn ? 'Analytics & KPIs' : 'الإحصائيات والمؤشرات'}</button> : null
 
   return (
-    <main className="page-shell researcher-shell staff-shell" dir="rtl">
+    <main className="page-shell researcher-shell staff-shell" dir={dir}>
       <header className="topbar">
         <a className="brand" href="#staff-home" aria-label="مركز الاستشارات والبحوث والتطوير">
-          <span className="brand-mark">م</span>
-          <span><strong>مركز الاستشارات</strong><small>والبحوث والتطوير · لوحة الموظفين</small></span>
+          <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
+          <span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · Staff Console' : 'والبحوث والتطوير · لوحة الموظفين'}</small></span>
         </a>
-        <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{roleNames[staff.role]}</span><button className="quiet-button" onClick={onSignOut}>تسجيل الخروج</button></div>
+        <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{isEn ? ({ admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }[staff.role]) : roleNames[staff.role]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
       <nav className="researcher-nav" aria-label="التنقل في لوحة الموظف">
         {staff.role === 'viewer' && analyticsButton}
-        {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>نظرة عامة وإحصائيات</button>}
+        {canViewOverview && <button className={view === 'overview' ? 'active' : ''} aria-current={view === 'overview' ? 'page' : undefined} onClick={() => { setView('overview'); setError(''); setNotice('') }}>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</button>}
         {isAdmin && analyticsButton}
-        {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(''); setNotice('') }}>مراجعة إيصالات السداد</button>}
-        {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>إدارة الطلبات والتعيينات</button>}
-        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</button>}
+        {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(''); setNotice('') }}>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</button>}
+        {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(''); setNotice('') }}>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</button>}
+        {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(''); setNotice('') }}>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</button>}
       </nav>
 
       <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
-          <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
+          <><div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>أهلًا يا {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>تم تسجيل دخولك بصلاحية {isEn ? ({ admin: 'System Admin', reviewer: 'Reviewer', statistician: 'Statistician', cashier: 'Cashier', viewer: 'Viewer' }[staff.role]) : roleNames[staff.role]}. الشاشات الخاصة بالدور ده هتتضاف في خطوة لاحقة.</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
           <AnalyticsDashboard />
         ) : view === 'overview' ? (
           <>
-            <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>نظرة عامة وإحصائيات</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
-            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>أهلًا يا {staff.full_name}</h2><p>تابع إدارة الطلبات من التبويب المخصص.</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الأرقام...</div> : error ? <p className="message error" role="alert">{error}</p> : (
+            <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمعة عن الطلبات، من غير عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
+            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>أهلًا يا {staff.full_name}</h2><p>تابع إدارة الطلبات من التبويب المخصص.</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'بنحمّل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error}</p> : (
               <>
                 <div className="staff-stat-grid">
-                  <article className="portal-card staff-stat-card"><span>إجمالي الطلبات</span><strong>{total.toLocaleString('ar-EG')}</strong><small>كل الطلبات المسجلة</small></article>
-                  <article className="portal-card staff-stat-card"><span>طلبات المصريين</span><strong>{egyptian.toLocaleString('ar-EG')}</strong><small>حسب نوع الباحث</small></article>
-                  <article className="portal-card staff-stat-card"><span>طلبات الوافدين</span><strong>{foreign.toLocaleString('ar-EG')}</strong><small>حسب نوع الباحث</small></article>
+                  <article className="portal-card staff-stat-card"><span>{isEn ? 'Total Requests' : 'إجمالي الطلبات'}</span><strong>{total.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'All registered requests' : 'كل الطلبات المسجلة'}</small></article>
+                  <article className="portal-card staff-stat-card"><span>{isEn ? 'Egyptian Requests' : 'طلبات المصريين'}</span><strong>{egyptian.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant type' : 'حسب نوع الباحث'}</small></article>
+                  <article className="portal-card staff-stat-card"><span>{isEn ? 'International Requests' : 'طلبات الوافدين'}</span><strong>{foreign.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant type' : 'حسب نوع الباحث'}</small></article>
                 </div>
                 <section className="portal-card staff-status-card" aria-labelledby="status-heading">
-                  <div className="staff-section-heading"><div><span className="eyebrow">توزيع الطلبات</span><h2 id="status-heading">حسب الحالة</h2></div><span className="role-badge">عرض مجمّع</span></div>
-                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{row.label}</span><strong>{Number(row.request_count).toLocaleString('ar-EG')}</strong></li>)}</ul> : <p className="empty-state">مفيش حالات طلبات للعرض حاليًا.</p>}
+                  <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Request Distribution' : 'توزيع الطلبات'}</span><h2 id="status-heading">{isEn ? 'By Status' : 'حسب الحالة'}</h2></div><span className="role-badge">{isEn ? 'Aggregated View' : 'عرض مجمّع'}</span></div>
+                  {summaryStatuses.length ? <ul className="staff-status-list">{summaryStatuses.map((row) => <li key={row.category}><span>{translateDbText(row.label, isEn)}</span><strong>{Number(row.request_count).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong></li>)}</ul> : <p className="empty-state">مفيش حالات طلبات للعرض حاليًا.</p>}
                 </section>
               </>
             )}
           </>
         ) : view === 'cashier' ? (
           <>
-            <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>مراجعة إيصالات السداد</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
+            <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الإيصالات...</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
@@ -496,11 +498,11 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   <dt>رقم الإيصال</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
                   <dt>تاريخ السداد</dt><dd>{formatDate(payment.paid_at)}</dd>
                   <dt>قناة السداد</dt><dd>{payment.channel === 'treasury' ? 'الخزينة' : 'البنك'}</dd>
-                  <dt>إجمالي المبلغ</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString('ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
+                  <dt>إجمالي المبلغ</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
                   <dt>وصل للمراجعة</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
                 </dl>
                 <section className="cashier-covered-items"><h3>الخدمات المشمولة</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
-                  <span>{item.service_name}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{statusById.get(item.status_id)?.name_ar ?? 'غير محدد'} · <span dir="ltr">{Number(item.amount_due).toLocaleString('ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
+                  <span>{item.service_name}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{statusById.get(item.status_id)?.name_ar ?? 'غير محدد'} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
                 </li>)}</ul> : <p className="empty-state">مفيش بنود مرتبطة بإذن الدفع.</p>}</section>
                 <div className="cashier-receipt-actions">
                   <button className="quiet-button" disabled={cashierBusyPayment !== null} onClick={() => void singleFlight(() => previewReceipt(payment))}>إنشاء رابط معاينة آمن</button>
@@ -509,25 +511,25 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 </div>
                 <form className="cashier-rejection-form" onSubmit={(event) => { event.preventDefault(); const reason = cashierReasons[payment.payment_id] ?? ''; void singleFlight(() => rejectReceipt(payment, reason)) }}>
                   <label>سبب الرفض<textarea required minLength={3} maxLength={500} value={cashierReasons[payment.payment_id] ?? ''} onChange={(event) => setCashierReasons((current) => ({ ...current, [payment.payment_id]: event.target.value }))} placeholder="اكتب سببًا واضحًا للباحث" /></label>
-                  <button className="quiet-button" type="submit" disabled={cashierBusyPayment !== null}>رفض الإيصال وإبلاغ الباحث</button>
+                  <button className="quiet-button" type="submit" disabled={cashierBusyPayment !== null}>{isEn ? 'Reject Receipt & Notify Researcher' : 'رفض الإيصال وإبلاغ الباحث'}</button>
                 </form>
               </article>)}
             </div> : <div className="portal-card empty-requests"><h2>مفيش إيصالات بانتظار المراجعة</h2><p>أي إيصال جديد هتلاقيه هنا مع تفاصيل المبلغ والخدمات.</p></div>}
             {!cashierLoading && cashierRows.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين إيصالات السداد">
               <button className="quiet-button" disabled={cashierPageIndex === 0} onClick={previousCashierPage}>السابق</button>
-              <span>صفحة {(cashierPageIndex + 1).toLocaleString('ar-EG')}</span>
+              <span>صفحة {(cashierPageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!cashierHasMore} onClick={nextCashierPage}>التالي</button>
             </nav>}
           </>
         ) : view === 'requests' ? (
           <>
-            <div className="portal-heading"><span className="eyebrow">إدارة المركز</span><h1>إدارة الطلبات والتعيينات</h1><p>راجع الطلبات وبنودها وعيّن مراجع أو إحصائي نشط لكل طلب.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Center Administration' : 'إدارة المركز'}</span><h1>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</h1><p>{isEn ? 'Review requests and items, and assign an active reviewer or statistician to each request.' : 'راجع الطلبات وبنودها وعيّن مراجع أو إحصائي نشط لكل طلب.'}</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             <div className="queue-filters portal-card">
-              <label>الحالة<select aria-label="فلترة بالحالة" value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">كل الحالات</option>{statuses.map((status) => <option key={status.code} value={status.code}>{status.name_ar}</option>)}<option value="MIXED">مراحل مختلفة</option><option value="NO_ITEMS">بدون بنود</option></select></label>
-              <label>نوع العمل<select aria-label="فلترة بنوع العمل" value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">كل أنواع العمل</option><option value="thesis">رسالة علمية</option><option value="paper">بحث للنشر</option></select></label>
-              <span className="queue-result-count">طلبات الصفحة: {requests.length.toLocaleString('ar-EG')}</span>
+              <label>{isEn ? 'Status' : 'الحالة'}<select aria-label="فلترة بالحالة" value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{translateDbText(status.name_ar, isEn)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
+              <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label="فلترة بنوع العمل" value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
+              <span className="queue-result-count">{isEn ? 'Page requests: ' : 'طلبات الصفحة: '}{requests.length.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
             </div>
             {queueLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : error && !requests.length ? null : requests.length ? (
               <div className="request-list admin-request-list">
@@ -546,7 +548,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                         <dt>الباحث</dt><dd>{requester?.full_name ?? 'بيانات الباحث غير متاحة'} <small dir="ltr">{requester?.email ?? ''}</small></dd>
                         <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? 'مصري' : 'وافد'}</dd>
                         <dt>تاريخ التقديم</dt><dd>{formatDate(request.created_at)}</dd>
-                        <dt>عدد البنود</dt><dd>{request.item_count.toLocaleString('ar-EG')}</dd>
+                        <dt>عدد البنود</dt><dd>{request.item_count.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</dd>
                         <dt>المعيّنون حاليًا</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : 'لسه مفيش تعيين'}</dd>
                       </dl>
                       <div className="admin-request-assignment">
@@ -562,13 +564,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             ) : <div className="portal-card empty-requests"><h2>مفيش طلبات مطابقة</h2><p>غيّر الفلاتر علشان تعرض طلبات تانية.</p></div>}
             {!queueLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات">
               <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
-              <span>صفحة {(pageIndex + 1).toLocaleString('ar-EG')}</span>
+              <span>صفحة {(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
             </nav>}
           </>
         ) : (
           <>
-            <div className="portal-heading"><span className="eyebrow">مساحة العمل</span><h1>{isAdmin ? 'كل الطلبات والبنود' : 'الطلبات المسندة إليّ'}</h1><p>{isAdmin ? 'بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.' : 'حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.'}</p></div>
+            <div className="portal-heading"><span className="eyebrow">{isEn ? 'Workspace' : 'مساحة العمل'}</span><h1>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</h1><p>{isAdmin ? 'بصفتك مدير النظام، تظهر هنا بنود جميع الطلبات ويمكنك متابعة حالاتها وقرارات النشر.' : 'حدّث البنود المسندة لك وسجّل ملاحظتك في مسار الطلب.'}</p></div>
             {notice && <p className="message success" role="status">{notice}</p>}
             {error && <p className="message error" role="alert">{error}</p>}
             {operationLoading ? <div className="portal-card loading"><span className="spinner" /> بنحمّل الطلبات...</div> : items.length ? <div className="request-list operational-list">
@@ -603,13 +605,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             </div> : <div className="portal-card empty-requests"><h2>{isAdmin ? 'مفيش بنود للعرض' : 'مفيش طلبات مسندة ليك'}</h2><p>{isAdmin ? 'لا توجد بنود ضمن الصفحة الحالية.' : 'هنا هتظهر البنود اللي الأدمن عيّنها لحسابك.'}</p></div>}
             {!operationLoading && !error && requests.length > 0 && <nav className="queue-pagination" aria-label="التنقل بين صفحات الطلبات المسندة">
               <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>السابق</button>
-              <span>صفحة {(pageIndex + 1).toLocaleString('ar-EG')}</span>
+              <span>صفحة {(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>التالي</button>
             </nav>}
           </>
         )}
       </section>
-      <footer className="page-footer"><span>CRDC</span><span>مركز الاستشارات والبحوث والتطوير</span><span>لوحة الموظفين</span></footer>
+      <footer className="page-footer"><span>CRDC</span><span>{isEn ? 'Consultation, Research & Development Center' : 'مركز الاستشارات والبحوث والتطوير'}</span><span>{isEn ? 'Staff Console' : 'لوحة الموظفين'}</span></footer>
     </main>
   )
 }
