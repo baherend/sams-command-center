@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { motion } from 'motion/react'
 
 export type Lang = 'ar' | 'en'
 
@@ -61,18 +60,16 @@ export function LanguageToggle() {
   const { isEn, toggleLang } = useI18n()
 
   return (
-    <motion.button
+    <button
       type="button"
       className="theme-toggle-fab"
       style={{ position: 'static', inset: 'auto', width: 'auto' }}
       onClick={toggleLang}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.94 }}
       aria-label={isEn ? 'Switch to Arabic' : 'التبديل إلى اللغة الإنجليزية'}
       title={isEn ? 'العربية' : 'English'}
     >
       <span>{isEn ? '🌐 عربي' : '🌐 EN'}</span>
-    </motion.button>
+    </button>
   )
 }
 const DB_EN_MAP: Record<string, string> = {
