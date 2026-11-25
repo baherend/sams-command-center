@@ -90,7 +90,7 @@ const Money = ({ amount, currency }: { amount: number | string; currency: string
 const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
-  const { dir, isEn } = useI18n()
+  const { t, dir, isEn } = useI18n()
   const [view, setView] = useState<View>('catalog')
   const [services, setServices] = useState<Service[]>([])
   const [fees, setFees] = useState<FeeOption[]>([])
@@ -291,17 +291,17 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const paidAt = String(formData.get('paid_at') ?? '')
     const channel = String(formData.get('channel') ?? '')
     const file = formData.get('receipt_file')
-    if (!(file instanceof File) || file.size === 0) throw new UiError('اختار ملف الإيصال الأول.')
-    if (file.size > 5 * 1024 * 1024) throw new UiError('حجم الإيصال لازم يكون ٥ ميجابايت أو أقل.')
+    if (!(file instanceof File) || file.size === 0) throw new UiError('اختار ملف الإيصال الأول.', 'Please select the receipt file first.')
+    if (file.size > 5 * 1024 * 1024) throw new UiError('حجم الإيصال لازم يكون ٥ ميجابايت أو أقل.', 'Receipt file size must be 5 MB or less.')
     const extensions: Record<string, string> = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }
     const extension = extensions[file.type]
-    if (!extension) throw new UiError('ارفع الإيصال بصيغة PDF أو JPG أو PNG.')
-    if (!receiptNo || receiptNo.length > 100) throw new UiError('اكتب رقم الإيصال في حدود ١٠٠ حرف.')
-    if (!paidAt || paidAt > new Date().toISOString().slice(0, 10)) throw new UiError('اختار تاريخ سداد صحيحًا.')
+    if (!extension) throw new UiError('ارفع الإيصال بصيغة PDF أو JPG أو PNG.', 'Upload the receipt in PDF, JPG, or PNG format.')
+    if (!receiptNo || receiptNo.length > 100) throw new UiError('اكتب رقم الإيصال في حدود ١٠٠ حرف.', 'Enter a receipt number within 100 characters.')
+    if (!paidAt || paidAt > new Date().toISOString().slice(0, 10)) throw new UiError('اختار تاريخ سداد صحيحًا.', 'Please select a valid payment date.')
 
     const { data: userData, error: userError } = await supabase.auth.getUser()
     if (userError) throw userError
-    if (!userData.user) throw new UiError('سجّل دخولك الأول وجرب تاني.')
+    if (!userData.user) throw new UiError('سجّل دخولك الأول وجرب تاني.', 'Please sign in first and try again.')
     const path = `${userData.user.id}/${detail.request.request_id}/${payment.payment_id}/${crypto.randomUUID()}.${extension}`
     const { error: uploadError } = await supabase.storage.from('payment-receipts').upload(path, file, {
       contentType: file.type,
@@ -340,10 +340,10 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const title = String(form.get('work_title') ?? '').trim()
     const rawPageCount = String(form.get('page_count') ?? '').trim()
     const pageCount = rawPageCount === '' ? null : Number(rawPageCount)
-    if (selectedFeeIds.length === 0) { setError('اختار خدمة واحدة على الأقل.'); return }
-    if (!title) { setError('اكتب عنوان الرسالة أو البحث.'); return }
-    if (pageCountRequired && pageCount === null) { setError('اكتب عدد الصفحات علشان نكمل الطلب.'); return }
-    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError('عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.'); return }
+    if (selectedFeeIds.length === 0) { setError(t('اختار خدمة واحدة على الأقل.', 'Please select at least one service.')); return }
+    if (!title) { setError(t('اكتب عنوان الرسالة أو البحث.', 'Please enter the thesis or paper title.')); return }
+    if (pageCountRequired && pageCount === null) { setError(t('اكتب عدد الصفحات علشان نكمل الطلب.', 'Please enter the page count to complete the request.')); return }
+    if (pageCount !== null && (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 2000)) { setError(t('عدد الصفحات لازم يكون من ١ إلى ٢٠٠٠.', 'Page count must be between 1 and 2000.')); return }
     setSubmitting(true)
     setError('')
     setNotice('')

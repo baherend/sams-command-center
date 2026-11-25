@@ -31,7 +31,7 @@ const n = (value: unknown) => { const x = Number(value); return Number.isFinite(
 const list = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
 
 function normalize(raw: unknown): Dashboard {
-  if (!raw || typeof raw !== 'object') throw new UiError('مش قادرين نقرأ بيانات المؤشرات. جرّب تاني بعد شوية.')
+  if (!raw || typeof raw !== 'object') throw new UiError('مش قادرين نقرأ بيانات المؤشرات. جرّب تاني بعد شوية.', 'Unable to parse analytics data. Please try again shortly.')
   const d = raw as Record<string, unknown>
   const k = (d.kpis ?? {}) as Record<string, unknown>
   const mix = (d.applicant_mix ?? {}) as Record<string, unknown>
@@ -179,7 +179,7 @@ export default function AnalyticsDashboard() {
     setError('')
     void (async () => {
       try {
-        if (!supabase) throw new UiError('الخدمة غير متاحة دلوقتي. جرّب تاني بعد شوية.')
+        if (!supabase) throw new UiError('الخدمة غير متاحة دلوقتي. جرّب تاني بعد شوية.', 'Service is currently unavailable. Please try again shortly.')
         const { data: raw, error: rpcError } = await supabase.schema('crdc').rpc('get_analytics_dashboard', { p_days: days })
         if (rpcError) throw rpcError
         const parsed = normalize(raw)

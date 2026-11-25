@@ -55,7 +55,7 @@ const pageSize = 20
 const formatDate = (value: string) => new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value))
 
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
-  const { dir, isEn } = useI18n()
+  const { t, dir, isEn } = useI18n()
   const [rows, setRows] = useState<SummaryRow[]>([])
   const [loadingOverview, setLoadingOverview] = useState(staff.role === 'admin' || staff.role === 'viewer')
   const [view, setView] = useState<'overview' | 'analytics' | 'requests' | 'assigned' | 'cashier'>(staff.role === 'cashier' ? 'cashier' : staff.role === 'viewer' ? 'analytics' : 'overview')
@@ -166,10 +166,10 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         const { data, error: queryError } = await supabase.schema('crdc').from('staff_dashboard_overview')
           .select('metric, category, label, request_count')
         if (!alive) return
-        if (queryError) setError('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.')
+        if (queryError) setError(t('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', 'Unable to load statistics right now. Please try again shortly.'))
         else setRows((data ?? []) as SummaryRow[])
       } catch {
-        if (alive) setError('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.')
+        if (alive) setError(t('مش قادرين نحمّل الإحصائيات دلوقتي. جرّب تاني بعد شوية.', 'Unable to load statistics right now. Please try again shortly.'))
       } finally {
         if (alive) setLoadingOverview(false)
       }
@@ -263,8 +263,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         setSelectedIssueByItem({})
       } catch {
         if (alive) setError(view === 'requests'
-          ? 'حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.'
-          : 'مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.')
+          ? t('حصلت مشكلة وإحنا بنحمّل الطلبات. راجع الاتصال أو صلاحيات الحساب وحاول تاني.', 'Failed to load requests. Check your connection or permissions and try again.')
+          : t('مش قادرين نحمّل الطلبات المسندة. جرّب تاني بعد شوية.', 'Unable to load assigned requests right now. Please try again shortly.'))
       } finally {
         if (alive) {
           setQueueLoading(false)
@@ -340,7 +340,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     try {
       const { error: approveError } = await supabase.schema('crdc').rpc('approve_payment_receipt', { p_payment_id: payment.payment_id })
       if (approveError) throw approveError
-      setNotice('تم اعتماد السداد وتحديث حالات الخدمات.')
+      setNotice(t('تم اعتماد السداد وتحديث حالات الخدمات.', 'Payment approved and service item statuses updated.'))
       setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
       setCashierRefreshToken((value) => value + 1)
     } catch (approveError) {
@@ -359,7 +359,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         p_reason: reason.trim(),
       })
       if (rejectError) throw rejectError
-      setNotice('تم رفض الإيصال وإرسال السبب للباحث.')
+      setNotice(t('تم رفض الإيصال وإرسال السبب للباحث.', 'Receipt rejected and reason sent to the researcher.'))
       setCashierSignedUrls((current) => { const next = { ...current }; delete next[payment.payment_id]; return next })
       setCashierReasons((current) => ({ ...current, [payment.payment_id]: '' }))
       setCashierRefreshToken((value) => value + 1)
@@ -377,19 +377,19 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     setNotice('')
     try {
       const requestItems = items.filter((item) => item.request_id === request.request_id)
-      if (!requestItems.length) throw new UiError('الطلب ده مفيهوش بنود ينفع تتعيّن.')
+      if (!requestItems.length) throw new UiError('الطلب ده مفيهوش بنود ينفع تتعيّن.', 'This request has no assignable service items.')
       const selectedStaff = assignableStaff.find((member) => member.staff_id === staffId)
-      if (!selectedStaff) throw new UiError('اختار مراجع أو إحصائي نشط من القائمة.')
+      if (!selectedStaff) throw new UiError('اختار مراجع أو إحصائي نشط من القائمة.', 'Please select an active reviewer or statistician from the list.')
       const { data, error: updateError } = await supabase.schema('crdc').from('request_items')
         .update({ assigned_staff_id: staffId })
         .eq('request_id', request.request_id)
         .select('item_id')
       if (updateError) throw updateError
-      if ((data ?? []).length !== requestItems.length) throw new UiError('ماقدرناش نأكد تعيين كل بنود الطلب. حدّث القائمة وراجع الطلب.')
+      if ((data ?? []).length !== requestItems.length) throw new UiError('ماقدرناش نأكد تعيين كل بنود الطلب. حدّث القائمة وراجع الطلب.', 'Could not confirm assignment for all request items. Refresh and review.')
       setItems((current) => current.map((item) => item.request_id === request.request_id ? { ...item, assigned_staff_id: staffId } : item))
-      setNotice(`اتعيّن ${roleNames[selectedStaff.role]} ${selectedStaff.full_name} على كل بنود الطلب رقم ${request.request_id}.`)
+      setNotice(t(`اتعيّن ${roleNames[selectedStaff.role]} ${selectedStaff.full_name} على كل بنود الطلب رقم ${request.request_id}.`, `Assigned ${selectedStaff.role} ${selectedStaff.full_name} to all items of request #${request.request_id}.`))
     } catch (assignmentError) {
-      setError(friendlyError(assignmentError, { '42501': 'التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.' }))
+      setError(friendlyError(assignmentError, { '42501': t('التعيين مرفوض. اتأكد إن الحساب أدمن والموظف مراجع أو إحصائي نشط.', 'Assignment denied. Ensure you are an admin and the staff member is an active reviewer or statistician.') }))
     } finally {
       setBusyRequest(null)
     }
@@ -402,7 +402,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       const { error: rpcError } = await supabase.schema('crdc').rpc('set_request_item_status', { p_item_id: item.item_id, p_status_code: statusCode, p_note: note.trim() || null })
       if (rpcError) throw rpcError
       const nextStatus = statuses.find((status) => status.code === statusCode)
-      if (!nextStatus) throw new UiError('الحالة غير متاحة.')
+      if (!nextStatus) throw new UiError('الحالة غير متاحة.', 'Selected status is unavailable.')
       const { data: savedHistory, error: historyError } = await supabase.schema('crdc').from('request_status_history')
         .select('history_id, item_id, status_id, changed_at, note').eq('item_id', item.item_id).order('changed_at', { ascending: false })
       if (historyError) throw historyError
@@ -411,7 +411,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         ...current.filter((row) => row.item_id !== item.item_id),
         ...((savedHistory ?? []) as HistoryRow[]),
       ])
-      setNotice('تم تحديث حالة البند وتسجيلها في السجل.')
+      setNotice(t('تم تحديث حالة البند وتسجيلها في السجل.', 'Item status updated and logged in history.'))
     } catch (operationError) { setError(friendlyError(operationError)) }
     finally { setBusyItem(null) }
   }
@@ -435,7 +435,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       if (rpcError) throw rpcError
       const decision = String(data.get('decision')) as PublicationRow['decision']
       setPublications((current) => current.map((row) => row.item_id === itemId ? { ...row, decision, journal_id: Number(data.get('journal_id')), issue_id: data.get('issue_id') ? Number(data.get('issue_id')) : null, accepted_at: decision === 'accepted' ? (row.accepted_at ?? new Date().toISOString().slice(0, 10)) : null } : row))
-      setNotice('تم حفظ قرار النشر.')
+      setNotice(t('تم حفظ قرار النشر.', 'Publication decision saved.'))
     } catch (operationError) { setError(friendlyError(operationError)) }
     finally { setBusyItem(null) }
   }
