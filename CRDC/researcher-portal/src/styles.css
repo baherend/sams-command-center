@@ -722,3 +722,6 @@ html[lang="en"] .murshid-copy h2{font-family:var(--display-en)}
 [data-theme="dark"] .murshid-try{background:#101a22;border-color:#24323d}
 [data-theme="dark"] .murshid-question{background:#0f2a2e;border-color:#1f4a50;color:#e6ebef}
 @media(max-width:860px){.murshid-intro{grid-template-columns:1fr;gap:24px}}
+.header-login,.header-signup,.public-nav a{white-space:nowrap}
+@media(max-width:1320px){.public-nav{gap:0}.public-nav a{padding:8px 8px;font-size:12.5px}.topbar{gap:12px}}
+@media(max-width:1180px){.brand small{display:none}}
