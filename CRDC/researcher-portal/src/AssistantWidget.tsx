@@ -274,10 +274,10 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
       <motion.button
         type="button"
         onClick={toggleOpen}
-        whileHover={{ scale: 1.07, y: -4 }}
+        whileHover={{ scale: 1.06, y: -3 }}
         whileTap={{ scale: 0.95 }}
         aria-expanded={open}
-        aria-label="فتح مرشد"
+        aria-label={open ? 'إغلاق مرشد' : 'فتح مرشد'}
         style={{
           background: 'transparent',
           border: 'none',
@@ -290,13 +290,27 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
           fontFamily: 'inherit',
         }}
       >
-        <motion.div animate={{ y: open ? 0 : [0, -5, 0] }} transition={{ duration: 3, repeat: open ? 0 : Infinity, ease: 'easeInOut' }}>
-          <MorshedAvatar size={96} isOpen={open} />
-        </motion.div>
+        <AnimatePresence mode="popLayout">
+          {!open && (
+            <motion.div
+              key="morshed-character"
+              initial={{ opacity: 0, scale: 0.45, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
+              exit={{ opacity: 0, scale: 0.55, y: 18, transition: { duration: 0.2 } }}
+              transition={{
+                opacity: { duration: 0.25 },
+                scale: { type: 'spring', stiffness: 320, damping: 22 },
+                y: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+              }}
+            >
+              <MorshedAvatar size={96} isOpen={false} />
+            </motion.div>
+          )}
+        </AnimatePresence>
         <span
           className="kb-assistant-fab"
           style={{
-            padding: '0.42rem 1.05rem',
+            padding: '0.45rem 1.15rem',
             fontSize: '0.88rem',
             fontWeight: 700,
             border: '1.5px solid #D4AF37',
