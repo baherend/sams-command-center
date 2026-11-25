@@ -25,7 +25,7 @@ async function registerAndCreateProfile(
   email: string,
   applicantType: 'egyptian' | 'foreign',
 ) {
-  await page.goto('/')
+  await page.goto('/#login')
   await page.getByRole('tablist').getByRole('button', { name: 'حساب جديد' }).click()
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)

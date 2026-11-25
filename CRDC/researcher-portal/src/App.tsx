@@ -5,6 +5,7 @@ import { supabase, supabaseConfigured } from './supabase'
 import ResearcherPortal from './ResearcherPortal'
 import StaffConsole from './StaffConsole'
 import AssistantWidget from './AssistantWidget'
+import PublicHome from './PublicHome'
 import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import { useI18n } from './i18n'
 
@@ -41,7 +42,9 @@ export default function App() {
   const [staff, setStaff] = useState<StaffProfile | null>(null)
   const [inactiveStaff, setInactiveStaff] = useState(false)
   const [degrees, setDegrees] = useState<Degree[]>([])
-  const [mode, setMode] = useState<Mode>('sign-in')
+  const [mode, setMode] = useState<Mode>(() => (typeof window !== 'undefined' && window.location.hash === '#signup' ? 'sign-up' : 'sign-in'))
+  // Signed-out visitors land on the public home; #login and #signup open the account page.
+  const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''))
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<LocalizedText | null>(null)
@@ -54,6 +57,18 @@ export default function App() {
   // change who is signed in (token refresh, re-focus SIGNED_IN), which would otherwise reset forms.
   const activeUserId = useRef<string | null>(null)
   const singleFlight = useSingleFlight()
+
+  useEffect(() => {
+    const onHash = () => {
+      const next = window.location.hash
+      setHash(next)
+      if (next === '#signup') setMode('sign-up')
+      if (next === '#login') setMode('sign-in')
+      if (next === '#login' || next === '#signup') window.scrollTo(0, 0)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   const loadProfile = useCallback(async (nextSession: Session | null) => {
     setError(null)
@@ -314,26 +329,85 @@ export default function App() {
     return <main className="setup-screen" dir={dir}><div className="setup-card"><span className="eyebrow">{t('تعذر تحميل الحساب', 'Failed to Load Account')}</span><h1>{t('حصلت مشكلة', 'Something Went Wrong')}</h1><p role="alert">{error[lang]}</p><button className="primary-button" onClick={signOut}>{t('تسجيل الخروج والمحاولة تاني', 'Sign Out and Try Again')}</button></div></main>
   }
 
-  return (
-    <main className="page-shell" dir={dir}>
+  const showHome = !session && hash !== '#login' && hash !== '#signup'
+
+  const header = (
       <header className="topbar">
-        <a className="brand" href="#home" aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
-          <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
-          <span><strong>{t('مركز الاستشارات', 'Consultation, Research')}</strong><small>{t('والبحوث والتطوير · أكاديمية السادات', '& Development Center · SAMS')}</small></span>
+        <a className="brand" href="#" onClick={() => { if (!session) window.location.hash = '' }} aria-label={t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}>
+          <img className="brand-seal" src="/brand/crdc-seal-96.webp" width={48} height={48} alt="" />
+          <span><strong>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</strong><small>{t('أكاديمية السادات للعلوم الإدارية', 'Sadat Academy for Management Sciences')}</small></span>
         </a>
+        {showHome && (
+          <nav className="public-nav" aria-label={t('أقسام الصفحة', 'Page sections')}>
+            <a href="#about">{t('عن المركز', 'About')}</a>
+            <a href="#requirements">{t('المتطلبات', 'Requirements')}</a>
+            <a href="#fees">{t('الرسوم', 'Fees')}</a>
+            <a href="#steps">{t('الخطوات', 'Steps')}</a>
+            <a href="#journals">{t('المجلات', 'Journals')}</a>
+            <a href="#contact">{t('تواصل', 'Contact')}</a>
+          </nav>
+        )}
+        {showHome && (
+          <div className="header-actions">
+            <a className="header-login" href="#login">{t('تسجيل الدخول', 'Sign in')}</a>
+            <a className="header-signup" href="#signup">{t('إنشاء حساب', 'Create account')}</a>
+          </div>
+        )}
+        <img className="academy-logo" src="/brand/sams-logo-192.jpg" width={44} height={44} alt={t('شعار أكاديمية السادات للعلوم الإدارية', 'Sadat Academy for Management Sciences logo')} />
         {session && <button className="quiet-button" onClick={signOut}>{t('تسجيل الخروج', 'Sign Out')}</button>}
       </header>
+  )
 
+  const footer = <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
+
+  if (showHome) {
+    return (
+      <main className="page-shell" dir={dir}>
+        {header}
+        <section className="landing-hero" id="home">
+          <article className="paper-sheet" aria-labelledby="landing-title">
+            <header className="paper-running-head">
+              <span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span>
+              <span>{t('أكاديمية السادات للعلوم الإدارية', 'Sadat Academy for Management Sciences')}</span>
+            </header>
+            <div className="paper-body">
+              <div className="paper-main">
+                <p className="paper-kicker">{t('البوابة الإلكترونية لخدمات الباحثين والدراسات العليا', 'Online services for researchers and postgraduate students')}</p>
+                <h1 id="landing-title"><span>{t('من المسودة', 'From draft')}</span> <span>{t('إلى المناقشة', 'to defense')}</span></h1>
+                <div className="paper-abstract">
+                  <span className="paper-label">{t('الملخص', 'Abstract')}</span>
+                  <p>{t('يرافق المركز باحثي الماجستير والدكتوراه من المصريين والوافدين في بوابة واحدة: تعرّف على متطلبات درجتك، واحسب رسومك، وقدّم طلبك، وتابع كل خدمة حتى تسلّم إفادتها المعتمدة.', 'The center supports Egyptian and international master’s and PhD researchers in one portal: see what your degree requires, estimate your fees, submit your request and follow each service until you receive its certified statement.')}</p>
+                </div>
+                <p className="paper-keywords">
+                  <span className="paper-label">{t('الكلمات المفتاحية', 'Keywords')}</span>
+                  {t('تحكيم ونشر الأبحاث، التدقيق اللغوي، التحليل الإحصائي، قياس نسبة الاقتباس، شهادة أساسيات التحول الرقمي', 'peer review and publishing, proofreading, statistical analysis, plagiarism check, Digital Transformation Fundamentals certificate')}
+                </p>
+                <div className="landing-actions">
+                  <a className="primary-button landing-cta" href="#signup">{t('قدّم طلب خدمة', 'Request a service')} <span>{isEn ? '→' : '←'}</span></a>
+                  <a className="landing-secondary" href="#requirements">{t('تعرّف على متطلبات درجتك', 'See what your degree requires')}</a>
+                </div>
+              </div>
+              <img className="landing-seal" src="/brand/crdc-seal-440.webp" width={260} height={260} alt="" />
+            </div>
+            <footer className="paper-footnote">
+              <span aria-hidden="true">*</span> {t('لديك حساب بالفعل؟', 'Already registered?')} <a href="#login">{t('سجّل الدخول لمتابعة طلباتك', 'Sign in to track your requests')}</a>
+            </footer>
+          </article>
+        </section>
+        <PublicHome />
+        {footer}
+      </main>
+    )
+  }
+
+  return (
+    <main className="page-shell" dir={dir}>
+      {header}
       <section className="hero" id="home">
         <div className="hero-copy">
-          <span className="eyebrow"><i /> {t('بوابة الباحثين', 'Researcher Portal')}</span>
-          <h1>{t('خدماتك البحثية', 'Your Research Services')}<br /><em>{t('في مكان واحد', 'In One Place')}</em></h1>
-          <p>{t('أنشئ حسابك، سجّل بياناتك الأساسية، وتابع طلبات خدمات المركز خطوة بخطوة.', 'Create your account, register your basic details, and track your service requests step by step.')}</p>
-          <div className="hero-notes">
-            <span><b>01</b> {t('حساب آمن', 'Secure Account')}</span>
-            <span><b>02</b> {t('بياناتك خاصة', 'Private Data')}</span>
-            <span><b>03</b> {t('متابعة واضحة', 'Clear Tracking')}</span>
-          </div>
+          <h1>{t('من التحكيم والنشر لحد إفادة المناقشة', 'From peer review and publishing to your defense certificate')}</h1>
+          <p>{t('بوابة مركز الاستشارات والبحوث والتطوير لباحثي الماجستير والدكتوراه، المصريين والوافدين: قدّم طلبك، ادفع وارفع الإيصال، وتابع كل خدمة لحد ما تستلم إفادتها.', 'The CRDC portal for master’s and PhD researchers, Egyptian and international: submit your request, pay and upload the receipt, and track each service until you receive its certificate.')}</p>
+          {!session && <a className="hero-link" href="#">{t('العودة إلى الصفحة الرئيسية', 'Back to the home page')}</a>}
         </div>
 
         <div className="form-card">
@@ -398,7 +472,7 @@ export default function App() {
         </div>
       </section>
 
-      <footer className="page-footer"><span>CRDC</span><span>{t('مركز الاستشارات والبحوث والتطوير', 'Consultation, Research & Development Center')}</span><span>{t('نموذج أولي · بياناتك في أمان', 'Prototype · Your data is secure')}</span></footer>
+      {footer}
     </main>
   )
 }

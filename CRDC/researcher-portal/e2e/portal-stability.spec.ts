@@ -29,7 +29,7 @@ async function createProfile(email: string, userId: string, national: string) {
 }
 
 async function signInThroughUi(page: Page, email: string) {
-  await page.goto('/')
+  await page.goto('/#login')
   await page.locator('input[name="email"]').fill(email)
   await page.locator('input[name="password"]').fill(password)
   await page.locator('.form-card form button.primary-button').click()
