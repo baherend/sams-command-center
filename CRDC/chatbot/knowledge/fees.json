@@ -1,0 +1,51 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for every fee. Fee chunks AND the calculator are generated from this file. Change a fee here only.",
+  "_sources": {
+    "eg": "Procedural guide for Egyptian researchers (fees as published in the center's services guide, crdc_guide_v3)",
+    "intl": "Procedural guide for international researchers (ver2) - service request table"
+  },
+  "eg": {
+    "currency_ar": "جنيه مصري",
+    "currency_en": "EGP",
+    "pay_at_ar": "خزينة الأكاديمية",
+    "pay_at_en": "the Academy treasury",
+    "refereeing": 1500,
+    "publishing": 1500,
+    "paper_pages": 25,
+    "paper_extra_page": 80,
+    "certificate": 500,
+    "proof_ar_base": 3000,
+    "proof_ar_extra": 23,
+    "proof_en_base": 4500,
+    "proof_en_extra": 50,
+    "thesis_pages": 150,
+    "stat_review": 3000,
+    "stat_analysis": 7000,
+    "similarity": 250,
+    "digital_course_exam": 1050,
+    "digital_exam_only": 910,
+    "digital_redo": null
+  },
+  "intl": {
+    "currency_ar": "دولار أمريكي",
+    "currency_en": "USD",
+    "pay_at_ar": "البنك المعتمد (بالدولار الأمريكي)",
+    "pay_at_en": "the approved bank (in US dollars)",
+    "refereeing": 200,
+    "publishing": 400,
+    "paper_pages": 25,
+    "paper_extra_page": 20,
+    "certificate": 0,
+    "proof_ar_base": 500,
+    "proof_ar_extra": 3,
+    "proof_en_base": 575,
+    "proof_en_extra": 5,
+    "thesis_pages": 150,
+    "stat_review": 400,
+    "stat_analysis": 750,
+    "similarity": 50,
+    "digital_course_exam": 200,
+    "digital_exam_only": 100,
+    "digital_redo": 20
+  }
+}

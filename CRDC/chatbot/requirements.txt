@@ -1,0 +1,8 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30
+pydantic>=2.7,<3
+numpy>=1.26
+onnxruntime>=1.18
+tokenizers>=0.19
+faiss-cpu>=1.8
+huggingface_hub>=0.23

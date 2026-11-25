@@ -1,0 +1,44 @@
+{
+  "_comment": "Journal facts are verified (academy website, ISSN portal). The ROUTING map is a PROPOSAL by the project team and must be confirmed by the editorial board (Mr. Nader) before go-live. Change routing here only; set routing_status to 'approved' once confirmed.",
+  "routing_status": "proposed",
+  "journals": {
+    "jso": {
+      "name_ar": "مجلة البحوث الإدارية",
+      "name_en": "Administrative Research Journal",
+      "url": "https://jso.journals.ekb.eg",
+      "frequency_ar": "ربع سنوية (يناير، أبريل، يوليو، أكتوبر)",
+      "frequency_en": "quarterly (January, April, July, October)",
+      "scope_ar": "الإدارة العامة والمحلية، الحاسب ونظم المعلومات، البنوك، التأمين، الفنادق والسياحة، البترول والطاقة، الأعمال الدولية",
+      "scope_en": "public and local administration, computing and information systems, banking, insurance, hotels and tourism, petroleum and energy, international business"
+    },
+    "sjsaf": {
+      "name_ar": "مجلة السادات للبحوث الإدارية والمالية",
+      "name_en": "Sadat Journal for Administrative and Financial Research",
+      "url": "https://sjsaf.journals.ekb.eg",
+      "frequency_ar": "نصف سنوية (يناير، يوليو)",
+      "frequency_en": "twice a year (January, July)",
+      "scope_ar": "الإدارة العامة، والعلوم الإدارية والمالية",
+      "scope_en": "public administration, administrative and financial sciences"
+    }
+  },
+  "specializations": [
+    {"id": "public_admin",  "label_ar": "الإدارة العامة والمحلية",       "label_en": "Public and local administration", "journals": ["jso"],
+     "kw": ["اداره عامه", "اداره محليه", "حكومي", "محليات", "public administration", "local administration", "government"]},
+    {"id": "mis",           "label_ar": "نظم المعلومات والحاسب",         "label_en": "Information systems and computing", "journals": ["jso"],
+     "kw": ["نظم معلومات", "حاسب", "تكنولوجيا", "تحول رقمي", "ذكاء اصطناعي", "information systems", "computing", "technology", "ai"]},
+    {"id": "banking",       "label_ar": "البنوك والتأمين",               "label_en": "Banking and insurance", "journals": ["jso"],
+     "kw": ["بنوك", "مصارف", "تامين", "banking", "insurance"]},
+    {"id": "tourism",       "label_ar": "الفنادق والسياحة",              "label_en": "Hotels and tourism", "journals": ["jso"],
+     "kw": ["فنادق", "سياحه", "ضيافه", "hotels", "tourism", "hospitality"]},
+    {"id": "energy",        "label_ar": "البترول والطاقة",               "label_en": "Petroleum and energy", "journals": ["jso"],
+     "kw": ["بترول", "طاقه", "نفط", "petroleum", "energy", "oil"]},
+    {"id": "intl_business", "label_ar": "الأعمال الدولية",               "label_en": "International business", "journals": ["jso"],
+     "kw": ["اعمال دوليه", "تجاره دوليه", "international business", "international trade"]},
+    {"id": "accounting",    "label_ar": "المحاسبة والمراجعة",            "label_en": "Accounting and auditing", "journals": ["sjsaf"],
+     "kw": ["محاسبه", "مراجعه داخليه", "مراجعه خارجيه", "تدقيق حسابات", "accounting", "auditing", "audit"]},
+    {"id": "finance",       "label_ar": "التمويل والاستثمار",            "label_en": "Finance and investment", "journals": ["sjsaf"],
+     "kw": ["تمويل", "استثمار", "ماليه", "بورصه", "اقتصاد", "finance", "investment", "economics", "stock"]},
+    {"id": "business",      "label_ar": "إدارة الأعمال والموارد البشرية والتسويق", "label_en": "Business, HR and marketing", "journals": ["jso", "sjsaf"],
+     "kw": ["اداره اعمال", "موارد بشريه", "تسويق", "قياده", "سلوك تنظيمي", "business administration", "human resources", "hr", "marketing", "leadership"]}
+  ]
+}

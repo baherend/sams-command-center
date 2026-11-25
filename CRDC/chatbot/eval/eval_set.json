@@ -1,0 +1,407 @@
+{
+ "_comment": "expect: list of acceptable chunk ids, or 'REFUSE'. calc: expected totals that must appear in the answer. Phrasings deliberately differ from the knowledge-base wording.",
+ "retrieval": [
+  {
+   "q": "المركز بيقدم ايه من خدمات؟",
+   "expect": [
+    "about"
+   ]
+  },
+  {
+   "q": "What services does the center offer?",
+   "expect": [
+    "about"
+   ]
+  },
+  {
+   "q": "ايه الفرق بين الرسالة والبحث؟",
+   "expect": [
+    "thesis_vs_paper"
+   ]
+  },
+  {
+   "q": "البحث المفروض يكون كام صفحة تقريبا",
+   "expect": [
+    "thesis_vs_paper",
+    "fees_pub"
+   ]
+  },
+  {
+   "q": "ابدأ الاجراءات منين؟",
+   "expect": [
+    "general_procedures"
+   ]
+  },
+  {
+   "q": "How do I start the procedure with the center?",
+   "expect": [
+    "general_procedures"
+   ]
+  },
+  {
+   "q": "بدفع فين الخزنة ولا البنك؟",
+   "expect": [
+    "general_procedures"
+   ]
+  },
+  {
+   "q": "امتى استلم الافادات؟",
+   "expect": [
+    "general_procedures"
+   ]
+  },
+  {
+   "q": "انا ماجستير اكاديمي محتاج ايه؟",
+   "expect": [
+    "degree_requirements"
+   ]
+  },
+  {
+   "q": "الدكتوراه المهني مطلوب منها ايه",
+   "expect": [
+    "degree_requirements"
+   ]
+  },
+  {
+   "q": "لازم انشر كام بحث عشان الدكتوراه؟",
+   "expect": [
+    "degree_requirements"
+   ]
+  },
+  {
+   "q": "What is required for a professional master's degree?",
+   "expect": [
+    "degree_requirements"
+   ]
+  },
+  {
+   "q": "ينفع اعمل التدقيق برا المركز؟",
+   "expect": [
+    "obligation"
+   ]
+  },
+  {
+   "q": "انا ناشر بحث في مجلة تانية قبل ما اسجل، لازم انشر عندكم؟",
+   "expect": [
+    "obligation"
+   ]
+  },
+  {
+   "q": "الخدمة بتاخد قد ايه؟",
+   "expect": [
+    "duration"
+   ]
+  },
+  {
+   "q": "How long does the statistical analysis take?",
+   "expect": [
+    "duration"
+   ]
+  },
+  {
+   "q": "التحكيم بياخد كام يوم",
+   "expect": [
+    "duration"
+   ]
+  },
+  {
+   "q": "انشر فين؟ ايه المجلات؟",
+   "expect": [
+    "pub_journals",
+    "journal_router"
+   ]
+  },
+  {
+   "q": "عايز لينك مجلة السادات",
+   "expect": [
+    "pub_journals",
+    "pub_steps"
+   ]
+  },
+  {
+   "q": "What are the journal links?",
+   "expect": [
+    "pub_journals",
+    "pub_steps"
+   ]
+  },
+  {
+   "q": "تقييم المجلة كام؟",
+   "expect": [
+    "pub_journals"
+   ]
+  },
+  {
+   "q": "ازاي ارفع البحث على المجلة؟",
+   "expect": [
+    "pub_steps"
+   ]
+  },
+  {
+   "q": "لو المحكمين طلبوا تعديلات اعمل ايه",
+   "expect": [
+    "pub_steps"
+   ]
+  },
+  {
+   "q": "ينفع انشر بحث بالانجليزي؟",
+   "expect": [
+    "pub_rules"
+   ]
+  },
+  {
+   "q": "Can I publish a paper that was already published elsewhere?",
+   "expect": [
+    "pub_rules"
+   ]
+  },
+  {
+   "q": "ليه بدفع النشر قبل ما البحث يتقبل؟",
+   "expect": [
+    "pub_pay_once"
+   ]
+  },
+  {
+   "q": "نوع الخط ايه في البحث العربي",
+   "expect": [
+    "formatting"
+   ]
+  },
+  {
+   "q": "الهوامش كام سم؟",
+   "expect": [
+    "formatting"
+   ]
+  },
+  {
+   "q": "What font should I use for an English paper?",
+   "expect": [
+    "formatting"
+   ]
+  },
+  {
+   "q": "ابعت الرسالة للتدقيق اللغوي على ايه؟",
+   "expect": [
+    "ling_steps"
+   ]
+  },
+  {
+   "q": "How does language proofreading work?",
+   "expect": [
+    "ling_steps"
+   ]
+  },
+  {
+   "q": "خطوات التحليل الاحصائي",
+   "expect": [
+    "stat_steps"
+   ]
+  },
+  {
+   "q": "شهادة التحول الرقمي دي ايه؟",
+   "expect": [
+    "dig_about"
+   ]
+  },
+  {
+   "q": "ينفع ادخل امتحان التحول الرقمي من غير الدورة؟",
+   "expect": [
+    "dig_about",
+    "fees_dig"
+   ]
+  },
+  {
+   "q": "الشهادة بتوصل امتى بعد ما انجح؟",
+   "expect": [
+    "dig_steps"
+   ]
+  },
+  {
+   "q": "احجز امتحان التحول الرقمي قبلها بقد ايه؟",
+   "expect": [
+    "dig_booking"
+   ]
+  },
+  {
+   "q": "خطوات قياس نسبة الاقتباس",
+   "expect": [
+    "cit_steps"
+   ]
+  },
+  {
+   "q": "النسبة المقبولة للاقتباس كام؟",
+   "expect": [
+    "cit_threshold"
+   ]
+  },
+  {
+   "q": "لو نسبة الاقتباس طلعت عالية اعمل ايه؟",
+   "expect": [
+    "cit_threshold"
+   ]
+  },
+  {
+   "q": "What is the acceptable similarity percentage?",
+   "expect": [
+    "cit_threshold"
+   ]
+  },
+  {
+   "q": "ايه البيانات اللي في الاستمارة؟",
+   "expect": [
+    "request_form"
+   ]
+  },
+  {
+   "q": "انا وافد محتاج اجهز ايه؟",
+   "expect": [
+    "request_form"
+   ]
+  },
+  {
+   "q": "التعهد فيه ايه؟",
+   "expect": [
+    "pledge"
+   ]
+  },
+  {
+   "q": "المركز فين؟",
+   "expect": [
+    "contact"
+   ]
+  },
+  {
+   "q": "ايميل المركز ايه",
+   "expect": [
+    "contact",
+    "ling_steps"
+   ]
+  },
+  {
+   "q": "رسوم النشر كام؟",
+   "expect": [
+    "fees_pub"
+   ]
+  },
+  {
+   "q": "How much is publishing for international researchers?",
+   "expect": [
+    "fees_pub"
+   ]
+  },
+  {
+   "q": "التدقيق اللغوي بكام؟",
+   "expect": [
+    "fees_ling"
+   ]
+  },
+  {
+   "q": "سعر التحليل الاحصائي",
+   "expect": [
+    "fees_stat"
+   ]
+  },
+  {
+   "q": "المراجعة الاحصائية بكام للوافدين",
+   "expect": [
+    "fees_stat"
+   ]
+  },
+  {
+   "q": "دورة التحول الرقمي بكام؟",
+   "expect": [
+    "fees_dig"
+   ]
+  },
+  {
+   "q": "إعادة اختبار التحول الرقمي بكام",
+   "expect": [
+    "fees_dig"
+   ]
+  },
+  {
+   "q": "قياس الاقتباس بكام",
+   "expect": [
+    "fees_cit"
+   ]
+  },
+  {
+   "q": "How much does the similarity check cost?",
+   "expect": [
+    "fees_cit"
+   ]
+  }
+ ],
+ "refuse": [
+  "ما هي عاصمة فرنسا؟",
+  "اكتبلي بحث عن التسويق الرقمي",
+  "مين رئيس الاكاديمية؟",
+  "هل المركز بيعمل ترجمة؟",
+  "مواعيد عمل المركز ايه؟",
+  "رقم تليفون المركز كام؟",
+  "ينفع ادفع فيزا او انستاباي؟",
+  "مصاريف الماجستير في الاكاديمية كام؟",
+  "امتى نتيجة الترم؟",
+  "What is the weather today?",
+  "Who is the dean of the faculty?",
+  "Do you offer thesis writing services?",
+  "ممكن تساعدني اكتب الخطة البحثية؟",
+  "ايه افضل برنامج احصائي SPSS ولا R؟",
+  "هل في سكن للطلاب الوافدين؟",
+  "ازاي اقدم على الماجستير؟",
+  "مين المشرف المناسب لرسالتي؟",
+  "احكيلي نكتة"
+ ],
+ "calc": [
+  {
+   "q": "كام رسوم نشر بحث 32 صفحة؟",
+   "must": [
+    "4,060 جنيه",
+    "740 دولار"
+   ]
+  },
+  {
+   "q": "رسوم نشر بحث 20 صفحه لباحث مصري",
+   "must": [
+    "3,500 جنيه"
+   ],
+   "must_not": [
+    "دولار"
+   ]
+  },
+  {
+   "q": "احسب رسوم النشر لبحث ٣٠ صفحة وافد",
+   "must": [
+    "700 دولار"
+   ],
+   "must_not": [
+    "جنيه"
+   ]
+  },
+  {
+   "q": "تدقيق لغوي عربي لرسالة 180 صفحة كام؟",
+   "must": [
+    "4,190 جنيه",
+    "590 دولار"
+   ]
+  },
+  {
+   "q": "تدقيق لغوي انجليزي 200 صفحة مصري",
+   "must": [
+    "7,500 جنيه"
+   ]
+  },
+  {
+   "q": "How much is English proofreading for a 160 page thesis, international?",
+   "must": [
+    "USD 625"
+   ]
+  },
+  {
+   "q": "Publishing fee for a 25 page paper for an Egyptian researcher",
+   "must": [
+    "EGP 3,500"
+   ]
+  }
+ ]
+}

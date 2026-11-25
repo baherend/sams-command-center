@@ -1,0 +1,6 @@
+models/
+index/
+logs/
+__pycache__/
+*.pyc
+.git/
