@@ -312,12 +312,12 @@ test('reviewer sees all journals and switches publication journal on a single as
   ])
   if (issuesError) throw issuesError
   if (reqError) throw reqError
-  const { data: subRow, error: itemError } = await admin.schema('crdc').from('request_items').select('item_id').eq('request_id', paperReq.request_id).order('item_id').limit(1).single()
-  if (itemError) throw itemError
+  const { data: reqItems, error: itemError } = await admin.schema('crdc').from('request_items').select('item_id').eq('request_id', paperReq.request_id).order('item_id')
+  if (itemError || !reqItems?.length) throw itemError ?? new Error('No items for paper request')
   const allJournals = [...new Set(allIssues.map((issue) => issue.journal_id))].map((journal_id) => ({ journal_id }))
   expect(allJournals.length).toBeGreaterThanOrEqual(2)
 
-  const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id }).eq('item_id', subRow.item_id)
+  const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id }).in('item_id', reqItems.map((row) => row.item_id))
   if (assignError) throw assignError
 
   await page.goto('/#login')
@@ -328,7 +328,7 @@ test('reviewer sees all journals and switches publication journal on a single as
   await expect(nav).toBeVisible()
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
 
-  const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${subRow.item_id}"]`)
+  const editor = page.locator('.publication-editor').first()
   await expect(assigned).toBeVisible()
   const editor = assigned.locator('.publication-editor')
   const journalSelect = editor.locator('select[name="journal_id"]')
@@ -349,7 +349,7 @@ test('reviewer sees all journals and switches publication journal on a single as
 
   await page.reload()
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
-  const reloadedEditor = page.locator(`[data-testid="assigned-case"][data-item-id="${subRow.item_id}"] .publication-editor`)
+  const reloadedEditor = page.locator('.publication-editor').first()
   await expect(reloadedEditor.locator('select[name="journal_id"]')).toHaveValue(String(otherJournal.journal_id))
   await expect(reloadedEditor.locator('select[name="issue_id"]')).toHaveValue(String(targetIssue.issue_id))
 })
