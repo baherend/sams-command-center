@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
-import { useI18n } from './i18n'
-import { pickName } from './pickName'
+import { useI18n, pickName } from './i18n'
 import { OPTION_LABELS } from './ResearcherPortal'
 
 // Everything on this page comes from crdc_public.get_catalog(): the only data a

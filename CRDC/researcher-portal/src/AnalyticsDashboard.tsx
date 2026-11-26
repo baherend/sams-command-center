@@ -24,7 +24,8 @@ const getRanges = (isEn: boolean): { label: string; value: Days }[] => [
   { label: isEn ? 'Last Year' : 'آخر سنة', value: 365 },
 ]
 
-const getLocale = () => (document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG')
+let currentLocale = 'ar-EG'
+const getLocale = () => currentLocale
 const num = { format: (v: number) => new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 2 }).format(v) }
 const compact = { format: (v: number) => new Intl.NumberFormat(getLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(v) }
 const n = (value: unknown) => { const x = Number(value); return Number.isFinite(x) ? x : 0 }
@@ -89,7 +90,7 @@ function BarList({ rows, label, tone = 'main' }: { rows: BarItem[]; label: strin
 
 function MixChart({ egyptian, foreign }: { egyptian: number; foreign: number }) {
   const total = egyptian + foreign
-  const isEn = document.documentElement.lang === 'en'
+  const isEn = getLocale() === 'en-US'
   if (!total) return <p className="card-description">{isEn ? 'No requests in the selected period.' : 'لا توجد طلبات في الفترة المختارة.'}</p>
   const ePct = (egyptian / total) * 100
   const label = isEn ? `Egyptian: ${num.format(egyptian)} requests, International: ${num.format(foreign)} requests` : `مصريون ${num.format(egyptian)} طلب، ووافدون ${num.format(foreign)} طلب`
@@ -167,6 +168,7 @@ function TrendChart({ title, rows, pick, kind, format, color }: {
 
 export default function AnalyticsDashboard() {
   const { lang, isEn } = useI18n()
+  currentLocale = isEn ? 'en-US' : 'ar-EG'
   const [days, setDays] = useState<Days>(null)
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)

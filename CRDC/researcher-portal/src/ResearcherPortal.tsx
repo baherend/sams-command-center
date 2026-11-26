@@ -82,12 +82,15 @@ type PaymentRow = {
 }
 
 const statusName = (status: StatusRow | undefined, lang: Lang = 'ar') => status ? pickName(status, lang) : (lang === 'en' ? 'Unspecified' : 'غير محدد')
-const formatDate = (value: string | null | undefined) =>
-  value ? new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
-const money = (amount: number | string, currency: string) =>
-  new Intl.NumberFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 }).format(Number(amount)) + ` ${currency}`
+const formatDate = (value: string | null | undefined, lang: Lang = 'ar') =>
+  value ? new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value)) : '—'
+const money = (amount: number | string, currency: string, lang: Lang = 'ar') =>
+  new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 }).format(Number(amount)) + ` ${currency}`
 // Amounts mix digits with a Latin currency code; isolate them so they do not get reordered inside RTL text.
-const Money = ({ amount, currency }: { amount: number | string; currency: string }) => <span dir="ltr">{money(amount, currency)}</span>
+const Money = ({ amount, currency }: { amount: number | string; currency: string }) => {
+  const { lang } = useI18n()
+  return <span dir="ltr">{money(amount, currency, lang)}</span>
+}
 const Ltr = ({ children }: { children: string }) => <span dir="ltr">{children}</span>
 
 export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated }: { profile: ResearcherProfile; onSignOut: () => void; onProfileUpdated: (profile: ResearcherProfile) => void }) {
@@ -417,7 +420,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                       <legend>{pickName(service, lang)}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
-                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
+                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code, lang)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
                       </label>)}
                     </fieldset>
                   })}
@@ -437,7 +440,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
             {detailLoading ? <div className="loading portal-loading"><span className="spinner" /> {t('جارٍ تحميل تفاصيل الطلب...', 'Loading request details...')}</div> : detail ? <>
               <button className="back-button" onClick={() => setDetail(null)}>{isEn ? '← Back to My Requests' : '→ العودة إلى طلباتي'}</button>
               <article className="portal-card request-detail-card">
-                <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at)}</span></div>
+                <div className="request-card-heading"><div><span className="eyebrow">{detail.request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{detail.request.work_title}</h2></div><span className="date-chip">{formatDate(detail.request.created_at, lang)}</span></div>
                 <p className="detail-pages">{t('عدد الصفحات:', 'Page count:')} {detail.request.page_count ?? '—'}</p>
                 <div className="item-list">{detail.items.map((item) => {
                   const fee = detail.fees.find((row) => row.fee_id === item.fee_id)
@@ -447,10 +450,10 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                   const journal = publication && detail.journals.find((row) => row.journal_id === publication.journal_id)
                   const issue = publication?.issue_id && detail.issues.find((row) => row.issue_id === publication.issue_id)
                   return <section className="request-item" key={item.item_id}>
-                    <div className="request-item-heading"><div><span className="eyebrow">{service ? pickName(service, lang) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), lang)}</span></div>
-                    <div className="item-facts"><span>{t('المبلغ المسجل', 'Recorded Amount')}</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>{t('حالة السداد', 'Payment Status')}</span><strong>{payment ? (payment.paid_at ? ` · ${formatDate(payment.paid_at)}` : t('إذن الدفع مسجل', 'Payment Order Issued')) : t('لم يُسجل دفع بعد', 'Not Paid Yet')}</strong>{payment?.payment_order_no && <><span>{t('رقم إذن الدفع', 'Payment Order No.')}</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>{t('رقم الإيصال', 'Receipt No.')}</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
-                    {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? pickName(journal, lang) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at)}</span>}</div>}
-                    <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), lang)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at)}</time></div></div>)}</div>
+                    <div className="request-item-heading"><div><span className="eyebrow">{service ? pickName(service, lang) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '', lang)}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), lang)}</span></div>
+                    <div className="item-facts"><span>{t('المبلغ المسجل', 'Recorded Amount')}</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>{t('حالة السداد', 'Payment Status')}</span><strong>{payment ? (payment.paid_at ? ` · ${formatDate(payment.paid_at, lang)}` : t('إذن الدفع مسجل', 'Payment Order Issued')) : t('لم يُسجل دفع بعد', 'Not Paid Yet')}</strong>{payment?.payment_order_no && <><span>{t('رقم إذن الدفع', 'Payment Order No.')}</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>{t('رقم الإيصال', 'Receipt No.')}</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
+                    {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? pickName(journal, lang) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at, lang)}</span>}</div>}
+                    <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), lang)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at, lang)}</time></div></div>)}</div>
                   </section>
                 })}</div>
                 {detail.payments.map((payment) => {
@@ -468,14 +471,14 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                     <p>{t('المبلغ المطلوب ', 'Amount due ')}<strong><Money amount={payment.amount} currency={payment.currency} /></strong></p>
                     {payment.receipt_status === 'rejected' && payment.rejection_reason && <p className="message error receipt-rejection-reason">{t('سبب الرفض:', 'Rejection reason:')} {payment.rejection_reason}</p>}
                     {payment.receipt_status === 'pending_review' && payment.receipt_no && <p>{t('رقم الإيصال: ', 'Receipt No.: ')}<Ltr>{payment.receipt_no}</Ltr></p>}
-                    {payment.receipt_status === 'verified' && payment.paid_at && <p>{t('تاريخ السداد:', 'Paid on:')} {formatDate(payment.paid_at)}</p>}
+                    {payment.receipt_status === 'verified' && payment.paid_at && <p>{t('تاريخ السداد:', 'Paid on:')} {formatDate(payment.paid_at, lang)}</p>}
                     {canSubmitReceipt && <PaymentReceiptForm payment={payment} items={paymentItems} services={detail.services} onSubmit={submitPaymentReceipt} onError={(message) => setError(message)} />}
                   </section>
                 })}
                 {!detail.items.length && <p className="empty-state">{t('لا توجد خدمات مرتبطة بهذا الطلب.', 'No service items linked to this request.')}</p>}
               </article>
             </> : requests.length ? <div className="request-list">{requests.map((request) => <button className="request-card" key={request.request_id} onClick={() => void loadRequestDetail(String(request.request_id))}>
-<span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, lang)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
+<span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><strong>{request.work_title}</strong><span className="request-card-meta">{formatDate(request.created_at, lang)} · {request.page_count ?? '—'} {t('صفحة', 'pages')}</span><span className="request-card-status">{overallStatus(request.request_id, statuses, statusById, requestStatusIds, lang)}</span><span className="request-arrow">{isEn ? '→' : '←'}</span>
             </button>)}</div> : <div className="portal-card empty-requests"><span className="success-orbit"><span>↗</span></span><h2>{isEn ? 'No Requests Yet' : 'لا توجد طلبات بعد'}</h2><p>{t('عند تقديم طلب جديد، يمكنك متابعة تفاصيله وحالته من هنا.', 'Once you submit a new request, you can track its details and status here.')}</p><button className="primary-button" onClick={() => chooseView('catalog')}>{t('استعراض الخدمات ', 'Browse Services ')}<span>{isEn ? '→' : '←'}</span></button></div>}
           </>}
 
@@ -493,7 +496,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
                 <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'جارٍ حفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
-              <dl className="profile-details"><dt>{t('تاريخ إنشاء الملف', 'Profile Created On')}</dt><dd>{formatDate(profile.created_at)}</dd></dl>
+              <dl className="profile-details"><dt>{t('تاريخ إنشاء الملف', 'Profile Created On')}</dt><dd>{formatDate(profile.created_at, lang)}</dd></dl>
             </article>
           </>}
         </section>
@@ -524,8 +527,8 @@ export const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
   PLAG: { ar: 'قياس نسبة الاقتباس', en: 'Plagiarism Check' },
 }
 
-function optionLabel(code: string) {
-  const isEn = typeof document !== 'undefined' && document.documentElement.lang === 'en'
+function optionLabel(code: string, lang: Lang = 'ar') {
+  const isEn = lang === 'en'
   const entry = OPTION_LABELS[code]
   return entry ? (isEn ? entry.en : entry.ar) : code
 }
