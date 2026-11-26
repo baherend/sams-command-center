@@ -317,7 +317,9 @@ test('reviewer sees all journals and switches publication journal on a single as
   const allJournals = [...new Set(allIssues.map((issue) => issue.journal_id))].map((journal_id) => ({ journal_id }))
   expect(allJournals.length).toBeGreaterThanOrEqual(2)
 
-  const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id }).in('item_id', reqItems.map((row) => row.item_id))
+  const { data: inProgressStatus, error: statusError } = await admin.schema('crdc').from('request_statuses').select('status_id').eq('code', 'IN_PROGRESS').single()
+  if (statusError) throw statusError
+  const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id, status_id: inProgressStatus.status_id }).in('item_id', reqItems.map((row) => row.item_id))
   if (assignError) throw assignError
 
   await page.goto('/#login')
@@ -344,6 +346,7 @@ test('reviewer sees all journals and switches publication journal on a single as
   await expect(issueSelect).toHaveValue('')
   await issueSelect.selectOption(String(targetIssue.issue_id))
   await editor.getByRole('button', { name: 'حفظ قرار النشر' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status')).toContainText('تم حفظ قرار النشر')
 
   await page.reload()
