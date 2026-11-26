@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
-import { translateDbText, useI18n } from './i18n'
+import { useI18n } from './i18n'
+import { pickName } from './pickName'
 import { OPTION_LABELS } from './ResearcherPortal'
 
 // Everything on this page comes from crdc_public.get_catalog(): the only data a
 // signed-out visitor can read. No fee or requirement is typed by hand here.
 
 type Num = number | string | null
-type CatalogService = { service_id: number; code: string; name_ar: string }
+type CatalogService = { service_id: number; code: string; name_ar: string; name_en?: string | null }
 type CatalogFee = {
   service_id: number
   option_code: string
@@ -19,10 +20,10 @@ type CatalogFee = {
   certificate_fee: Num
   requirement_code: string | null
 }
-type CatalogRequirement = { requirement_code: string; service_id: number; name_ar: string; sort_order: number }
-type CatalogDegree = { degree_id: number; code: string; name_ar: string; track: string; level: string }
+type CatalogRequirement = { requirement_code: string; service_id: number; name_ar: string; name_en?: string | null; sort_order: number }
+type CatalogDegree = { degree_id: number; code: string; name_ar: string; name_en?: string | null; track: string; level: string }
 type CatalogDegreeRequirement = { degree_id: number; requirement_code: string; min_count: number }
-type CatalogJournal = { journal_id: number; code: string; name_ar: string; issues_per_year: number | null }
+type CatalogJournal = { journal_id: number; code: string; name_ar: string; name_en?: string | null; issues_per_year: number | null }
 type Catalog = {
   services: CatalogService[]
   fees: CatalogFee[]
@@ -69,6 +70,7 @@ function optionName(code: string, isEn: boolean) {
 
 export default function PublicHome() {
   const { t, isEn } = useI18n()
+  const lang = isEn ? 'en' : 'ar'
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [failed, setFailed] = useState(false)
   const [degreeId, setDegreeId] = useState<number | null>(null)
@@ -165,7 +167,7 @@ export default function PublicHome() {
               {catalog.degrees.map((degree) => (
                 <button key={degree.degree_id} type="button" role="tab" aria-selected={degree.degree_id === degreeId}
                   className={degree.degree_id === degreeId ? 'active' : ''} onClick={() => setDegreeId(degree.degree_id)}>
-                  {translateDbText(degree.name_ar, isEn)}
+                  {pickName(degree, lang)}
                 </button>
               ))}
             </div>
@@ -174,7 +176,7 @@ export default function PublicHome() {
                 <li key={row.requirement_code}>
                   <span className="check-mark" aria-hidden="true" />
                   <span className="degree-check-copy">
-                    <strong>{translateDbText(row.type?.name_ar, isEn)}</strong>
+                    <strong>{pickName(row.type, lang)}</strong>
                     {row.min_count > 1 && <small>{isEn ? `${row.min_count} required` : `مطلوب ${row.min_count.toLocaleString('ar-EG')}`}</small>}
                   </span>
                   {row.type && (
@@ -206,7 +208,7 @@ export default function PublicHome() {
               </fieldset>
               <label className="estimator-field">{t('الخدمة', 'Service')}
                 <select value={serviceId ?? ''} onChange={(event) => setServiceId(Number(event.target.value))}>
-                  {catalog.services.map((service) => <option key={service.service_id} value={service.service_id}>{translateDbText(service.name_ar, isEn)}</option>)}
+                  {catalog.services.map((service) => <option key={service.service_id} value={service.service_id}>{pickName(service, lang)}</option>)}
                 </select>
               </label>
               <div className="estimator-options">
@@ -304,7 +306,7 @@ export default function PublicHome() {
               const site = JOURNAL_SITES[journal.code]
               return (
                 <article key={journal.journal_id} className="journal-entry">
-                  <h3>{translateDbText(journal.name_ar, isEn)}</h3>
+                  <h3>{pickName(journal, lang)}</h3>
                   {journal.issues_per_year && <span className="journal-frequency">{isEn ? `${journal.issues_per_year} issues a year` : `${journal.issues_per_year.toLocaleString('ar-EG')} أعداد في السنة`}</span>}
                   {site && <p>{isEn ? site.scope_en : site.scope_ar}</p>}
                   {site && <a href={site.url} target="_blank" rel="noopener noreferrer" dir="ltr">{site.url.replace('https://', '')}</a>}

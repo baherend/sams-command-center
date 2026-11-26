@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(7);
+SELECT plan(13);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -40,6 +40,48 @@ SELECT is(
      AND column_name IN ('researcher_id','request_id','full_name','email','national_id','passport_no','work_title')),
   0,
   'aggregate view has no identifiers or personal information columns'
+);
+
+SELECT is(
+  (SELECT count(*)::integer FROM information_schema.columns
+   WHERE table_schema='crdc' AND table_name='staff_dashboard_overview' AND column_name='label_en'),
+  1,
+  'aggregate view exposes the label_en column'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM crdc.staff_dashboard_overview
+   WHERE metric='status' AND coalesce(btrim(label_en), '') = ''),
+  0,
+  'every status row of the aggregate view has a non-empty label_en'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM information_schema.columns
+   WHERE table_schema='crdc' AND table_name='staff_dashboard_overview'
+        AND column_name NOT IN ('metric','category','label','label_en','request_count')),
+  0,
+  'aggregate view has no columns beyond the known aggregate ones'
+);
+
+SELECT is(
+  (SELECT count(*)::integer FROM information_schema.columns
+   WHERE table_schema='crdc' AND table_name='viewer_dashboard_summary'
+     AND column_name IN ('service_name_en','status_name_en')),
+  2,
+  'viewer_dashboard_summary exposes service_name_en and status_name_en'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM crdc.viewer_dashboard_summary
+   WHERE coalesce(btrim(service_name_en), '') = '' OR coalesce(btrim(status_name_en), '') = ''),
+  0,
+  'every viewer_dashboard_summary row has non-empty English names'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM information_schema.columns
+   WHERE table_schema='crdc' AND table_name='viewer_dashboard_summary'
+     AND column_name NOT IN ('service_code','service_name','service_name_en',
+                             'status_code','status_name','status_name_en','item_count')),
+  0,
+  'viewer_dashboard_summary has no columns beyond the known aggregate ones'
 );
 
 SELECT set_config('request.jwt.claims',

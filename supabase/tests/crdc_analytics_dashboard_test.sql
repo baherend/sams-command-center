@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(17);
+SELECT plan(21);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -75,7 +75,7 @@ SELECT is(
    FROM jsonb_path_query(current_setting('test.an.payload')::jsonb, 'strict $.**') o,
         LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(o) = 'object' THEN o ELSE '{}'::jsonb END) k
    WHERE k ~* '(name$|^name|email|national|passport|nationality|researcher|auth_user|staff|title)'
-     AND k NOT IN ('service_name_ar','status_name_ar')),
+        AND k NOT IN ('service_name_ar','status_name_ar','service_name_en','status_name_en')),
   0::integer, 'payload contains no PII keys at any depth'::text
 );
 SELECT is(
@@ -85,6 +85,31 @@ SELECT is(
       OR position(r.national_id in current_setting('test.an.payload')) > 0
       OR position(r.passport_no in current_setting('test.an.payload')) > 0),
   0::integer, 'no researcher name, email, national ID or passport value appears in the payload'::text
+);
+
+
+-- English names for the dashboard labels.
+SELECT is(
+  (SELECT count(*)::integer FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_service') e
+   WHERE coalesce(btrim(e->>'service_name_en'), '') = ''),
+  0::integer, 'every by_service row has a non-empty service_name_en'::text
+);
+SELECT is(
+  (SELECT count(*)::integer FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_status') e
+   WHERE coalesce(btrim(e->>'status_name_en'), '') = ''),
+  0::integer, 'every by_status row has a non-empty status_name_en'::text
+);
+SELECT is(
+  (SELECT array_agg(DISTINCT k ORDER BY k)
+   FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_service') e, jsonb_object_keys(e) k),
+  ARRAY['item_count','revenue_egp','revenue_usd','service_code','service_name_ar','service_name_en']::text[],
+  'by_service rows carry only the documented keys'::text
+);
+SELECT is(
+  (SELECT array_agg(DISTINCT k ORDER BY k)
+   FROM jsonb_array_elements(current_setting('test.an.payload')::jsonb->'by_status') e, jsonb_object_keys(e) k),
+  ARRAY['item_count','status_code','status_name_ar','status_name_en']::text[],
+  'by_status rows carry only the documented keys'::text
 );
 
 -- Denied callers.
