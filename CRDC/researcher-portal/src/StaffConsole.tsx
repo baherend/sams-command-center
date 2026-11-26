@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
-import { useI18n, pickName } from './i18n'
+import { useI18n, pickName, type Lang } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
@@ -56,7 +56,7 @@ type PageCursor = { created_at: string; request_id: number }
 const receiptPageSize = 20
 const pageSize = 20
 
-const formatDate = (value: string) => new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value))
+const formatDate = (value: string, lang: Lang = 'ar') => new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'ar-EG', { dateStyle: 'medium' }).format(new Date(value))
 
 export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile; onSignOut: () => void }) {
   const { t, lang, dir, isEn } = useI18n()
@@ -470,7 +470,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           <Suspense fallback={<div className="portal-card loading" aria-busy="true"><span className="spinner" /> {t('بنحمّل لوحة التحليلات...', 'Loading analytics...')}</div>}><AnalyticsDashboard /></Suspense>
         ) : view === 'overview' ? (
           <>
-            <div className="portal-heading"><span className="eyebrow">لوحة الموظفين</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمّعة عن الطلبات، دون عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمّعة عن الطلبات، دون عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
             {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا،', 'Welcome,')} {staff.full_name}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'جارٍ تحميل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error[lang]}</p> : (
               <>
                 <div className="staff-stat-grid">
@@ -487,7 +487,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           </>
         ) : view === 'cashier' ? (
           <>
-            <div className="portal-heading"><span className="eyebrow">الخزينة</span><h1>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
+            <div className="portal-heading"><span className="eyebrow">{t('الخزينة', 'Cashier')}</span><h1>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</h1><p>راجع المبلغ والإيصال والخدمات المشمولة قبل اعتماد السداد أو طلب إعادة الإرسال.</p></div>
             {notice && <p className="message success" role="status">{notice[lang]}</p>}
             {error && <p className="message error" role="alert">{error[lang]}</p>}
             {cashierLoading ? <div className="portal-card loading"><span className="spinner" /> {t('جارٍ تحميل الإيصالات...', 'Loading receipts...')}</div> : cashierRows.length ? <div className="request-list cashier-receipt-list">
@@ -498,10 +498,10 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   <dt>{t('الباحث', 'Researcher')}</dt><dd>{contact?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{contact?.email ?? ''}</small></dd>
                   <dt>{t('نوع الباحث', 'Applicant Type')}</dt><dd>{contact?.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
                   <dt>{t('رقم الإيصال', 'Receipt No.')}</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
-                  <dt>{t('تاريخ السداد', 'Payment Date')}</dt><dd>{formatDate(payment.paid_at)}</dd>
+                  <dt>{t('تاريخ السداد', 'Payment Date')}</dt><dd>{formatDate(payment.paid_at, lang)}</dd>
                   <dt>{t('قناة السداد', 'Payment Channel')}</dt><dd>{payment.channel === 'treasury' ? t('الخزينة', 'Treasury') : t('البنك', 'Bank')}</dd>
                   <dt>{t('إجمالي المبلغ', 'Total Amount')}</dt><dd><strong><span dir="ltr">{Number(payment.amount).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {payment.currency}</span></strong></dd>
-                  <dt>{t('وصل للمراجعة', 'Submitted At')}</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at)}</time></dd>
+                  <dt>{t('وصل للمراجعة', 'Submitted At')}</dt><dd><time dateTime={payment.submitted_by_researcher_at}>{formatDate(payment.submitted_by_researcher_at, lang)}</time></dd>
                 </dl>
                 <section className="cashier-covered-items"><h3>{t('الخدمات المشمولة', 'Covered Services')}</h3>{coveredItems.length ? <ul>{coveredItems.map((item) => <li key={item.item_id}>
 <span>{item.service_name === 'SERVICE_FALLBACK' ? t('خدمة', 'Service') : pickName({ name_ar: item.service_name, name_en: item.service_name_en }, lang)}{item.option_code ? ` · ${item.option_code}` : ''}</span><span className="cashier-item-meta">{(() => { const s = statusById.get(item.status_id); return s ? pickName(s, lang) : t('غير محدد', 'Unspecified') })()} · <span dir="ltr">{Number(item.amount_due).toLocaleString(isEn ? 'en-US' : 'ar-EG', { maximumFractionDigits: 2 })} {item.currency}</span></span>
@@ -547,9 +547,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                       <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
                       <dl className="admin-request-facts">
                         <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
-                        <dt>الباحث</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
-                        <dt>نوع الباحث</dt><dd>{request.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
-                        <dt>{t('تاريخ التقديم', 'Submitted On')}</dt><dd>{formatDate(request.created_at)}</dd>
+                        <dt>{t('الباحث', 'Researcher')}</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
+                        <dt>{t('نوع الباحث', 'Applicant Type')}</dt><dd>{request.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
+                        <dt>{t('تاريخ التقديم', 'Submitted On')}</dt><dd>{formatDate(request.created_at, lang)}</dd>
                         <dt>{t('عدد البنود', 'Service Items')}</dt><dd>{request.item_count.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</dd>
                         <dt>{t('المعيّنون حاليًا', 'Currently Assigned')}</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : t('لم يُعيَّن أحد بعد', 'Not assigned yet')}</dd>
                       </dl>
@@ -590,7 +590,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                     <label>{t('ملاحظة للسجل', 'History Note')}<input name="note" placeholder={t('اكتب ملاحظة مختصرة (اختياري)', 'Write a brief note (optional)')} /><small>{t('ستظهر الملاحظة للباحث', 'This note will be visible to the researcher')}</small></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('جارٍ الحفظ...', 'Saving...') : t('حفظ الحالة', 'Save Status')}</button>
                   </form>
-                  <section className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{(() => { const s = statusById.get(entry.status_id); return s ? pickName(s, lang) : t('تحديث', 'Update') })()}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at)}</time></div></div>) : <p className="empty-state">{t('لا توجد تحديثات بعد.', 'No visible updates yet.')}</p>}</section>
+                  <section className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{itemHistory.length ? itemHistory.map((entry) => <div className="timeline-row" key={entry.history_id}><span className="timeline-dot" /><div><strong>{(() => { const s = statusById.get(entry.status_id); return s ? pickName(s, lang) : t('تحديث', 'Update') })()}</strong>{entry.note && <p>{entry.note}</p>}<time dateTime={entry.changed_at}>{formatDate(entry.changed_at, lang)}</time></div></div>) : <p className="empty-state">{t('لا توجد تحديثات بعد.', 'No visible updates yet.')}</p>}</section>
                   {publication && <form className="publication-editor" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; void singleFlight(() => updatePublication(item.item_id, formElement)) }}>
                     <h4>{t('قرار النشر', 'Publication Decision')}</h4><label>{t('القرار', 'Decision')}<select name="decision" defaultValue={publication.decision}><option value="pending">{t('قيد المراجعة', 'Under Review')}</option><option value="revisions">{t('تعديلات', 'Revisions')}</option><option value="accepted">{t('مقبول', 'Accepted')}</option><option value="rejected">{t('مرفوض', 'Rejected')}</option></select></label>
                     <label>{t('المجلة', 'Journal')}<select name="journal_id" value={selectedJournalByItem[item.item_id] ?? publication.journal_id} onChange={(event) => {

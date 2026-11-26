@@ -420,7 +420,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                       <legend>{pickName(service, lang)}</legend>
                       {options.map((fee) => <label className="fee-option" key={fee.fee_id}>
                         <input type="checkbox" checked={selectedFeeIds.includes(fee.fee_id)} onChange={() => toggleFee(fee.fee_id)} />
-                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
+                        <span className="fee-option-copy"><strong>{optionLabel(fee.option_code, lang)}</strong><small>{t('السعر الأساسي ', 'Base fee ')}<Money amount={fee.base_fee} currency={fee.currency} />{fee.included_pages ? isEn ? ` · includes ${fee.included_pages} pages` : ` · يشمل ${fee.included_pages} صفحة` : ''}{fee.extra_page_fee !== null ? (isEn ? ' · plus extra pages per official tariff' : ' · وأي صفحات إضافية حسب التعريفة المسجلة') : ''}</small></span>
                       </label>)}
                     </fieldset>
                   })}
@@ -450,7 +450,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                   const journal = publication && detail.journals.find((row) => row.journal_id === publication.journal_id)
                   const issue = publication?.issue_id && detail.issues.find((row) => row.issue_id === publication.issue_id)
                   return <section className="request-item" key={item.item_id}>
-                    <div className="request-item-heading"><div><span className="eyebrow">{service ? pickName(service, lang) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '')}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), lang)}</span></div>
+                    <div className="request-item-heading"><div><span className="eyebrow">{service ? pickName(service, lang) : t('خدمة', 'Service')}</span><h3>{optionLabel(fee?.option_code ?? '', lang)}</h3></div><span className="status-pill">{statusName(detail.statuses.find((status) => status.status_id === item.status_id), lang)}</span></div>
                     <div className="item-facts"><span>{t('المبلغ المسجل', 'Recorded Amount')}</span><strong><Money amount={item.amount_due} currency={item.currency} /></strong><span>{t('حالة السداد', 'Payment Status')}</span><strong>{payment ? (payment.paid_at ? ` · ${formatDate(payment.paid_at, lang)}` : t('إذن الدفع مسجل', 'Payment Order Issued')) : t('لم يُسجل دفع بعد', 'Not Paid Yet')}</strong>{payment?.payment_order_no && <><span>{t('رقم إذن الدفع', 'Payment Order No.')}</span><strong><Ltr>{payment.payment_order_no}</Ltr></strong></>}{payment?.receipt_no && <><span>{t('رقم الإيصال', 'Receipt No.')}</span><strong><Ltr>{payment.receipt_no}</Ltr></strong></>}</div>
                     {publication && <div className="publication-facts"><strong>{t('بيانات النشر', 'Publication Details')}</strong><span>{t('المجلة:', 'Journal:')} {journal ? pickName(journal, lang) : '—'}</span><span>{t('اللغة:', 'Language:')} {publication.paper_language === 'ar' ? t('العربية', 'Arabic') : t('الإنجليزية', 'English')}</span><span>{t('قرار النشر:', 'Decision:')} {decisionLabel(publication.decision, isEn)}</span>{issue && <span>{t('العدد:', 'Issue:')} {issue.issue_month}/{issue.issue_year}</span>}{publication.accepted_at && <span>{t('تاريخ القبول:', 'Accepted on:')} {formatDate(publication.accepted_at, lang)}</span>}</div>}
                     <div className="timeline"><h4>{t('سجل الحالة', 'Status History')}</h4>{detail.history.filter((event) => String(event.item_id) === String(item.item_id)).map((event) => <div className="timeline-row" key={event.history_id}><span className="timeline-dot" /><div><strong>{statusName(detail.statuses.find((status) => status.status_id === event.status_id), lang)}</strong>{event.note && <p>{event.note}</p>}<time>{formatDate(event.changed_at, lang)}</time></div></div>)}</div>
@@ -527,8 +527,8 @@ export const OPTION_LABELS: Record<string, { ar: string; en: string }> = {
   PLAG: { ar: 'قياس نسبة الاقتباس', en: 'Plagiarism Check' },
 }
 
-function optionLabel(code: string) {
-  const isEn = typeof document !== 'undefined' && document.documentElement.lang === 'en'
+function optionLabel(code: string, lang: Lang = 'ar') {
+  const isEn = lang === 'en'
   const entry = OPTION_LABELS[code]
   return entry ? (isEn ? entry.en : entry.ar) : code
 }
