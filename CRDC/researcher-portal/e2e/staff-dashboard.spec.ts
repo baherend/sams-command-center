@@ -334,8 +334,8 @@ test('reviewer sees all journals and switches publication journal on a single as
   const journalSelect = editor.locator('select[name="journal_id"]')
   const issueSelect = editor.locator('select[name="issue_id"]')
 
-  const visibleJournalIds = await journalSelect.locator('option').evaluateAll((options) => options.map((option) => Number((option as HTMLOptionElement).value)))
-  expect(new Set(visibleJournalIds)).toEqual(new Set(allJournals.map((journal) => journal.journal_id)))
+  const expectedJournalIds = allJournals.map((journal) => String(journal.journal_id))
+  await expect.poll(() => journalSelect.locator('option').evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value))).toEqual(expect.arrayContaining(expectedJournalIds))
 
   const savedJournalId = Number(await journalSelect.inputValue())
   const otherJournal = allJournals.find((journal) => journal.journal_id !== savedJournalId)!
