@@ -10,8 +10,8 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react'
+          // Empty (0 kB) only when built without VITE_SUPABASE_URL/ANON_KEY: Vite then drops createClient as dead code.
           if (/node_modules\/@supabase\//.test(id)) return 'vendor-supabase'
-          if (/node_modules\/(motion|motion-dom|motion-utils|framer-motion)\//.test(id)) return 'vendor-motion'
           return undefined
         },
       },

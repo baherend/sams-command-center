@@ -730,3 +730,31 @@ html[lang="en"] .murshid-copy h2{font-family:var(--display-en)}
 .header-login,.header-signup,.public-nav a{white-space:nowrap}
 @media(max-width:1320px){.public-nav{gap:0}.public-nav a{padding:8px 8px;font-size:12.5px}.topbar{gap:12px}}
 @media(max-width:1180px){.brand small{display:none}}
+
+/* Morshed widget motion (CSS replacement for the motion library) */
+.kb-panel-motion { animation: kb-panel-in 0.35s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
+.kb-panel-motion.is-exiting { animation: kb-panel-out 0.2s ease-in both; pointer-events: none; }
+@keyframes kb-panel-in { from { opacity: 0; transform: translateY(36px) scale(0.12); } to { opacity: 1; transform: none; } }
+@keyframes kb-panel-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(36px) scale(0.12); } }
+.kb-msg-enter { animation: kb-msg-in 0.22s ease-out both; }
+@keyframes kb-msg-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.kb-suggestions button { transition: transform 0.15s ease, background 0.15s ease; }
+.kb-suggestions button:hover:not(:disabled) { transform: scale(1.03); }
+.kb-suggestions button:active:not(:disabled) { transform: scale(0.96); }
+.kb-greeting-motion { animation: kb-greeting-in 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.kb-greeting-motion.is-exiting { animation: kb-greeting-out 0.22s ease-in both; pointer-events: none; }
+@keyframes kb-greeting-in { from { opacity: 0; transform: translateY(12px) scale(0.85); } to { opacity: 1; transform: none; } }
+@keyframes kb-greeting-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px) scale(0.85); } }
+.kb-fab-btn { position: relative; transition: transform 0.15s ease; }
+.kb-fab-btn:hover { transform: translateY(-3px) scale(1.06); }
+.kb-fab-btn:active { transform: scale(0.95); }
+.kb-char-pop { animation: kb-char-in 0.45s cubic-bezier(0.34, 1.5, 0.64, 1) both; }
+.kb-char-pop.is-exiting { position: absolute; top: 0; left: 50%; margin-left: -48px; animation: kb-char-out 0.2s ease-in both; pointer-events: none; }
+@keyframes kb-char-in { from { opacity: 0; transform: translateY(24px) scale(0.45); } to { opacity: 1; transform: none; } }
+@keyframes kb-char-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(18px) scale(0.55); } }
+.kb-char-float { animation: kb-char-float 3s ease-in-out infinite; }
+@keyframes kb-char-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) {
+  .kb-panel-motion, .kb-msg-enter, .kb-greeting-motion, .kb-char-pop, .kb-char-float { animation: none !important; }
+  .kb-suggestions button, .kb-fab-btn { transition: none !important; transform: none !important; }
+}
