@@ -306,20 +306,19 @@ test('reviewer sees all journals and switches publication journal on a single as
   const { data: insertedStaff, error: staffError } = await admin.schema('crdc').from('staff_users').insert({ auth_user_id: reviewerUser.user.id, full_name: 'مراجع مجلات النشر', role: 'reviewer', is_active: true }).select('staff_id').single()
   if (staffError) throw staffError
 
-  const [{ data: allIssues, error: issuesError }, { data: subRow, error: subError }] = await Promise.all([
+  const [{ data: allIssues, error: issuesError }, { data: paperReq, error: reqError }] = await Promise.all([
     admin.schema('crdc').from('journal_issues').select('issue_id, journal_id').order('issue_id'),
-    admin.schema('crdc').from('publication_submissions').select('item_id, journal_id').order('item_id').limit(1).single(),
+    admin.schema('crdc').from('service_requests').select('request_id').eq('work_type', 'paper').order('request_id').limit(1).single(),
   ])
   if (issuesError) throw issuesError
-  if (subError) throw subError
+  if (reqError) throw reqError
+  const { data: subRow, error: itemError } = await admin.schema('crdc').from('request_items').select('item_id').eq('request_id', paperReq.request_id).order('item_id').limit(1).single()
+  if (itemError) throw itemError
   const allJournals = [...new Set(allIssues.map((issue) => issue.journal_id))].map((journal_id) => ({ journal_id }))
   expect(allJournals.length).toBeGreaterThanOrEqual(2)
 
   const { error: assignError } = await admin.schema('crdc').from('request_items').update({ assigned_staff_id: insertedStaff.staff_id }).eq('item_id', subRow.item_id)
   if (assignError) throw assignError
-
-  const otherJournal = allJournals.find((journal) => journal.journal_id !== subRow.journal_id)!
-  const targetIssue = allIssues.find((issue) => issue.journal_id === otherJournal.journal_id)!
 
   await page.goto('/#login')
   await page.locator('input[name="email"]').fill(reviewerEmail)
@@ -337,6 +336,10 @@ test('reviewer sees all journals and switches publication journal on a single as
 
   const visibleJournalIds = await journalSelect.locator('option').evaluateAll((options) => options.map((option) => Number((option as HTMLOptionElement).value)))
   expect(new Set(visibleJournalIds)).toEqual(new Set(allJournals.map((journal) => journal.journal_id)))
+
+  const savedJournalId = Number(await journalSelect.inputValue())
+  const otherJournal = allJournals.find((journal) => journal.journal_id !== savedJournalId)!
+  const targetIssue = allIssues.find((issue) => issue.journal_id === otherJournal.journal_id)!
 
   await journalSelect.selectOption(String(otherJournal.journal_id))
   await expect(issueSelect).toHaveValue('')
