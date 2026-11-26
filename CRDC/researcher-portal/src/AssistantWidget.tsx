@@ -217,13 +217,13 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
             </header>
 
             {model.status === 'loading' && (
-              <div className="kb-model-status" role="status">
+              <div className="kb-model-status" aria-live="polite" aria-busy={true} data-testid="murshid-model-status">
                 <span>{t(`جارٍ تجهيز مرشد على جهازك (مرة واحدة، نحو 135 ميجابايت) ${pct}%`, `Preparing Morshed on your device (once, about 135 MB) ${pct}%`)}</span>
                 <progress max={100} value={pct} aria-label={t('تحميل محرك البحث', 'Loading the search engine')} />
               </div>
             )}
             {model.status === 'failed' && (
-              <div className="kb-model-status kb-model-failed" role="status">
+              <div className="kb-model-status kb-model-failed" aria-live="polite" data-testid="murshid-model-status">
                 {t('تعذّر تحميل محرك البحث، لذا يمكنني حاليًا حساب الرسوم وترشيح المجلة فقط.', 'The search engine did not load, so for now I can only calculate fees and suggest a journal.')}
               </div>
             )}

@@ -21,3 +21,32 @@ test('the public catalog loads for signed-out visitors without any account', asy
   await expect(page.getByRole('tab', { name: 'دكتوراه أكاديمي' })).toBeVisible()
   await expect(page.locator('.estimator-total strong')).not.toHaveText('—')
 })
+
+test('opening Morshed while the model is loading does not conflict with page status alerts', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_catalog*', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"catalog down"}' }))
+  await page.route(/https:\/\/([^/]+\.)?(huggingface\.co|hf\.co)\//, () => new Promise(() => {}))
+
+  await page.goto('/')
+  await expect(page.locator('.public-unavailable')).toBeVisible()
+  await expect(page.getByRole('status')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'فتح مرشد' }).click()
+  const modelStatus = page.getByTestId('murshid-model-status')
+  await expect(modelStatus).toBeVisible()
+  await expect(modelStatus).toHaveAttribute('aria-busy', 'true')
+  await expect(page.getByRole('status')).toHaveCount(1)
+})
+
+test('opening Morshed when model download fails keeps a single page status element', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_catalog*', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"catalog down"}' }))
+  await page.route(/https:\/\/([^/]+\.)?(huggingface\.co|hf\.co)\//, (route) => route.abort())
+
+  await page.goto('/')
+  await expect(page.locator('.public-unavailable')).toBeVisible()
+
+  await page.getByRole('button', { name: 'فتح مرشد' }).click()
+  const modelStatus = page.getByTestId('murshid-model-status')
+  await expect(modelStatus).toBeVisible()
+  await expect(modelStatus).toHaveClass(/kb-model-failed/)
+  await expect(page.getByRole('status')).toHaveCount(1)
+})
