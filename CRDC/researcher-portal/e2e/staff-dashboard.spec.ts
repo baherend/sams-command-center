@@ -306,12 +306,13 @@ test('reviewer sees all journals and switches publication journal on a single as
   const { data: insertedStaff, error: staffError } = await admin.schema('crdc').from('staff_users').insert({ auth_user_id: reviewerUser.user.id, full_name: 'مراجع مجلات النشر', role: 'reviewer', is_active: true }).select('staff_id').single()
   if (staffError) throw staffError
 
-  const [{ data: allJournals, error: journalsError }, { data: allIssues, error: issuesError }, { data: subRow, error: subError }] = await Promise.all([
-    admin.schema('crdc').from('journals').select('journal_id').order('journal_id'),
+  const [{ data: catalogData, error: catalogError }, { data: allIssues, error: issuesError }, { data: subRow, error: subError }] = await Promise.all([
+    admin.schema('crdc_public').rpc('get_catalog'),
     admin.schema('crdc').from('journal_issues').select('issue_id, journal_id').order('issue_id'),
     admin.schema('crdc').from('publication_submissions').select('item_id, journal_id').order('item_id').limit(1).single(),
   ])
-  if (journalsError) throw journalsError
+  if (catalogError) throw catalogError
+  const allJournals = (catalogData as { journals: { journal_id: number }[] }).journals
   if (issuesError) throw issuesError
   if (subError) throw subError
   expect(allJournals.length).toBeGreaterThanOrEqual(2)
