@@ -38,7 +38,9 @@ jobs:
           version: v2.stable
 
       - name: Start local Supabase
-        run: supabase start
+        run: |
+          supabase stop --no-backup || true
+          supabase start || { sleep 15; supabase stop --no-backup || true; supabase start; }
 
       - name: Apply migrations to the isolated local database
         run: supabase db reset
