@@ -329,8 +329,7 @@ test('reviewer sees all journals and switches publication journal on a single as
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
 
   const editor = page.locator('.publication-editor').first()
-  await expect(assigned).toBeVisible()
-  const editor = assigned.locator('.publication-editor')
+  await expect(editor).toBeVisible()
   const journalSelect = editor.locator('select[name="journal_id"]')
   const issueSelect = editor.locator('select[name="issue_id"]')
 
