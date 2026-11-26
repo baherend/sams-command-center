@@ -37,7 +37,8 @@ jobs:
         working-directory: CRDC/researcher-portal
       - name: Start isolated Supabase and load synthetic data
         run: |
-          supabase start
+          supabase stop --no-backup || true
+          supabase start || { sleep 15; supabase stop --no-backup || true; supabase start; }
           supabase db reset
           bash supabase/scripts/seed_local.sh
       - name: Export local Supabase connection values
