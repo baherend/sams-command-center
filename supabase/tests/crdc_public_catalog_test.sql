@@ -1,7 +1,7 @@
 -- Public catalog (crdc_public.get_catalog) for visitors who are not signed in.
 -- Proves two things: visitors get exactly the published reference data, and nothing else is reachable.
 BEGIN;
-SELECT plan(24);
+SELECT plan(28);
 
 -- ---------- shape of the function and the schema ----------
 SELECT has_function('crdc_public', 'get_catalog', ARRAY[]::text[], 'crdc_public.get_catalog() exists');
@@ -55,6 +55,20 @@ SELECT is((SELECT string_agg(DISTINCT k, ',' ORDER BY k)
   'applicant_type,base_fee,certificate_fee,currency,extra_page_fee,included_pages,option_code,requirement_code,service_id',
   'fee rows carry only the allow-listed columns');
 
+-- ---------- English names ----------
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements(crdc_public.get_catalog()->'services') s
+           WHERE coalesce(btrim(s->>'name_en'), '') = ''), 0,
+  'every published service has a non-empty name_en');
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements(crdc_public.get_catalog()->'degrees') d
+           WHERE coalesce(btrim(d->>'name_en'), '') = ''), 0,
+  'every degree has a non-empty name_en');
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements(crdc_public.get_catalog()->'journals') j
+           WHERE coalesce(btrim(j->>'name_en'), '') = ''), 0,
+  'every journal has a non-empty name_en');
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements(crdc_public.get_catalog()->'requirement_types') r
+           WHERE NOT (r ? 'name_en')), 0,
+  'every requirement type carries the name_en key');
+  
 SELECT throws_ok($$SELECT count(*) FROM crdc.researchers$$, '42501', NULL, 'anon cannot read researchers');
 SELECT throws_ok($$SELECT count(*) FROM crdc.service_requests$$, '42501', NULL, 'anon cannot read service requests');
 SELECT throws_ok($$SELECT count(*) FROM crdc.payments$$, '42501', NULL, 'anon cannot read payments');
