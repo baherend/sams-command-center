@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
 import { supabase } from './supabase'
 import MorshedAvatar from './MorshedAvatar'
 import { useI18n } from './i18n'
@@ -9,6 +8,20 @@ import type { Audience } from './murshid/engine'
 import { loadEmbedder, loadFees, loadIndex } from './murshid/load'
 import { linkSegments } from './murshid/text'
 import type { Answer, Option } from './murshid/types'
+
+// CSS replacement for AnimatePresence: keeps the element mounted for `exitMs` after `visible` turns false
+// so the `.is-exiting` CSS animation can play, then unmounts it.
+function usePresence(visible: boolean, exitMs: number) {
+  const [mounted, setMounted] = useState(visible)
+  if (visible && !mounted) setMounted(true)
+  useEffect(() => {
+    if (visible || !mounted) return
+    const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const id = window.setTimeout(() => setMounted(false), reduce ? 0 : exitMs)
+    return () => window.clearTimeout(id)
+  }, [visible, mounted, exitMs])
+  return { mounted: visible || mounted, exiting: !visible && mounted }
+}
 
 // Morshed runs the Murshid engine in the researcher's browser (src/murshid/, a port of CRDC/chatbot/rag/).
 // No server and no text generation: every answer is a passage of the procedural guide, a fee computed
@@ -185,23 +198,21 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
   }
 
   const pct = Math.round(model.progress * 100)
+  const panelPresence = usePresence(open, 200)
+  const greetingPresence = usePresence(showGreeting && !open, 220)
+  const charPresence = usePresence(!open, 200)
 
   return (
     <div className="kb-assistant-root" dir={dir}>
-      <AnimatePresence>
-        {open && (
-          <motion.section
-            className="kb-assistant-panel"
+      {panelPresence.mounted && (
+          <section
+            className={`kb-assistant-panel kb-panel-motion${panelPresence.exiting ? ' is-exiting' : ''}`}
             aria-label={t('مرشد - المساعد الذكي للدليل الإجرائي', 'Morshed - Smart Procedural Guide Assistant')}
             style={{
               transformOrigin: '48px calc(100% + 42px)',
               borderTop: '2px solid #00A3A9',
               boxShadow: '0 22px 48px rgba(15,23,42,0.35), 0 0 24px rgba(0,163,169,0.22)',
             }}
-            initial={{ opacity: 0, scale: 0.12, y: 36 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.12, y: 36 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
           >
             <header className="kb-assistant-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -230,12 +241,9 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
 
             <div className="kb-assistant-body" ref={bodyRef} aria-live="polite">
               {messages.map((m) => (
-                <motion.div
+                <div
                   key={m.id}
-                  className={`kb-msg kb-msg-${m.role}${m.answer && !m.answer.answered ? ' kb-msg-refusal' : ''}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22 }}
+                  className={`kb-msg kb-msg-enter kb-msg-${m.role}${m.answer && !m.answer.answered ? ' kb-msg-refusal' : ''}`}
                 >
                   {m.role === 'assistant' ? (
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
@@ -267,7 +275,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                       ))}
                     </div>
                   )}
-                </motion.div>
+                </div>
               ))}
               {busy && (
                 <div className="kb-msg kb-msg-assistant">
@@ -280,9 +288,9 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
 
             <div className="kb-suggestions">
               {(isEn ? SUGGESTIONS_EN : SUGGESTIONS_AR).map((s) => (
-                <motion.button key={s} type="button" disabled={busy} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.96 }} onClick={() => void askQuestion(s)}>
+                <button key={s} type="button" disabled={busy} onClick={() => void askQuestion(s)}>
                   {s}
-                </motion.button>
+                </button>
               ))}
             </div>
 
@@ -300,17 +308,12 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 {t('إرسال', 'Send')}
               </button>
             </form>
-          </motion.section>
+          </section>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {showGreeting && !open && (
-          <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.85 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.85 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+      {greetingPresence.mounted && (
+          <div
+            className={`kb-greeting-motion${greetingPresence.exiting ? ' is-exiting' : ''}`}
             onClick={toggleOpen}
             style={{
               position: 'relative',
@@ -352,15 +355,13 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
                 transform: 'rotate(45deg)',
               }}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
 
-      <motion.button
+      <button
         type="button"
+        className="kb-fab-btn"
         onClick={toggleOpen}
-        whileHover={{ scale: 1.06, y: -3 }}
-        whileTap={{ scale: 0.95 }}
         aria-expanded={open}
         aria-label={open ? t('إغلاق مرشد', 'Close Morshed') : t('فتح مرشد', 'Open Morshed')}
         style={{
@@ -375,23 +376,11 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
           fontFamily: 'inherit',
         }}
       >
-        <AnimatePresence mode="popLayout">
-          {!open && (
-            <motion.div
-              key="morshed-character"
-              initial={{ opacity: 0, scale: 0.45, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
-              exit={{ opacity: 0, scale: 0.55, y: 18, transition: { duration: 0.2 } }}
-              transition={{
-                opacity: { duration: 0.25 },
-                scale: { type: 'spring', stiffness: 320, damping: 22 },
-                y: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
-              }}
-            >
-              <MorshedAvatar size={96} isOpen={false} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {charPresence.mounted && (
+          <div className={`kb-char-pop${charPresence.exiting ? ' is-exiting' : ''}`}>
+            <div className="kb-char-float"><MorshedAvatar size={96} isOpen={false} /></div>
+          </div>
+        )}
         <span
           className="kb-assistant-fab"
           style={{
@@ -404,7 +393,7 @@ export default function AssistantWidget({ audience }: { audience: 'egyptian' | '
         >
           {open ? t('إغلاق مرشد', 'Close Morshed') : t('اسأل مرشد', 'Ask Morshed')}
         </span>
-      </motion.button>
+      </button>
     </div>
   )
 }
