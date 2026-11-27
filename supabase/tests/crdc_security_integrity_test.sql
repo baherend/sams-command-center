@@ -198,11 +198,11 @@ SELECT throws_ok(
 INSERT INTO crdc.researchers (researcher_id, auth_user_id, full_name, applicant_type, national_id, degree_id, email)
 VALUES ('b0000000-0000-0000-0000-000000000003','a0000000-0000-0000-0000-000000000102','SI Reviewer As Researcher','egyptian','29001010101003',1,'si-reviewer@example.test');
 INSERT INTO crdc.service_requests (researcher_id, work_type, work_title, page_count)
-VALUES ('b0000000-0000-0000-0000-000000000003','paper','SI TEST SELF',10);
+VALUES ('b0000000-0000-0000-0000-000000000003','thesis','SI TEST SELF',100);
 INSERT INTO crdc.request_items (request_id, fee_id, status_id, amount_due)
 SELECT sr.request_id, f.fee_id, st.status_id, crdc.calc_fee(f.fee_id, sr.page_count)
 FROM crdc.service_requests sr
-JOIN crdc.fee_schedule f ON f.option_code='PUB_PUBLISH' AND f.applicant_type='egyptian'
+JOIN crdc.fee_schedule f ON f.option_code='STAT_ANALYSIS' AND f.applicant_type='egyptian'
 JOIN crdc.request_statuses st ON st.code='SUBMITTED'
 WHERE sr.work_title='SI TEST SELF';
 SELECT set_config('test.si.self_item', (SELECT i.item_id::text FROM crdc.request_items i JOIN crdc.service_requests sr USING(request_id) WHERE sr.work_title='SI TEST SELF'), true);

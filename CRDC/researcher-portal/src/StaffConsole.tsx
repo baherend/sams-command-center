@@ -1,10 +1,10 @@
-﻿import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
 import { useI18n, pickName, type Lang } from './i18n'
 
-type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
+type StaffRole = 'admin' | 'reviewer' | 'publication_reviewer' | 'language_reviewer' | 'statistician' | 'digital_transformation_officer' | 'plagiarism_officer' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
 type SummaryRow = { metric: string; category: string; label: string; label_en?: string | null; request_count: number | string }
 type WorkType = 'thesis' | 'paper'
@@ -45,10 +45,16 @@ type CashierItemDisplay = CashierItem & { service_name: string; service_name_en?
 type CashierCursor = { submitted_by_researcher_at: string; payment_id: number }
 type CashierQueueRow = { payment: CashierPayment; contact: CashierContact | undefined; items: CashierItemDisplay[] }
 
+const OPERATIONAL_ROLES: StaffRole[] = ['reviewer', 'publication_reviewer', 'language_reviewer', 'statistician', 'digital_transformation_officer', 'plagiarism_officer']
+const roleMatchesService = (role: StaffRole, serviceId: number): boolean => role === 'reviewer' || (role === 'publication_reviewer' && serviceId === 1) || (role === 'language_reviewer' && serviceId === 2) || (role === 'statistician' && serviceId === 3) || (role === 'digital_transformation_officer' && serviceId === 4) || (role === 'plagiarism_officer' && serviceId === 5)
 const ROLE_NAMES: Record<StaffRole, LocalizedText> = {
   admin: { ar: 'مدير النظام', en: 'System Admin' },
   reviewer: { ar: 'مراجع', en: 'Reviewer' },
+  publication_reviewer: { ar: 'مسؤول التحكيم والنشر', en: 'Publication Reviewer' },
+  language_reviewer: { ar: 'مدقق لغوي', en: 'Language Reviewer' },
   statistician: { ar: 'إحصائي', en: 'Statistician' },
+  digital_transformation_officer: { ar: 'مسؤول التحول الرقمي', en: 'Digital Transformation Officer' },
+  plagiarism_officer: { ar: 'مسؤول قياس الاقتباس', en: 'Plagiarism Officer' },
   cashier: { ar: 'أمين خزينة', en: 'Cashier' },
   viewer: { ar: 'مشاهد', en: 'Viewer' },
 }
@@ -67,6 +73,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [requesters, setRequesters] = useState<Map<string, Requester>>(new Map())
   const [items, setItems] = useState<RequestItem[]>([])
   const [statuses, setStatuses] = useState<RequestStatus[]>([])
+  const [services, setServices] = useState<{ service_id: number; name_ar: string; name_en?: string | null }[]>([])
   const [staffMembers, setStaffMembers] = useState<StaffProfile[]>([])
   const [queueLoading, setQueueLoading] = useState(false)
   const [filterStatus, setFilterStatus] = useState('all')
@@ -99,7 +106,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const canViewOverview = staff.role === 'admin' || staff.role === 'viewer'
   const isAdmin = staff.role === 'admin'
   const isCashier = staff.role === 'cashier'
-  const canOperate = isAdmin || staff.role === 'reviewer' || staff.role === 'statistician'
+  const canOperate = isAdmin || OPERATIONAL_ROLES.includes(staff.role)
   const pageCursor = cursorStack[pageIndex] ?? null
   const cashierPageCursor = cashierCursorStack[cashierPageIndex] ?? null
 
@@ -154,6 +161,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         })))
         setCashierHasMore(Boolean(fetchedPayments[0]?.has_more))
         setStatuses((statusResult.data ?? []) as RequestStatus[])
+        setServices((serviceResult.data ?? []) as { service_id: number; name_ar: string; name_en?: string | null }[])
       } catch (queueError) {
         if (alive) setError(friendlyErrorText(queueError))
       } finally {
@@ -206,14 +214,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         const itemPromise = requestIds.length
           ? supabase.schema('crdc').from('request_items').select('item_id, request_id, service_id, status_id, assigned_staff_id, payment_id').in('request_id', requestIds).order('item_id')
           : Promise.resolve({ data: [], error: null })
-        const [itemResult, statusResult, staffResult] = await Promise.all([
+        const [itemResult, statusResult, staffResult, serviceResult] = await Promise.all([
           itemPromise,
           supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
           isAdmin && view === 'requests'
             ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, role, is_active').order('full_name')
             : Promise.resolve({ data: [], error: null }),
+          supabase.schema('crdc').from('services').select('service_id, name_ar, name_en').order('service_id'),
         ])
-        if (itemResult.error || statusResult.error || staffResult.error) throw itemResult.error ?? statusResult.error ?? staffResult.error
+        if (itemResult.error || statusResult.error || staffResult.error || serviceResult.error) throw itemResult.error ?? statusResult.error ?? staffResult.error ?? serviceResult.error
         const itemRows = (itemResult.data ?? []) as RequestItem[]
         const itemIds = itemRows.map((item) => item.item_id)
 
@@ -254,6 +263,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         setPageHasMore(Boolean(fetchedRows[0]?.has_more))
         setItems(itemRows)
         setStatuses((statusResult.data ?? []) as RequestStatus[])
+        setServices((serviceResult.data ?? []) as { service_id: number; name_ar: string; name_en?: string | null }[])
         setStaffMembers((staffResult.data ?? []) as StaffProfile[])
         setRequesters(new Map(researcherRows.map((researcher) => [researcher.researcher_id, researcher])))
         setHistory(historyRows)
@@ -287,7 +297,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const summaryStatuses = rows.filter((row) => row.metric === 'status')
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
   const statusByCode = useMemo(() => new Map(statuses.map((status) => [status.code, status])), [statuses])
-  const assignableStaff = staffMembers.filter((member) => member.is_active && (member.role === 'reviewer' || member.role === 'statistician'))
+  const assignableStaff = staffMembers.filter((member) => member.is_active && OPERATIONAL_ROLES.includes(member.role))
+  const serviceById = useMemo(() => new Map(services.map((service) => [service.service_id, service])), [services])
 
   const getRequestStatus = (request: QueueRequest) => ({
     code: request.queue_status_code,
@@ -403,29 +414,22 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     }
   }
 
-  async function assignRequest(request: QueueRequest, staffId: string) {
+  async function assignItem(request: QueueRequest, item: RequestItem, staffId: string) {
     if (!supabase || !staffId) return
-    setBusyRequest(request.request_id)
-    setError(null)
-    setNotice(null)
+    setBusyRequest(request.request_id); setError(null); setNotice(null)
     try {
-      const requestItems = items.filter((item) => item.request_id === request.request_id)
-      if (!requestItems.length) throw new UiError('لا يحتوي هذا الطلب على بنود قابلة للتعيين.', 'This request has no assignable service items.')
       const selectedStaff = assignableStaff.find((member) => member.staff_id === staffId)
-      if (!selectedStaff) throw new UiError('اختر مراجعًا أو إحصائيًا نشطًا من القائمة.', 'Please select an active reviewer or statistician from the list.')
-      const { data, error: updateError } = await supabase.schema('crdc').from('request_items')
-        .update({ assigned_staff_id: staffId })
-        .eq('request_id', request.request_id)
-        .select('item_id')
+      if (!selectedStaff) throw new UiError('اختر موظفًا نشطًا من القائمة.', 'Please select an active staff member from the list.')
+      if (!roleMatchesService(selectedStaff.role, item.service_id)) throw new UiError('تخصص الموظف لا يطابق هذه الخدمة.', 'Staff specialization does not match this service.')
+      const { data, error: updateError } = await supabase.schema('crdc').from('request_items').update({ assigned_staff_id: staffId }).eq('item_id', item.item_id).select('item_id')
       if (updateError) throw updateError
-      if ((data ?? []).length !== requestItems.length) throw new UiError('تعذّر تأكيد تعيين جميع بنود الطلب. حدّث القائمة وراجع الطلب.', 'Could not confirm assignment for all request items. Refresh and review.')
-      setItems((current) => current.map((item) => item.request_id === request.request_id ? { ...item, assigned_staff_id: staffId } : item))
-      setNotice({ ar: `تم تعيين ${ROLE_NAMES[selectedStaff.role].ar} ${selectedStaff.full_name} على جميع بنود الطلب رقم ${request.request_id}.`, en: `Assigned ${ROLE_NAMES[selectedStaff.role].en} ${selectedStaff.full_name} to all items of request #${request.request_id}.` })
+      if (!(data ?? []).length) throw new UiError('تعذّر تأكيد تعيين البند. حدّث القائمة وراجع الطلب.', 'Could not confirm item assignment. Refresh and review.')
+      setItems((current) => current.map((row) => row.item_id === item.item_id ? { ...row, assigned_staff_id: staffId } : row))
+      const service = serviceById.get(item.service_id); const serviceLabel = service ? pickName(service, lang) : t('الخدمة', 'Service')
+      setNotice({ ar: `تم تعيين ${ROLE_NAMES[selectedStaff.role].ar} ${selectedStaff.full_name} على بند ${serviceLabel} في الطلب رقم ${request.request_id}.`, en: `Assigned ${ROLE_NAMES[selectedStaff.role].en} ${selectedStaff.full_name} to ${serviceLabel} on request #${request.request_id}.` })
     } catch (assignmentError) {
-      setError(friendlyErrorText(assignmentError, { '42501': { ar: 'تم رفض التعيين. تأكّد من أن حسابك بصلاحية مدير، وأن الموظف مراجع أو إحصائي نشط.', en: 'Assignment denied. Ensure you are an admin and the staff member is an active reviewer or statistician.' } }))
-    } finally {
-      setBusyRequest(null)
-    }
+      setError(friendlyErrorText(assignmentError, { '42501': { ar: 'تم رفض التعيين. تأكّد من أن تخصص الموظف يطابق الخدمة وأنه نشط.', en: 'Assignment denied. Ensure the staff member is active and matches this service.' } }))
+    } finally { setBusyRequest(null) }
   }
 
   async function updateStatus(item: RequestItem, statusCode: string, note: string) {
@@ -567,7 +571,6 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 {requests.map((request) => {
                   const requestItems = items.filter((item) => item.request_id === request.request_id)
                   const assignedIds = [...new Set(requestItems.map((item) => item.assigned_staff_id).filter(Boolean))] as string[]
-                  const selectedStaffId = assignedIds.length === 1 && requestItems.every((item) => item.assigned_staff_id === assignedIds[0]) ? assignedIds[0] : ''
                   const assignedNames = assignedIds.map((id) => staffMembers.find((member) => member.staff_id === id)?.full_name ?? t('موظف غير متاح', 'Unavailable staff'))
                   const requester = requesters.get(request.researcher_id)
                   const overall = getRequestStatus(request)
@@ -589,9 +592,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                             {t('إصدار أمر الدفع', 'Issue Payment Order')}
                           </button>
                         </div>}
-                        <label>{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={selectedStaffId} disabled={busyRequest !== null || !requestItems.length} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignRequest(request, staffId)) }}>
-                          <option value="">{t('اختر موظفًا نشطًا', 'Select an active staff member')}</option>{assignableStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {ROLE_NAMES[member.role][lang]}</option>)}
-                        </select></label>
+                        <div className="admin-item-assignments">{requestItems.map((item) => { const service = serviceById.get(item.service_id); const serviceLabel = service ? pickName(service, lang) : t('خدمة', 'Service'); const itemStatus = statusById.get(item.status_id); const eligibleStaff = assignableStaff.filter((member) => roleMatchesService(member.role, item.service_id)); return (<div className="admin-item-assignment-row" key={item.item_id}><div className="admin-item-assignment-meta"><strong>{serviceLabel}</strong><small>{itemStatus ? pickName(itemStatus, lang) : ''}</small></div><label>{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={item.assigned_staff_id ?? ''} disabled={busyRequest !== null} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignItem(request, item, staffId)) }}><option value="">{t('اختر موظفًا نشطًا', 'Select an active staff member')}</option>{eligibleStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {ROLE_NAMES[member.role][lang]}</option>)}</select></label></div>) })}</div>
                         {busyRequest === request.request_id && <span className="assignment-saving">{t('جارٍ حفظ التعيين...', 'Saving assignment...')}</span>}
                       </div>
                     </article>

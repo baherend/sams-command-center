@@ -197,7 +197,7 @@ test('admin paginates synthetic requests and assignments persist across pages', 
   const requestRow = page.getByTestId('admin-request-row').first()
   await expect(requestRow).toBeVisible()
   const requestId = await requestRow.getAttribute('data-request-id')
-  await requestRow.getByLabel('تعيين المراجع أو الإحصائي').selectOption({ label: 'مراجع اختبار · مراجع' })
+  await requestRow.getByLabel('تعيين المراجع أو الإحصائي').first().selectOption({ label: 'مراجع اختبار · مراجع' })
   await expect(page.getByRole('status')).toContainText('تم تعيين')
   await expect(requestRow.locator('.assigned-staff-names')).toContainText('مراجع اختبار')
 
