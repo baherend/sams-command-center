@@ -81,7 +81,8 @@ test('researcher uploads a receipt and cashier approval records PAID', async ({ 
   await page.getByRole('button').filter({ hasText: requestTitle }).click()
   const receiptCard = page.getByTestId('payment-receipt-card')
   await expect(receiptCard).toBeVisible()
-  await receiptCard.getByLabel('قناة السداد').selectOption('bank')
+  await expect(receiptCard.getByLabel('قناة السداد').locator('option')).toHaveCount(1)
+  await receiptCard.getByLabel('قناة السداد').selectOption('treasury')
   await receiptCard.getByLabel('رقم الإيصال').fill(`R4-RECEIPT-${runId}`)
   await receiptCard.getByLabel('تاريخ السداد').fill(new Date().toISOString().slice(0, 10))
   await receiptCard.getByLabel('صورة أو ملف الإيصال').setInputFiles({

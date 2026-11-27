@@ -43,6 +43,8 @@ const MESSAGE_MAP: [string, LocalizedText][] = [
   ['Researcher profile required', { ar: 'استكمل ملف الباحث أولًا لتتمكن من إرسال الإيصال.', en: 'Complete your researcher profile first before submitting a receipt.' }],
   ['A rejection reason between 3 and 500 characters is required', { ar: 'اكتب سببًا واضحًا للرفض من ٣ إلى ٥٠٠ حرف.', en: 'Enter a clear rejection reason between 3 and 500 characters.' }],
   ['Unknown payment channel', { ar: 'اختر قناة السداد من القائمة.', en: 'Select a valid payment channel from the list.' }],
+  ['Egyptian researchers must pay through treasury', { ar: 'سداد رسوم الباحثين المصريين يتم من خلال الخزينة فقط.', en: 'Egyptian researchers must pay through treasury only.' }],
+  ['International researchers must pay through bank', { ar: 'سداد رسوم الباحثين الوافدين يتم من خلال البنك فقط.', en: 'International researchers must pay through bank only.' }],
   ['Receipt reference is required and must be at most 100 characters', { ar: 'أدخل رقم الإيصال في حدود ١٠٠ حرف.', en: 'Receipt number is required and must be at most 100 characters.' }],
   ['Receipt file path is not valid for this payment order', { ar: 'ملف الإيصال غير مرتبط بإذن الدفع هذا. ارفع الملف مرة أخرى.', en: 'Receipt file is not linked to this payment order. Please upload the file again.' }],
   ['Payment amount must equal the selected service items total', { ar: 'يجب أن يساوي إجمالي المبلغ مجموع الخدمات المختارة. راجع المبلغ وحاول مرة أخرى.', en: 'Total amount must equal the sum of selected service items. Review and try again.' }],

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(33);
+select plan(34);
 
 -- Isolated identities and a single synthetic request/payment order.
 INSERT INTO auth.users (
@@ -102,8 +102,11 @@ SELECT throws_ok(
   $$INSERT INTO storage.objects(bucket_id,name,metadata)
     VALUES ('payment-receipts',regexp_replace(current_setting('test.r4.path'),'^[^/]+','d4000000-0000-0000-0000-000000000002'),'{"mimetype":"application/pdf","size":1024}'::jsonb)$$,
   '42501'::text,NULL::text,'researcher cannot upload into another auth user folder');
+SELECT throws_ok(
+  $$SELECT crdc.submit_payment_receipt(current_setting('test.r4.payment')::bigint,'bank'::text,'R4-RECEIPT-WRONG-CHANNEL'::text,current_date::date,current_setting('test.r4.path')::text)$$,
+  '23514'::text,'Egyptian researchers must pay through treasury'::text,'Egyptian researcher cannot submit a bank receipt');
 SELECT lives_ok(
-  $$SELECT crdc.submit_payment_receipt(current_setting('test.r4.payment')::bigint,'bank'::text,'R4-RECEIPT-1'::text,current_date::date,current_setting('test.r4.path')::text)$$,
+  $$SELECT crdc.submit_payment_receipt(current_setting('test.r4.payment')::bigint,'treasury'::text,'R4-RECEIPT-1'::text,current_date::date,current_setting('test.r4.path')::text)$$,
   'owner can reuse a receipt number after the prior receipt was rejected');
 SELECT set_config('request.jwt.claims','{"sub":"d4000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
 SELECT throws_ok(
