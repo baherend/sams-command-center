@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from './supabase'
 import { friendlyErrorText, UiError, useSingleFlight, type LocalizedText } from './errors'
@@ -320,6 +320,15 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
       p_receipt_storage_path: path,
     })
     if (rpcError) throw rpcError
+      if (researchFile && requestId !== null && requestId !== undefined) {
+        const safeExt = (researchFile.name.split('.').pop() || 'pdf').replace(/[^a-zA-Z0-9]/g, '')
+        const storagePath = equests/${requestId}/${Date.now()}.${safeExt}`r
+        const { error: uploadError } = await supabase.storage.from('research-files').upload(storagePath, researchFile, { upsert: true })
+        if (uploadError) throw uploadError
+        const { data: pub } = supabase.storage.from('research-files').getPublicUrl(storagePath)
+        const { error: updateFileError } = await supabase.schema('crdc').from('service_requests').update({ file_url: pub.publicUrl }).eq('request_id', requestId)
+        if (updateFileError) throw updateFileError
+      }
     await loadRequestDetail(String(detail.request.request_id))
     setNotice(channel === 'bank' ? { ar: 'وصل إيصال السداد البنكي للمراجعة، وستظهر لك النتيجة بعد الاعتماد.', en: 'Bank receipt submitted for review; results will appear after verification.' } : { ar: 'وصل إيصال السداد إلى الخزينة، وستظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
   }
@@ -344,6 +353,8 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     const title = String(form.get('work_title') ?? '').trim()
     const rawPageCount = String(form.get('page_count') ?? '').trim()
     const pageCount = rawPageCount === '' ? null : Number(rawPageCount)
+    const fileInput = form.get('research_file')
+    const researchFile = fileInput instanceof File && fileInput.size > 0 ? fileInput : null
     if (selectedFeeIds.length === 0) { setError({ ar: 'اختر خدمة واحدة على الأقل.', en: 'Please select at least one service.' }); return }
     if (!title) { setError({ ar: 'أدخل عنوان الرسالة أو البحث.', en: 'Please enter the thesis or paper title.' }); return }
     if (pageCountRequired && pageCount === null) { setError({ ar: 'أدخل عدد الصفحات لاستكمال الطلب.', en: 'Please enter the page count to complete the request.' }); return }
@@ -359,6 +370,15 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         p_fee_ids: selectedFeeIds,
       })
       if (rpcError) throw rpcError
+      if (researchFile && requestId !== null && requestId !== undefined) {
+        const safeExt = (researchFile.name.split('.').pop() || 'pdf').replace(/[^a-zA-Z0-9]/g, '')
+        const storagePath = equests/${requestId}/${Date.now()}.${safeExt}`r
+        const { error: uploadError } = await supabase.storage.from('research-files').upload(storagePath, researchFile, { upsert: true })
+        if (uploadError) throw uploadError
+        const { data: pub } = supabase.storage.from('research-files').getPublicUrl(storagePath)
+        const { error: updateFileError } = await supabase.schema('crdc').from('service_requests').update({ file_url: pub.publicUrl }).eq('request_id', requestId)
+        if (updateFileError) throw updateFileError
+      }
       setNotice({ ar: 'تم تسجيل طلبك بنجاح، ويمكنك متابعة حالته من صفحة «طلباتي».', en: 'Request submitted. Track it under My Requests.' })
       setSelectedFeeIds([])
       formElement.reset()
@@ -412,6 +432,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
                 <label>{isEn ? 'Work Type' : 'نوع العمل'}<select name="work_type" value={workType} onChange={(event) => setWorkType(event.target.value as WorkType)}><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper for Publication' : 'بحث للنشر'}</option></select></label>
                 <label>{isEn ? 'Thesis or Paper Title' : 'عنوان الرسالة أو البحث'}<input name="work_title" required minLength={3} maxLength={300} placeholder={isEn ? 'Enter the title of your work' : 'أدخل عنوان العمل'} /></label>
                 <label>{isEn ? 'Page Count' : 'عدد الصفحات'}{!pageCountRequired && <small>{isEn ? 'Optional depending on selected services' : 'اختياري حسب الخدمات المختارة'}</small>}<input name="page_count" type="number" min="1" max="2000" step="1" required={pageCountRequired} placeholder={isEn ? 'e.g., 25' : 'مثال: 25'} /></label>
+                <label>{isEn ? 'Research / Thesis File (PDF or Word)' : 'ملف البحث أو الرسالة (PDF أو Word)'}<small>{isEn ? 'Optional · Uploaded directly for reviewers and statisticians' : 'اختياري · يُرفع مباشرة ليتمكن المراجع والإحصائي من فتحه'}</small><input name="research_file" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label>
                 <div className="service-groups">
                   {services.map((service) => {
                     const options = fees.filter((fee) => fee.service_id === service.service_id)
@@ -590,4 +611,5 @@ function PaymentReceiptForm({
     <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'جارٍ رفع الإيصال...' : 'إرسال الإيصال للمراجعة'}</button>
   </form>
 }
+
 
