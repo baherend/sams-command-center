@@ -758,3 +758,4 @@ html[lang="en"] .murshid-copy h2{font-family:var(--display-en)}
   .kb-panel-motion, .kb-msg-enter, .kb-greeting-motion, .kb-char-pop, .kb-char-float { animation: none !important; }
   .kb-suggestions button, .kb-fab-btn { transition: none !important; transform: none !important; }
 }
+.admin-item-assignments{display:grid;gap:10px;width:100%}.admin-item-assignment-row{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid #eceef0;border-radius:10px;background:#f9fafb}.admin-item-assignment-meta{display:grid;gap:3px}.admin-item-assignment-meta strong{font-size:12px;color:var(--green)}.admin-item-assignment-meta small{font-size:10px;color:var(--muted)}

@@ -10,7 +10,7 @@ import PublicHome from './PublicHome'
 import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 import { useI18n, pickName } from './i18n'
 
-type StaffRole = 'admin' | 'reviewer' | 'statistician' | 'cashier' | 'viewer'
+type StaffRole = 'admin' | 'reviewer' | 'publication_reviewer' | 'language_reviewer' | 'statistician' | 'digital_transformation_officer' | 'plagiarism_officer' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
 
 type Degree = {
