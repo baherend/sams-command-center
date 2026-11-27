@@ -321,7 +321,7 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
     })
     if (rpcError) throw rpcError
     await loadRequestDetail(String(detail.request.request_id))
-    setNotice({ ar: 'وصل إيصال السداد إلى الخزينة، وستظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
+    setNotice(channel === 'bank' ? { ar: 'وصل إيصال السداد البنكي للمراجعة، وستظهر لك النتيجة بعد الاعتماد.', en: 'Bank receipt submitted for review; results will appear after verification.' } : { ar: 'وصل إيصال السداد إلى الخزينة، وستظهر لك النتيجة بعد المراجعة.', en: 'Receipt submitted to treasury; results will appear after review.' })
   }
 
   const statusById = useMemo(() => new Map(statuses.map((status) => [status.status_id, status])), [statuses])
@@ -581,8 +581,8 @@ function PaymentReceiptForm({
       <span>{(() => { const s = services.find((service) => service.service_id === item.service_id); return s ? pickName(s, lang) : t('خدمة', 'Service') })()}</span>
       <Money amount={item.amount_due} currency={item.currency} />
     </li>)}</ul></div>
-    <label>{t('قناة السداد', 'Payment Channel')}<select name="channel" defaultValue={payment.channel} required>
-      <option value="treasury">{t('الخزينة', 'Treasury')}</option><option value="bank">{t('البنك', 'Bank')}</option>
+    <label>{t('قناة السداد', 'Payment Channel')}<select name="channel" defaultValue={payment.currency === 'USD' ? 'bank' : 'treasury'} required>
+      {payment.currency === 'USD' ? <option value="bank">{t('البنك', 'Bank')}</option> : <option value="treasury">{t('الخزينة', 'Treasury')}</option>}
     </select></label>
     <label>{t('رقم الإيصال', 'Receipt Number')}<input name="receipt_no" required maxLength={100} autoComplete="off" /></label>
     <label>{t('تاريخ السداد', 'Payment Date')}<input name="paid_at" type="date" required max={new Date().toISOString().slice(0, 10)} /></label>
