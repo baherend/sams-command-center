@@ -22,6 +22,7 @@ type QueueRequest = {
   queue_status_code: string
   item_count: number
   has_more: boolean
+  file_url?: string | null
 }
 type Requester = { researcher_id: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
 type RequestItem = { item_id: number; request_id: number; service_id: number; status_id: number; assigned_staff_id: string | null; payment_id?: number | null }
@@ -41,6 +42,7 @@ type CashierPayment = {
   receipt_storage_path: string
   submitted_by_researcher_at: string
   has_more: boolean
+  file_url?: string | null
 }
 type CashierContact = { request_id: number; work_type: WorkType; work_title: string; full_name: string; email: string; applicant_type: 'egyptian' | 'foreign' }
 type CashierItem = { item_id: number; payment_id: number; request_id: number; fee_id: number; service_id: number; currency: string; amount_due: number | string; status_id: number }
@@ -217,13 +219,15 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         const itemPromise = requestIds.length
           ? supabase.schema('crdc').from('request_items').select('item_id, request_id, service_id, status_id, assigned_staff_id, payment_id').in('request_id', requestIds).order('item_id')
           : Promise.resolve({ data: [], error: null })
-        const [itemResult, statusResult, staffResult, serviceResult] = await Promise.all([
+        const filePromise = requestIds.length ? supabase.schema('crdc').from('service_requests').select('request_id, file_url').in('request_id', requestIds) : Promise.resolve({ data: [], error: null });
+        const [itemResult, statusResult, staffResult, serviceResult, fileResult] = await Promise.all([
           itemPromise,
           supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
           isAdmin && view === 'requests'
             ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, full_name_en, role, is_active').order('full_name')
             : Promise.resolve({ data: [], error: null }),
           supabase.schema('crdc').from('services').select('service_id, name_ar, name_en').order('service_id'),
+          filePromise,
         ])
         if (itemResult.error || statusResult.error || staffResult.error || serviceResult.error) throw itemResult.error ?? statusResult.error ?? staffResult.error ?? serviceResult.error
         const itemRows = (itemResult.data ?? []) as RequestItem[]
@@ -262,7 +266,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         }
 
         if (!alive) return
-        setRequests(requestRows)
+        const fileMap = new Map(((fileResult.data ?? []) as { request_id: number; file_url: string | null }[]).map((r) => [r.request_id, r.file_url]));
+        setRequests(requestRows.map((r) => ({ ...r, file_url: fileMap.get(r.request_id) ?? null })))
         setPageHasMore(Boolean(fetchedRows[0]?.has_more))
         setItems(itemRows)
         setStatuses((statusResult.data ?? []) as RequestStatus[])
@@ -580,7 +585,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   const canIssueOrder = requestItems.some((item) => item.payment_id == null && statuses.find((s) => s.status_id === item.status_id)?.code === 'SUBMITTED')
                   return (
                     <article className="portal-card admin-request-card" data-testid="admin-request-row" data-request-id={request.request_id} key={request.request_id}>
-                      <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
+                      <div className="admin-request-heading"><div><span className="request-type">{serviceLabel ? `${serviceLabel} · ` : ''}{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
                       <dl className="admin-request-facts">
                         <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
                         <dt>{t('الباحث', 'Researcher')}</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
@@ -618,12 +623,14 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               {items.map((item) => {
                 const request = requests.find((row) => row.request_id === item.request_id)
                 const current = statusById.get(item.status_id)
+                const service = serviceById.get(item.service_id)
+                const serviceLabel = service ? pickName(service, lang) : ''
                 const publication = publications.find((row) => row.item_id === item.item_id)
                 const itemHistory = history.filter((row) => row.item_id === item.item_id)
                 if (!request) return null
                 return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
-                  <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? pickName(current, lang) : t('غير محدد', 'Unspecified')}</span></div>
-                  <p className="operational-meta">{t('رقم الطلب', 'Request')} <span dir="ltr">#{request.request_id}</span> · {t('البند', 'Item')} <span dir="ltr">#{item.item_id}</span></p>
+                  <div className="admin-request-heading"><div><span className="request-type">{serviceLabel ? `${serviceLabel} · ` : ''}{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? pickName(current, lang) : t('غير محدد', 'Unspecified')}</span></div>
+                  <p className="operational-meta">{t('رقم الطلب', 'Request')} <span dir="ltr">#{request.request_id}</span> · {t('البند', 'Item')} <span dir="ltr">#{item.item_id}</span>{request.file_url ? <> · <a className="quiet-button" href={request.file_url} target="_blank" rel="noopener noreferrer">{t('عرض / تحميل البحث', 'View / Download Research')}</a></> : null}</p>
                   <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
                     <label>{t('الحالة التشغيلية', 'Operational Status')}<select name="status" aria-label={t('الحالة التشغيلية', 'Operational Status')} defaultValue=""><option value="" disabled>{t('اختر الحالة', 'Select status')}</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{pickName(status, lang)}</option>)}</select></label>
                     <label>{t('ملاحظة للسجل', 'History Note')}<input name="note" placeholder={t('اكتب ملاحظة مختصرة (اختياري)', 'Write a brief note (optional)')} /><small>{t('ستظهر الملاحظة للباحث', 'This note will be visible to the researcher')}</small></label>
@@ -655,6 +662,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     </main>
   )
 }
+
 
 
 
