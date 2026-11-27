@@ -585,7 +585,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                   const canIssueOrder = requestItems.some((item) => item.payment_id == null && statuses.find((s) => s.status_id === item.status_id)?.code === 'SUBMITTED')
                   return (
                     <article className="portal-card admin-request-card" data-testid="admin-request-row" data-request-id={request.request_id} key={request.request_id}>
-                      <div className="admin-request-heading"><div><span className="request-type">{serviceLabel ? `${serviceLabel} · ` : ''}{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
+                      <div className="admin-request-heading"><div><span className="request-type">{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{overall.label}</span></div>
                       <dl className="admin-request-facts">
                         <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
                         <dt>{t('الباحث', 'Researcher')}</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
@@ -662,6 +662,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
     </main>
   )
 }
+
 
 
 
