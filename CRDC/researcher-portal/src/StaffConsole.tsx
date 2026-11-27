@@ -5,7 +5,9 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
 import { useI18n, pickName, type Lang } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'publication_reviewer' | 'language_reviewer' | 'statistician' | 'digital_transformation_officer' | 'plagiarism_officer' | 'cashier' | 'viewer'
-type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
+type StaffProfile = { staff_id: string; full_name: string; full_name_en?: string | null; role: StaffRole; is_active: boolean }
+const staffName = (m: { full_name: string; full_name_en?: string | null }, lang: string) =>
+  lang === 'en' ? (m.full_name_en?.trim() || m.full_name) : m.full_name
 type SummaryRow = { metric: string; category: string; label: string; label_en?: string | null; request_count: number | string }
 type WorkType = 'thesis' | 'paper'
 type QueueRequest = {
@@ -218,7 +220,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           itemPromise,
           supabase.schema('crdc').from('request_statuses').select('status_id, code, name_ar, name_en, sort_order').order('sort_order'),
           isAdmin && view === 'requests'
-            ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, role, is_active').order('full_name')
+            ? supabase.schema('crdc').from('staff_users').select('staff_id, full_name, full_name_en, role, is_active').order('full_name')
             : Promise.resolve({ data: [], error: null }),
           supabase.schema('crdc').from('services').select('service_id, name_ar, name_en').order('service_id'),
         ])
@@ -426,7 +428,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       if (!(data ?? []).length) throw new UiError('تعذّر تأكيد تعيين البند. حدّث القائمة وراجع الطلب.', 'Could not confirm item assignment. Refresh and review.')
       setItems((current) => current.map((row) => row.item_id === item.item_id ? { ...row, assigned_staff_id: staffId } : row))
       const service = serviceById.get(item.service_id); const serviceLabel = service ? pickName(service, lang) : t('الخدمة', 'Service')
-      setNotice({ ar: `تم تعيين ${ROLE_NAMES[selectedStaff.role].ar} ${selectedStaff.full_name} على بند ${serviceLabel} في الطلب رقم ${request.request_id}.`, en: `Assigned ${ROLE_NAMES[selectedStaff.role].en} ${selectedStaff.full_name} to ${serviceLabel} on request #${request.request_id}.` })
+      setNotice({ ar: `تم تعيين ${ROLE_NAMES[selectedStaff.role].ar} ${selectedStaff.full_name} على بند ${serviceLabel} في الطلب رقم ${request.request_id}.`, en: `Assigned ${ROLE_NAMES[selectedStaff.role].en} ${staffName(selectedStaff, 'en')} to ${serviceLabel} on request #${request.request_id}.` })
     } catch (assignmentError) {
       setError(friendlyErrorText(assignmentError, { '42501': { ar: 'تم رفض التعيين. تأكّد من أن تخصص الموظف يطابق الخدمة وأنه نشط.', en: 'Assignment denied. Ensure the staff member is active and matches this service.' } }))
     } finally { setBusyRequest(null) }
@@ -484,7 +486,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           <span className="brand-mark">{isEn ? 'C' : 'م'}</span>
           <span><strong>{isEn ? 'Consultation, Research' : 'مركز الاستشارات'}</strong><small>{isEn ? '& Development Center · Staff Console' : 'والبحوث والتطوير · لوحة الموظفين'}</small></span>
         </a>
-        <div className="staff-top-actions"><span className="staff-name">{staff.full_name}</span><span className="role-badge">{ROLE_NAMES[staff.role][lang]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
+        <div className="staff-top-actions"><span className="staff-name">{staffName(staff, lang)}</span><span className="role-badge">{ROLE_NAMES[staff.role][lang]}</span><button className="quiet-button" onClick={onSignOut}>{isEn ? 'Sign Out' : 'تسجيل الخروج'}</button></div>
       </header>
 
       <nav className="researcher-nav" aria-label={t('التنقل في لوحة الموظف', 'Staff console navigation')}>
@@ -498,13 +500,13 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
 
       <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
-          <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا،', 'Welcome,')} {staff.full_name}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. ستُضاف الشاشات الخاصة بهذا الدور في مرحلة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
+          <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا،', 'Welcome,')} {staffName(staff, lang)}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. ستُضاف الشاشات الخاصة بهذا الدور في مرحلة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
           <Suspense fallback={<div className="portal-card loading" aria-busy="true"><span className="spinner" /> {t('بنحمّل لوحة التحليلات...', 'Loading analytics...')}</div>}><AnalyticsDashboard /></Suspense>
         ) : view === 'overview' ? (
           <>
             <div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{isEn ? 'Overview & Statistics' : 'نظرة عامة وإحصائيات'}</h1><p>أرقام مجمّعة عن الطلبات، دون عرض بيانات الباحثين أو تفاصيل طلباتهم.</p></div>
-            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا،', 'Welcome,')} {staff.full_name}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'جارٍ تحميل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error[lang]}</p> : (
+            {!canViewOverview ? <div className="portal-card staff-placeholder"><h2>{t('أهلًا،', 'Welcome,')} {staffName(staff, lang)}</h2><p>{t('تابع إدارة الطلبات من التبويب المخصص.', 'Manage requests from the dedicated tab.')}</p></div> : loadingOverview ? <div className="portal-card loading"><span className="spinner" /> {isEn ? 'Loading figures...' : 'جارٍ تحميل الأرقام...'}</div> : error ? <p className="message error" role="alert">{error[lang]}</p> : (
               <>
                 <div className="staff-stat-grid">
                   <article className="portal-card staff-stat-card"><span>{isEn ? 'Total Requests' : 'إجمالي الطلبات'}</span><strong>{total.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'All registered requests' : 'كل الطلبات المسجلة'}</small></article>
@@ -571,7 +573,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 {requests.map((request) => {
                   const requestItems = items.filter((item) => item.request_id === request.request_id)
                   const assignedIds = [...new Set(requestItems.map((item) => item.assigned_staff_id).filter(Boolean))] as string[]
-                  const assignedNames = assignedIds.map((id) => staffMembers.find((member) => member.staff_id === id)?.full_name ?? t('موظف غير متاح', 'Unavailable staff'))
+                  const assignedNames = assignedIds.map((id) => { const m = staffMembers.find((member) => member.staff_id === id); return m ? staffName(m, lang) : t('موظف غير متاح', 'Unavailable staff') })
                   const requester = requesters.get(request.researcher_id)
                   const overall = getRequestStatus(request)
                   const canIssueOrder = requestItems.some((item) => item.payment_id == null && statuses.find((s) => s.status_id === item.status_id)?.code === 'SUBMITTED')
@@ -592,7 +594,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                             {t('إصدار أمر الدفع', 'Issue Payment Order')}
                           </button>
                         </div>}
-                        <div className="admin-item-assignments">{requestItems.map((item) => { const service = serviceById.get(item.service_id); const serviceLabel = service ? pickName(service, lang) : t('خدمة', 'Service'); const itemStatus = statusById.get(item.status_id); const eligibleStaff = assignableStaff.filter((member) => roleMatchesService(member.role, item.service_id)); return (<div className="admin-item-assignment-row" key={item.item_id}><div className="admin-item-assignment-meta"><strong>{serviceLabel}</strong>{itemStatus && <small className="item-status-badge">{pickName(itemStatus, lang)}</small>}</div><label className="admin-item-assignment-field">{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={item.assigned_staff_id ?? ''} disabled={busyRequest !== null} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignItem(request, item, staffId)) }}><option value="">{t('اختر موظفًا نشطًا', 'Select an active staff member')}</option>{eligibleStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{member.full_name} · {ROLE_NAMES[member.role][lang]}</option>)}</select></label></div>) })}</div>
+                        <div className="admin-item-assignments">{requestItems.map((item) => { const service = serviceById.get(item.service_id); const serviceLabel = service ? pickName(service, lang) : t('خدمة', 'Service'); const itemStatus = statusById.get(item.status_id); const eligibleStaff = assignableStaff.filter((member) => roleMatchesService(member.role, item.service_id)); return (<div className="admin-item-assignment-row" key={item.item_id}><div className="admin-item-assignment-meta"><strong>{serviceLabel}</strong>{itemStatus && <small className="item-status-badge">{pickName(itemStatus, lang)}</small>}</div><label className="admin-item-assignment-field">{t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')}<select aria-label={t('تعيين المراجع أو الإحصائي', 'Assign Reviewer or Statistician')} value={item.assigned_staff_id ?? ''} disabled={busyRequest !== null} onChange={(event) => { const staffId = event.target.value; void singleFlight(() => assignItem(request, item, staffId)) }}><option value="">{t('اختر موظفًا نشطًا', 'Select an active staff member')}</option>{eligibleStaff.map((member) => <option value={member.staff_id} key={member.staff_id}>{staffName(member, lang)} · {ROLE_NAMES[member.role][lang]}</option>)}</select></label></div>) })}</div>
                         {busyRequest === request.request_id && <span className="assignment-saving">{t('جارٍ حفظ التعيين...', 'Saving assignment...')}</span>}
                       </div>
                     </article>

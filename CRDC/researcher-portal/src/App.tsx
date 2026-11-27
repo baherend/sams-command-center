@@ -11,7 +11,7 @@ import { friendlyErrorText, useSingleFlight, type LocalizedText } from './errors
 import { useI18n, pickName } from './i18n'
 
 type StaffRole = 'admin' | 'reviewer' | 'publication_reviewer' | 'language_reviewer' | 'statistician' | 'digital_transformation_officer' | 'plagiarism_officer' | 'cashier' | 'viewer'
-type StaffProfile = { staff_id: string; full_name: string; role: StaffRole; is_active: boolean }
+type StaffProfile = { staff_id: string; full_name: string; full_name_en?: string | null; role: StaffRole; is_active: boolean }
 
 type Degree = {
   degree_id: number
@@ -89,7 +89,7 @@ export default function App() {
     const { data: staffRow, error: staffError } = await supabase
       .schema('crdc')
       .from('staff_users')
-      .select('staff_id, full_name, role, is_active')
+      .select('staff_id, full_name, full_name_en, role, is_active')
       .eq('auth_user_id', nextSession.user.id)
       .maybeSingle()
     if (staffError) throw staffError
