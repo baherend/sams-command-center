@@ -77,7 +77,9 @@ with check (
   and exists (select 1 from crdc.request_items i join crdc.fee_schedule f using (fee_id) where i.item_id = publication_submissions.item_id and i.service_id = 1 and f.option_code = 'PUB_PUBLISH')
 );
 
-create or replace function crdc.set_request_item_status(p_item_id bigint, p_status_code text, p_note text default null)
+create or replace function private.set_request_item_status_impl(
+  p_item_id bigint, p_status_code text, p_note text default null
+)
 returns void language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -85,6 +87,7 @@ declare
   v_role text;
   v_request_id bigint;
   v_assigned uuid;
+  v_current_status_id smallint;
   v_current text;
   v_target smallint;
 begin
@@ -92,11 +95,27 @@ begin
   from crdc.staff_users su
   where su.auth_user_id=(select auth.uid()) and su.is_active;
   if not found then raise exception 'Active staff account required' using errcode='42501'; end if;
+  if v_role is null or v_role not in ('admin','reviewer','publication_reviewer','language_reviewer','statistician','digital_transformation_officer','plagiarism_officer','cashier') then
+    raise exception 'Staff role is not permitted to change item status' using errcode='42501';
+  end if;
 
-  select i.request_id,i.assigned_staff_id,s.code into v_request_id,v_assigned,v_current
-  from crdc.request_items i join crdc.request_statuses s using(status_id)
-  where i.item_id=p_item_id;
+  select i.request_id,i.assigned_staff_id,i.status_id
+  into v_request_id,v_assigned,v_current_status_id
+  from crdc.request_items i
+  where i.item_id=p_item_id
+  for update;
   if not found then raise exception 'Service item not found' using errcode='P0002'; end if;
+
+  if exists (
+    select 1
+    from crdc.service_requests sr
+    join crdc.researchers r on r.researcher_id=sr.researcher_id
+    where sr.request_id=v_request_id and r.auth_user_id=(select auth.uid())
+  ) then
+    raise exception 'Staff cannot change the status of their own researcher request' using errcode='42501';
+  end if;
+
+  select s.code into v_current from crdc.request_statuses s where s.status_id=v_current_status_id;
   select s.status_id into v_target from crdc.request_statuses s where s.code=p_status_code;
   if v_target is null then raise exception 'Unknown status' using errcode='23514'; end if;
 
@@ -127,6 +146,7 @@ begin
   values(p_item_id,v_target,clock_timestamp(),v_staff_id,p_note);
 end;
 $$;
+revoke all on function private.set_request_item_status_impl(bigint,text,text) from public, anon, authenticated;
 
 create or replace function crdc.staff_request_page(
   p_after_created_at timestamptz default null,
