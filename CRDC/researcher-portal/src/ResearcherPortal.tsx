@@ -361,6 +361,15 @@ export default function ResearcherPortal({ profile, onSignOut, onProfileUpdated 
         p_fee_ids: selectedFeeIds,
       })
       if (rpcError) throw rpcError
+      if (researchFile && requestId !== null && requestId !== undefined) {
+        const safeExt = (researchFile.name.split('.').pop() || 'pdf').replace(/[^a-zA-Z0-9]/g, '')
+        const storagePath = `requests/${requestId}/${Date.now()}.${safeExt}`
+        const { error: uploadError } = await supabase.storage.from('research-files').upload(storagePath, researchFile, { upsert: true })
+        if (uploadError) throw uploadError
+        const { data: pub } = supabase.storage.from('research-files').getPublicUrl(storagePath)
+        const { error: updateFileError } = await supabase.schema('crdc').from('service_requests').update({ file_url: pub.publicUrl }).eq('request_id', requestId)
+        if (updateFileError) throw updateFileError
+      }
       setNotice({ ar: 'تم تسجيل طلبك بنجاح، ويمكنك متابعة حالته من صفحة «طلباتي».', en: 'Request submitted. Track it under My Requests.' })
       setSelectedFeeIds([])
       formElement.reset()
