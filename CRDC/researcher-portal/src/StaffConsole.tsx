@@ -497,9 +497,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         {(isAdmin || isCashier) && <button className={view === 'cashier' ? 'active' : ''} aria-current={view === 'cashier' ? 'page' : undefined} onClick={() => { setView('cashier'); setError(null); setNotice(null) }}>{isEn ? 'Review Payment Receipts' : 'مراجعة إيصالات السداد'}</button>}
         {isAdmin && <button className={view === 'requests' ? 'active' : ''} aria-current={view === 'requests' ? 'page' : undefined} onClick={() => { setView('requests'); setError(null); setNotice(null) }}>{isEn ? 'Requests & Assignments' : 'إدارة الطلبات والتعيينات'}</button>}
         {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(null); setNotice(null) }}>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</button>}
-      </nav>
+      {isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}</nav>
 
-      <div className={isAdmin ? "admin-workspace-layout" : undefined}>{isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}<section className="portal-content" id="staff-home">
+      <section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
           <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا،', 'Welcome,')} {staffName(staff, lang)}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. ستُضاف الشاشات الخاصة بهذا الدور في مرحلة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
@@ -557,7 +557,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               <button className="quiet-button" disabled={cashierPageIndex === 0} onClick={previousCashierPage}>{t('السابق', 'Previous')}</button>
               <span>{t('صفحة ', 'Page ')}{(cashierPageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!cashierHasMore} onClick={nextCashierPage}>{t('التالي', 'Next')}</button>
-            </nav>}
+            {isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}</nav>}
           </>
         ) : view === 'requests' ? (
           <>
@@ -607,7 +607,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>{t('السابق', 'Previous')}</button>
               <span>{t('صفحة ', 'Page ')}{(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>{t('التالي', 'Next')}</button>
-            </nav>}
+            {isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}</nav>}
           </>
         ) : (
           <>
@@ -647,14 +647,16 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               <button className="quiet-button" disabled={pageIndex === 0} onClick={previousPage}>{t('السابق', 'Previous')}</button>
               <span>{t('صفحة ', 'Page ')}{(pageIndex + 1).toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
               <button className="quiet-button" disabled={!pageHasMore} onClick={nextPage}>{t('التالي', 'Next')}</button>
-            </nav>}
+            {isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}</nav>}
           </>
         )}
-      </section></div>
+      </section>
       <footer className="page-footer"><span>CRDC</span><span>{isEn ? 'Consultation, Research & Development Center' : 'مركز الاستشارات والبحوث والتطوير'}</span><span>{isEn ? 'Staff Console' : 'لوحة الموظفين'}</span></footer>
     </main>
   )
 }
+
+
 
 
 
