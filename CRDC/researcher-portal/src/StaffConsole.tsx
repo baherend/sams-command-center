@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
+﻿import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
 import { useI18n, pickName, type Lang } from './i18n'
+import AdminSearchSidebar from './AdminSearchSidebar'
 
 type StaffRole = 'admin' | 'reviewer' | 'publication_reviewer' | 'language_reviewer' | 'statistician' | 'digital_transformation_officer' | 'plagiarism_officer' | 'cashier' | 'viewer'
 type StaffProfile = { staff_id: string; full_name: string; full_name_en?: string | null; role: StaffRole; is_active: boolean }
@@ -498,7 +499,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
         {canOperate && <button className={view === 'assigned' ? 'active' : ''} aria-current={view === 'assigned' ? 'page' : undefined} onClick={() => { setView('assigned'); setError(null); setNotice(null) }}>{isAdmin ? (isEn ? 'All Requests & Items' : 'كل الطلبات والبنود') : (isEn ? 'My Assigned Requests' : 'الطلبات المسندة إليّ')}</button>}
       </nav>
 
-      <section className="portal-content" id="staff-home">
+      <div className={isAdmin ? "admin-workspace-layout" : undefined}>{isAdmin && <AdminSearchSidebar lang={lang} isEn={isEn} />}<section className="portal-content" id="staff-home">
         {!canViewOverview && !isAdmin && !canOperate && !isCashier ? (
           <><div className="portal-heading"><span className="eyebrow">{t('لوحة الموظفين', 'Staff Dashboard')}</span><h1>{t('أهلًا،', 'Welcome,')} {staffName(staff, lang)}</h1></div><div className="portal-card staff-placeholder"><p>{t(`تم تسجيل دخولك بصلاحية ${ROLE_NAMES[staff.role].ar}. ستُضاف الشاشات الخاصة بهذا الدور في مرحلة لاحقة.`, `Signed in as ${ROLE_NAMES[staff.role].en}. Role-specific screens will be added in a future update.`)}</p></div></>
         ) : view === 'analytics' && canViewOverview ? (
@@ -649,9 +650,11 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             </nav>}
           </>
         )}
-      </section>
+      </section></div>
       <footer className="page-footer"><span>CRDC</span><span>{isEn ? 'Consultation, Research & Development Center' : 'مركز الاستشارات والبحوث والتطوير'}</span><span>{isEn ? 'Staff Console' : 'لوحة الموظفين'}</span></footer>
     </main>
   )
 }
+
+
 
