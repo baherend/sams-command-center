@@ -65,6 +65,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const [queueLoading, setQueueLoading] = useState(false)
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterWorkType, setFilterWorkType] = useState('all')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  useEffect(() => { const timer = setTimeout(() => { setSearch(searchInput.trim()); setPageIndex(0); setCursorStack([null]) }, 400); return () => clearTimeout(timer) }, [searchInput])
   const [pageIndex, setPageIndex] = useState(0)
   const [cursorStack, setCursorStack] = useState<(PageCursor | null)[]>([null])
   const [pageHasMore, setPageHasMore] = useState(false)
@@ -78,6 +81,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
   const catalogLoadedRef = useRef(false)
   const [selectedJournalByItem, setSelectedJournalByItem] = useState<Record<number, number>>({})
   const [selectedIssueByItem, setSelectedIssueByItem] = useState<Record<number, number | ''>>({})
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<number>>(new Set())
   const [operationLoading, setOperationLoading] = useState(false)
   const [busyItem, setBusyItem] = useState<number | null>(null)
   const singleFlight = useSingleFlight()
@@ -122,6 +126,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
           p_direction: 'next',
           p_work_type: filterWorkType === 'all' ? null : filterWorkType,
           p_status_code: filterStatus === 'all' ? null : filterStatus,
+          p_search: search || null,
         })
         if (pageError) throw pageError
         const fetchedRows = (pageData ?? []) as QueueRequest[]
@@ -206,7 +211,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
       }
     })()
     return () => { alive = false }
-  }, [isAdmin, canOperate, view, filterStatus, filterWorkType, pageIndex, pageCursor])
+  }, [isAdmin, canOperate, view, filterStatus, filterWorkType, search, pageIndex, pageCursor])
 
   const countFor = (metric: string, category: string) =>
     Number(rows.find((row) => row.metric === metric && row.category === category)?.request_count ?? 0)
@@ -387,6 +392,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
             {notice && <p className="message success" role="status">{notice[lang]}</p>}
             {error && <p className="message error" role="alert">{error[lang]}</p>}
             <div className="queue-filters portal-card">
+              <label>{isEn ? 'Search' : 'بحث'}<input type="search" name="queue_search" aria-label={t('بحث في الطلبات', 'Search requests')} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={isAdmin ? t('عنوان الرسالة أو اسم الباحث أو رقم الطلب', 'Title, researcher name or request no.') : t('عنوان الرسالة أو رقم الطلب', 'Title or request no.')} maxLength={100} /></label>
               <label>{isEn ? 'Status' : 'الحالة'}<select aria-label={t('التصفية حسب الحالة', 'Filter by status')} value={filterStatus} onChange={(event) => { setFilterStatus(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Statuses' : 'كل الحالات'}</option>{statuses.map((status) => <option key={status.code} value={status.code}>{pickName(status, lang)}</option>)}<option value="MIXED">{isEn ? 'Mixed Stages' : 'مراحل مختلفة'}</option><option value="NO_ITEMS">{isEn ? 'No Items' : 'بدون بنود'}</option></select></label>
               <label>{isEn ? 'Work Type' : 'نوع العمل'}<select aria-label={t('التصفية حسب نوع العمل', 'Filter by work type')} value={filterWorkType} onChange={(event) => { setFilterWorkType(event.target.value); resetPagination() }}><option value="all">{isEn ? 'All Work Types' : 'كل أنواع العمل'}</option><option value="thesis">{isEn ? 'Academic Thesis' : 'رسالة علمية'}</option><option value="paper">{isEn ? 'Research Paper' : 'بحث للنشر'}</option></select></label>
               <span className="queue-result-count">{isEn ? 'Page requests: ' : 'طلبات الصفحة: '}{requests.length.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</span>
@@ -446,7 +452,9 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                 const itemHistory = history.filter((row) => row.item_id === item.item_id)
                 if (!request) return null
                 return <article className="portal-card operational-item" data-testid="assigned-case" data-item-id={item.item_id} key={item.item_id}>
-                  <div className="admin-request-heading"><div><span className="request-type">{serviceLabel ? `${serviceLabel} · ` : ''}{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? pickName(current, lang) : t('غير محدد', 'Unspecified')}</span></div>
+                  <div className="admin-request-heading"><div><span className="request-type">{serviceLabel ? `${serviceLabel} · ` : ''}{request.work_type === 'thesis' ? t('رسالة علمية', 'Academic Thesis') : t('بحث للنشر', 'Research Paper')}</span><h2>{request.work_title}</h2></div><span className="request-card-status">{current ? pickName(current, lang) : t('غير محدد', 'Unspecified')}</span><button type="button" className="quiet-button item-toggle" aria-expanded={expandedItemIds.has(item.item_id)} aria-controls={'item-body-' + item.item_id} onClick={() => setExpandedItemIds((prev) => { const next = new Set(prev); if (next.has(item.item_id)) next.delete(item.item_id); else next.add(item.item_id); return next })} aria-label={expandedItemIds.has(item.item_id) ? t('\u0625\u062e\u0641\u0627\u0621 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644', 'Hide details') : t('\u0639\u0631\u0636 \u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644', 'Show details')}></button></div>
+                  <div id={'item-body-' + item.item_id} className="item-collapse" data-open={expandedItemIds.has(item.item_id) ? 'true' : 'false'} inert={!expandedItemIds.has(item.item_id)}>
+                  <div className="item-collapse-inner">
                   <p className="operational-meta">{t('رقم الطلب', 'Request')} <span dir="ltr">#{request.request_id}</span> · {t('البند', 'Item')} <span dir="ltr">#{item.item_id}</span>{request.file_url ? <> · <a className="quiet-button" href={request.file_url} target="_blank" rel="noopener noreferrer">{t('عرض / تحميل البحث', 'View / Download Research')}</a></> : null}</p>
                   <form className="operation-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void singleFlight(() => updateStatus(item, String(form.get('status')), String(form.get('note') ?? ''))) }}>
                     <label>{t('الحالة التشغيلية', 'Operational Status')}<select name="status" aria-label={t('الحالة التشغيلية', 'Operational Status')} defaultValue=""><option value="" disabled>{t('اختر الحالة', 'Select status')}</option>{statuses.filter((status) => ['IN_PROGRESS', 'REVISIONS', 'COMPLETED', 'DELIVERED'].includes(status.code)).map((status) => <option value={status.code} key={status.code}>{pickName(status, lang)}</option>)}</select></label>
@@ -464,6 +472,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                     <label>{t('العدد', 'Issue')}<select name="issue_id" value={selectedIssueByItem[item.item_id] ?? publication.issue_id ?? ''} onChange={(event) => setSelectedIssueByItem((current) => ({ ...current, [item.item_id]: event.target.value ? Number(event.target.value) : '' }))}><option value="">{t('دون عدد', 'No issue assigned')}</option>{issues.filter((issue) => issue.journal_id === (selectedJournalByItem[item.item_id] ?? publication.journal_id)).map((issue) => <option value={issue.issue_id} key={issue.issue_id}>{issue.issue_month}/{issue.issue_year}</option>)}</select></label>
                     <button className="primary-button" disabled={busyItem !== null}>{busyItem === item.item_id ? t('جارٍ الحفظ...', 'Saving...') : t('حفظ قرار النشر', 'Save Publication Decision')}</button>
                   </form>}
+                  </div>
+                  </div>
                 </article>
               })}
             </div> : <div className="portal-card empty-requests"><h2>{isAdmin ? t('لا توجد بنود للعرض', 'No Items to Display') : t('لا توجد طلبات مسندة إليك', 'No Assigned Requests')}</h2><p>{isAdmin ? t('لا توجد بنود ضمن الصفحة الحالية.', 'There are no items on the current page.') : t('ستظهر هنا البنود التي عيّنها مدير النظام لحسابك.', 'Items assigned to your account by the admin will appear here.')}</p></div>}

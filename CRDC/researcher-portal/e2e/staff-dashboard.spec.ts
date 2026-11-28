@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
-import type { Page, Response } from '@playwright/test'
+import type { Locator, Page, Response } from '@playwright/test'
 
 const supabaseUrl = process.env.SUPABASE_URL!
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -26,6 +26,13 @@ const kpiLabels = [
 const rangeLabels = ['الكل', 'آخر 30 يوم', 'آخر 90 يوم', 'آخر سنة']
 const trendTitles = ['عدد الطلبات شهريًا', 'الإيراد الموثّق شهريًا (جنيه)', 'الإيراد الموثّق شهريًا (دولار)']
 const isAnalyticsCall = (response: Response) => response.url().includes('get_analytics_dashboard') && response.request().method() === 'POST'
+
+async function openCard(card: Locator) {
+  const toggle = card.locator('.item-toggle')
+  await expect(toggle).toBeVisible()
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+}
 
 async function expectNoResearcherPii(page: Page, payload: unknown) {
   const badKeys = collectKeys(payload).filter((key) => piiKey.test(key) && !allowedNameKeys.includes(key))
@@ -232,6 +239,7 @@ test('publication issue options follow the journal selected in the editor', asyn
   await page.getByLabel('التصفية حسب نوع العمل').selectOption('paper')
   await nav.getByRole('button', { name: 'كل الطلبات والبنود' }).click()
 
+  await openCard(page.locator('.operational-item').filter({ has: page.locator('.publication-editor') }).first())
   const editor = page.locator('.publication-editor').first()
   await expect(editor).toBeVisible()
   const journalSelect = editor.locator('select[name="journal_id"]')
@@ -281,6 +289,7 @@ test('assigned reviewer updates a case and cannot see another reviewer case', as
   await expect(nav).toBeVisible()
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
   const assigned = page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[0].item_id}"]`)
+  await openCard(assigned)
   await expect(assigned).toBeVisible()
   await expect(assigned.getByText('ستظهر الملاحظة للباحث')).toBeVisible()
   await expect(page.locator(`[data-testid="assigned-case"][data-item-id="${fixtureItems[1].item_id}"]`)).toHaveCount(0)
@@ -330,6 +339,7 @@ test('reviewer sees all journals and switches publication journal on a single as
   await expect(nav).toBeVisible()
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
 
+  await openCard(page.locator('.operational-item').filter({ has: page.locator('.publication-editor') }).first())
   const editor = page.locator('.publication-editor').first()
   await expect(editor).toBeVisible()
   const journalSelect = editor.locator('select[name="journal_id"]')
@@ -351,6 +361,7 @@ test('reviewer sees all journals and switches publication journal on a single as
 
   await page.reload()
   await nav.getByRole('button', { name: 'الطلبات المسندة إليّ' }).click()
+  await openCard(page.locator('.operational-item').filter({ has: page.locator('.publication-editor') }).first())
   const reloadedEditor = page.locator('.publication-editor').first()
   await expect(reloadedEditor.locator('select[name="journal_id"]')).toHaveValue(String(otherJournal.journal_id))
   await expect(reloadedEditor.locator('select[name="issue_id"]')).toHaveValue(String(targetIssue.issue_id))
