@@ -199,7 +199,7 @@ export default function PublicHome() {
           <div className="estimator-grid">
             <div className="estimator-controls">
               <fieldset className="segmented">
-                <legend>{t('نوع الباحث', 'Applicant type')}</legend>
+                <legend>{t('فئة الباحث', 'Applicant category')}</legend>
                 <div className="segmented-track">
                   <button type="button" aria-pressed={applicant === 'egyptian'} onClick={() => setApplicant('egyptian')}>{t('مصري', 'Egyptian')}</button>
                   <button type="button" aria-pressed={applicant === 'foreign'} onClick={() => setApplicant('foreign')}>{t('وافد', 'International')}</button>

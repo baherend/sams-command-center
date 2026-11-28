@@ -248,7 +248,7 @@ export default function AnalyticsDashboard() {
             </section>
 
             <section className="portal-card" aria-labelledby="an-mix">
-              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Applicant Type' : 'نوع الباحث'}</span><h2 id="an-mix">{isEn ? 'Egyptian vs. International' : 'مصريون ووافدون'}</h2></div></div>
+              <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Applicant Category' : 'فئة الباحث'}</span><h2 id="an-mix">{isEn ? 'Egyptian vs. International' : 'مصريون ووافدون'}</h2></div></div>
               <MixChart egyptian={data.applicant_mix.egyptian_requests} foreign={data.applicant_mix.foreign_requests} />
             </section>
 

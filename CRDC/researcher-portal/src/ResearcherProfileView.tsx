@@ -79,7 +79,7 @@ export default function ResearcherProfileView({ profile, onProfileUpdated, setNo
             <article className="portal-card profile-card"><div className="profile-card-header"><div className="success-orbit"><span>✓</span></div><div><span className="eyebrow">{t('حسابك جاهز', 'Account Active')}</span><h2>{profile.full_name}</h2></div></div>
               <h3>{isEn ? 'Edit Personal Details' : 'تعديل البيانات الشخصية'}</h3>
               <form className="form-stack" onSubmit={submitProfileEdit}>
-                <label>{isEn ? 'Applicant Type' : 'نوع الباحث'}<input value={profile.applicant_type === 'egyptian' ? (isEn ? 'Egyptian' : 'مصري') : (isEn ? 'International / Foreign' : 'وافد')} readOnly /></label>
+                <label>{isEn ? 'Applicant Category' : 'فئة الباحث'}<input value={profile.applicant_type === 'egyptian' ? (isEn ? 'Egyptian' : 'مصري') : (isEn ? 'International / Foreign' : 'وافد')} readOnly /></label>
                 <label>{isEn ? 'Email Address' : 'البريد الإلكتروني'}<input value={profile.email} dir="ltr" readOnly /></label>
                 <label>{profile.applicant_type === 'egyptian' ? t('الرقم القومي', 'National ID') : t('رقم جواز السفر', 'Passport Number')}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
                 {profile.applicant_type === 'foreign' && <label>{t('الجنسية', 'Nationality')}<input value={profile.nationality ?? ''} readOnly /></label>}

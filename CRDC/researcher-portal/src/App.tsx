@@ -457,7 +457,7 @@ export default function App() {
               <p className="card-description">{t('أدخل بياناتك الأساسية لتجهيز ملفك في المركز.', 'Enter your basic details so we can set up your profile at the center.')}</p>
               <form className="form-stack" onSubmit={handleProfile}>
                 <label>{t('الاسم بالكامل', 'Full Name')}<input name="full_name" autoComplete="name" required minLength={3} placeholder={t('الاسم كما تريد أن يظهر في الطلب', 'Full name as it should appear on requests')} /></label>
-                <label>{t('نوع الباحث', 'Applicant Type')}<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">{t('مصري', 'Egyptian')}</option><option value="foreign">{t('وافد', 'International / Foreign')}</option></select></label>
+                <label>{t('فئة الباحث', 'Applicant Category')}<select name="applicant_type" value={profileApplicantType} onChange={(event) => setProfileApplicantType(event.target.value as 'egyptian' | 'foreign')}><option value="egyptian">{t('مصري', 'Egyptian')}</option><option value="foreign">{t('وافد', 'International / Foreign')}</option></select></label>
                 <div className="two-fields">
                   {profileApplicantType === 'egyptian' ? (
                     <label>{t('الرقم القومي', 'National ID')}<input name="national_id" inputMode="numeric" pattern="[23][0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{7}" minLength={14} maxLength={14} required placeholder={t('١٤ رقمًا', '14 digits')} /></label>

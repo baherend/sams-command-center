@@ -182,7 +182,7 @@ export default function CashierQueueView({ isAdmin, isCashier, statusById, onSta
                 <dl className="cashier-receipt-facts">
                   <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{payment.request_id}</span></dd>
                   <dt>{t('الباحث', 'Researcher')}</dt><dd>{contact?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{contact?.email ?? ''}</small></dd>
-                  <dt>{t('نوع الباحث', 'Applicant Type')}</dt><dd>{contact?.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
+                  <dt>{t('فئة الباحث', 'Applicant Category')}</dt><dd>{contact?.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
                   <dt>{t('رقم الإيصال', 'Receipt No.')}</dt><dd><span dir="ltr">{payment.receipt_no}</span></dd>
                   <dt>{t('تاريخ السداد', 'Payment Date')}</dt><dd>{formatDate(payment.paid_at, lang)}</dd>
                   <dt>{t('قناة السداد', 'Payment Channel')}</dt><dd>{payment.channel === 'treasury' ? t('الخزينة', 'Treasury') : t('البنك', 'Bank')}</dd>

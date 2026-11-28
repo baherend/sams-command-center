@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState, useRef } from 'react'
 import { supabase } from './supabase'
 import { UiError, friendlyErrorText, useSingleFlight, type LocalizedText } from './errors'
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'))
@@ -369,8 +369,8 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
               <>
                 <div className="staff-stat-grid">
                   <article className="portal-card staff-stat-card"><span>{isEn ? 'Total Requests' : 'إجمالي الطلبات'}</span><strong>{total.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'All registered requests' : 'كل الطلبات المسجلة'}</small></article>
-                  <article className="portal-card staff-stat-card"><span>{isEn ? 'Egyptian Requests' : 'طلبات المصريين'}</span><strong>{egyptian.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant type' : 'حسب نوع الباحث'}</small></article>
-                  <article className="portal-card staff-stat-card"><span>{isEn ? 'International Requests' : 'طلبات الوافدين'}</span><strong>{foreign.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant type' : 'حسب نوع الباحث'}</small></article>
+                  <article className="portal-card staff-stat-card"><span>{isEn ? 'Egyptian Requests' : 'طلبات المصريين'}</span><strong>{egyptian.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant category' : 'حسب فئة الباحث'}</small></article>
+                  <article className="portal-card staff-stat-card"><span>{isEn ? 'International Requests' : 'طلبات الوافدين'}</span><strong>{foreign.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</strong><small>{isEn ? 'By applicant category' : 'حسب فئة الباحث'}</small></article>
                 </div>
                 <section className="portal-card staff-status-card" aria-labelledby="status-heading">
                   <div className="staff-section-heading"><div><span className="eyebrow">{isEn ? 'Request Distribution' : 'توزيع الطلبات'}</span><h2 id="status-heading">{isEn ? 'By Status' : 'حسب الحالة'}</h2></div><span className="role-badge">{isEn ? 'Aggregated View' : 'عرض مجمّع'}</span></div>
@@ -406,7 +406,7 @@ export default function StaffConsole({ staff, onSignOut }: { staff: StaffProfile
                       <dl className="admin-request-facts">
                         <dt>{t('رقم الطلب', 'Request ID')}</dt><dd><span dir="ltr">#{request.request_id}</span></dd>
                         <dt>{t('الباحث', 'Researcher')}</dt><dd>{requester?.full_name ?? t('بيانات الباحث غير متاحة', 'Researcher details unavailable')} <small dir="ltr">{requester?.email ?? ''}</small></dd>
-                        <dt>{t('نوع الباحث', 'Applicant Type')}</dt><dd>{request.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
+                        <dt>{t('فئة الباحث', 'Applicant Category')}</dt><dd>{request.applicant_type === 'egyptian' ? t('مصري', 'Egyptian') : t('وافد', 'International')}</dd>
                         <dt>{t('تاريخ التقديم', 'Submitted On')}</dt><dd>{formatDate(request.created_at, lang)}</dd>
                         <dt>{t('عدد البنود', 'Service Items')}</dt><dd>{request.item_count.toLocaleString(isEn ? 'en-US' : 'ar-EG')}</dd>
                         <dt>{t('المعيّنون حاليًا', 'Currently Assigned')}</dt><dd className="assigned-staff-names">{assignedNames.length ? assignedNames.join('، ') : t('لم يُعيَّن أحد بعد', 'Not assigned yet')}</dd>
