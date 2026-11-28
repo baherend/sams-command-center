@@ -84,7 +84,7 @@ export default function ResearcherProfileView({ profile, onProfileUpdated, setNo
                 <label>{profile.applicant_type === 'egyptian' ? t('الرقم القومي', 'National ID') : t('رقم جواز السفر', 'Passport Number')}<input value={profile.applicant_type === 'egyptian' ? profile.national_id ?? '' : profile.passport_no ?? ''} dir="ltr" readOnly /></label>
                 {profile.applicant_type === 'foreign' && <label>{t('الجنسية', 'Nationality')}<input value={profile.nationality ?? ''} readOnly /></label>}
                 <label>{isEn ? 'Full Name' : 'الاسم بالكامل'}<input name="full_name" defaultValue={profile.full_name} minLength={3} required /></label>
-                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{pickName(degree, lang)}</option>)}</select></label>
+                <label>{isEn ? 'Academic Degree' : 'الدرجة العلمية'}<select key={degrees.length} name="degree_id" defaultValue={profile.degree_id ?? ''}><option value="">{t('بدون تحديد', 'Not specified')}</option>{degrees.map((degree) => <option key={degree.degree_id} value={degree.degree_id}>{pickName(degree, lang)}</option>)}</select></label>
                 <label>{isEn ? 'Specialty' : 'التخصص'}<input name="specialty" defaultValue={profile.specialty ?? ''} /></label>
                 <button className="primary-button" disabled={profileSaving}>{profileSaving ? (isEn ? 'Saving changes...' : 'جارٍ حفظ التعديلات...') : (isEn ? 'Save Changes' : 'حفظ التعديلات')}</button>
               </form>
